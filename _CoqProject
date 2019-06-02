@@ -7,6 +7,7 @@
 Structures/BloomFilter.v
 Structures/FixedList.v
 Structures/FixedMap.v
+Structures/BitVector.v
 Structures/Hash.v
 Probability/Comp.v
 Probability/Notationv1.v
