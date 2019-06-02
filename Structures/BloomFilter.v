@@ -94,6 +94,10 @@ Section BloomFilter.
       ret (bloomfilter_set_bit hash_index new_bf).
                                   
 
+  Definition bloomfilter_check_state (hash_result: Comp [finType of (BloomFilter * 'I_(Hash_size.+1))]) : Comp [finType of bool] :=
+    result <-$ hash_result;
+      let: (new_bf, hash_index) := result in
+      ret (bloomfilter_get_bit hash_index new_bf).
 
 
   Definition comp_fst (A B : finType) (cmp: Comp [finType of (A * B)]) :=
@@ -131,8 +135,33 @@ Section BloomFilter.
 
 
 
-  Definition bloomfilter_query (value: B) (bf: BloomFilter ) : bool.
-  Admitted.
+  Fixpoint bloomfilter_query_internal (value: B) (bf: BloomFilter) (pos: nat) (Hpos: pos < k) : Comp [finType of bool].
+    case Heqpos': pos => [|pos'].
+    (* Case 1: pos is 0 *)
+        (* then update bitvector and return *)
+        move: (bloomfilter_calculate_hash (Ordinal Hpos) value bf) => /bloomfilter_check_state  updated_state.
+        exact updated_state.
+
+    (* Case 2: pos is pos.+1 *)
+        move: (Hpos); rewrite Heqpos' -(addn1 pos') => /InvMisc.addr_ltn Hpos'.
+        (* then update the bitvector*)
+        move: (bloomfilter_calculate_hash (Ordinal Hpos) value bf) => updated_state.
+        (* and recurse on a smaller argument *)
+        exact (@Bind _ _ updated_state
+                      (fun updated_state => 
+                         let: (new_bf, hash_index) := updated_state in
+                         match (bloomfilter_get_bit hash_index new_bf) with
+                           true => bloomfilter_query_internal value new_bf pos' Hpos'
+                         | false => ret false
+                                       
+                         end
+                      )
+               ).
+        Qed.
+
+
+ 
+  Definition bloomfilter_query (value: B) (bf: BloomFilter ) : Comp [finType of bool] := bloomfilter_query_internal value bf Hpredkvld.
 
 
 End BloomFilter.
