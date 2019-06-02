@@ -15,9 +15,7 @@ From BloomFilter
 Require Import Parameters Hash Comp Notationv1 .
 
 
-(* A fomalization of a bloom filter structure *)
-Definition BloomFilter k n := k.-tuple (HashState n).
+Definition BitVector := Hash_size.-tuple bool.
 
-(* The first approximation: a number of axioms *)
-About hash.
+Definition bitvector_eq (a b: BitVector) : bool := eqseq (tval a) (tval b).
 
