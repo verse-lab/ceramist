@@ -1,72 +1,92 @@
 From mathcomp.ssreflect
-Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq path.
+     Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq path.
 
 From mathcomp.ssreflect
-Require Import tuple.
+     Require Import tuple.
 
 From mathcomp
-Require Import path.
+     Require Import path.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 From BloomFilter
-Require Import Parameters Hash Comp Notationv1 BitVector.
+     Require Import Parameters Hash Comp Notationv1 BitVector FixedList.
 
 
-(*
-   A fomalization of a bloom filter structure
+Section BloomFilter.
+  (*
+   A fomalization of a bloom filter structure and properties
 
-   k - number of hashes
-   n - maximum number of hashes supported
- *)
-Record BloomFilter k n := mkBloomFilter {
-       bloomfilter_hashes: k.-tuple (HashState n);
-       bloomfilter_state: BitVector
-}.
+   *)
 
-Definition BloomFilter_prod k n (bf: BloomFilter k n) := (bloomfilter_hashes bf, bloomfilter_state bf).
-Definition prod_BloomFilter k n pair := let: (hashes, state) := pair in @mkBloomFilter k n hashes state.
-
-Lemma bloomfilter_cancel k n : cancel (@BloomFilter_prod k n) (@prod_BloomFilter k n).
-Proof.
-  by case.
-Qed.
+  (*
+    k - number of hashes
+   *)
+  Variable k: nat.
+  (*
+    n - maximum number of hashes supported
+  *)
+  Variable n: nat.
 
 
-Definition bloomfilter_eqMixin k n :=
-  CanEqMixin (@bloomfilter_cancel k n).
-Canonical bloomfilter_eqType k n :=
-  Eval hnf in EqType (@BloomFilter k n) (bloomfilter_eqMixin k n).
+  Record BloomFilter := mkBloomFilter {
+                                bloomfilter_hashes: k.-tuple (HashState n);
+                                bloomfilter_state: BitVector
+                              }.
 
-Definition bloomfilter_choiceMixin k n:=
-  CanChoiceMixin (@bloomfilter_cancel k n).
-Canonical bloomfilter_choiceType k n :=
-  Eval hnf in ChoiceType (@BloomFilter k n ) (bloomfilter_choiceMixin k n).
+  Definition BloomFilter_prod (bf: BloomFilter) := (bloomfilter_hashes bf, bloomfilter_state bf).
+  Definition prod_BloomFilter  pair := let: (hashes, state) := pair in mkBloomFilter  hashes state.
 
-Definition bloomfilter_countMixin k n :=
-  CanCountMixin (@bloomfilter_cancel k n).
-Canonical bloomfilter_countType k n :=
-  Eval hnf in CountType (@BloomFilter k n) (bloomfilter_countMixin k n).
-
-Definition bloomfilter_finMixin k n :=
-  CanFinMixin (@bloomfilter_cancel k n).
-Canonical bloomfilter_finType k n :=
-Eval hnf in FinType (@BloomFilter k n) (bloomfilter_finMixin k n).
-
-(* The first approximation: a number of axioms *)
-
-Definition bloomfilter_add k n (value: B) (bf: BloomFilter k n) : Comp [finType of (BloomFilter k n)].
-  Admitted.
+  Lemma bloomfilter_cancel : cancel (BloomFilter_prod) (prod_BloomFilter).
+  Proof.
+      by case.
+  Qed.
 
 
-Fixpoint bloomfilter_add_internal k n (value: B) (bf: BloomFilter k n) : BloomFilter k n.
-Proof.
-  move: bf => [[xs H_xs] bvec].
+  Definition bloomfilter_eqMixin :=
+    CanEqMixin bloomfilter_cancel .
+  Canonical bloomfilter_eqType  :=
+    Eval hnf in EqType BloomFilter  bloomfilter_eqMixin .
+
+  Definition bloomfilter_choiceMixin :=
+    CanChoiceMixin bloomfilter_cancel.
+  Canonical bloomfilter_choiceType  :=
+    Eval hnf in ChoiceType BloomFilter  bloomfilter_choiceMixin.
+
+  Definition bloomfilter_countMixin :=
+    CanCountMixin bloomfilter_cancel.
+  Canonical bloomfilter_countType :=
+    Eval hnf in CountType BloomFilter  bloomfilter_countMixin.
+
+  Definition bloomfilter_finMixin :=
+    CanFinMixin bloomfilter_cancel .
+  Canonical bloomfilter_finType :=
+    Eval hnf in FinType BloomFilter  bloomfilter_finMixin.
+
+  (* The first approximation: a number of axioms *)
+  About set_tnth.
 
 
-Definition bloomfilter_query k n (value: B) (bf: BloomFilter k n) : bool.
-  Admitted.
+  Definition bloomfilter_set_bit (value: 'I_(Hash_size.+1)) bf : BloomFilter :=
+    mkBloomFilter
+      (bloomfilter_hashes bf)
+    (set_tnth (bloomfilter_state bf) true value).
 
 
+               Definition bloomfilter_add (value: B) (bf: BloomFilter) : Comp [finType of BloomFilter].
+               Admitted.
+
+
+               Fixpoint bloomfilter_add_internal (value: B) (bf: BloomFilter) : BloomFilter.
+               Proof.
+                 move: bf => [[xs H_xs] bvec].
+                 Admitted.
+
+
+                 Definition bloomfilter_query (value: B) (bf: BloomFilter ) : bool.
+                 Admitted.
+
+
+End BloomFilter.
