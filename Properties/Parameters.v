@@ -6,3 +6,5 @@ Parameter B: finType.
 
 (* size of hash output and bitvector output *)
 Parameter Hash_size: nat.
+
+
