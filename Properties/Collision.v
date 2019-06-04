@@ -18,6 +18,19 @@ Unset Printing Implicit Defensive.
 From BloomFilter
      Require Import Parameters Hash Comp Notationv1 BitVector BloomFilter.
 
+(*
+Proof idea
+----------
+
+1. if hashstate_find value hash_state is None, then the output of the hash function is uniformly distributed from 0..Hash_size.+1
+2. folding on a list of values such that all the values are not-equal ensures that hashstate_find value is always None
+3. after insert, probability of all hash functions not setting a bit is (1 - 1/(Hash_size.+1))^k.
+4. after k inserts,  probability of all hash functions not setting a bit is (1 - 1/(Hash_size.+1))^kn.
+5. after k inserts,  probability of all hash functions setting a bit is 1 - (1 - 1/(Hash_size.+1))^kn.
+
+
+
+ *)
 Lemma hash_uni n
       (hash_state: HashState n)
       value
