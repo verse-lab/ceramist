@@ -30,6 +30,17 @@ Notation "x <-$ c1 ; c2" := (@Bind _ _ c1 (fun x => c2))
 Notation "x <- e1 ; e2" := ((fun x => e2) e1)
     (right associativity, at level 81, e1 at next level).
 
+Notation "'P[' a '===' b ']'" := (proba.pmf (evalDist a) b).
+
+Notation "'P[' a ']'" := (proba.pmf (evalDist a) true).
+
+Notation "'E[' a ']'" := (expected_value a).
+
+Notation " a '|>' b " := (w_a <-$ a; b w_a) (at level 50).
+
+Notation " w '>>=' a '<&&>' b " := (fun w => ret (a  && b )) (at level 49).
+
+Notation " w '>>=' a '<||>' b " := (fun w => ret (a || b )) (at level 49).
 
 Definition example :=
     x <- 3;

@@ -160,7 +160,7 @@ Section BloomFilter.
         Qed.
 
 
- 
+
   Definition bloomfilter_query (value: B) (bf: BloomFilter ) : Comp [finType of bool] := bloomfilter_query_internal value bf Hpredkvld.
 
 
