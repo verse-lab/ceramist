@@ -36,15 +36,23 @@ Lemma hash_uni n
       (hash_state: HashState n)
       value
       (hash_value: 'I_Hash_size.+1) :
-    (hashstate_find _ value hash_state == None) ->
-    (P[ ((hash n value hash_state) |> (fun h => ret (snd h ))) === hash_value ] = (Rdefinitions.Rdiv (Raxioms.INR 1)  (Raxioms.INR #|ordinal Hash_size.+1|))).
-  Proof.
+  (hashstate_find _ value hash_state == None) ->
+  (P[ ((hash n value hash_state) |> (fun h => ret (snd h ))) === hash_value ] = (Rdefinitions.Rdiv (Raxioms.INR 1)  (Raxioms.INR #|ordinal Hash_size.+1|))).
+Proof.
 
-    move=>/eqP Hhsfindnone.
-    rewrite /hash Hhsfindnone //=.
-    rewrite  DistBindA //=.
-    rewrite DistBindp1.
-    rewrite (functional_extensionality (fun x : 'I_Hash_size.+1 => DistBind.d (Dist1.d (hashstate_put n value x hash_state, x)) (fun b : HashState n * 'I_Hash_size.+1 => Dist1.d b.2)) (fun x : 'I_Hash_size.+1 => Dist1.d x)); first last.
-        by move=> x; rewrite DistBind1f //=.
-          by  rewrite DistBindp1 Uniform.dE div1R  //=.
+  move=>/eqP Hhsfindnone.
+  rewrite /hash Hhsfindnone //=.
+  rewrite  DistBindA //=.
+  rewrite DistBindp1.
+  rewrite (functional_extensionality (fun x : 'I_Hash_size.+1 => DistBind.d (Dist1.d (hashstate_put n value x hash_state, x)) (fun b : HashState n * 'I_Hash_size.+1 => Dist1.d b.2)) (fun x : 'I_Hash_size.+1 => Dist1.d x)); first last.
+    by move=> x; rewrite DistBind1f //=.
+      by  rewrite DistBindp1 Uniform.dE div1R  //=.
 Qed.
+
+
+About BloomFilter.
+
+Lemma bloomfilter_putq n (
+
+(* TODO: No False Negatives *)
+(* Theorem no_false_negative *)

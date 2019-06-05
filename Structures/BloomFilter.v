@@ -39,12 +39,14 @@ Section BloomFilter.
 
 
   Record BloomFilter := mkBloomFilter {
+                            bloomfilter_cnt: 'I_k;
                             bloomfilter_hashes: k.-tuple (HashState n);
                             bloomfilter_state: BitVector
                           }.
 
-  Definition BloomFilter_prod (bf: BloomFilter) := (bloomfilter_hashes bf, bloomfilter_state bf).
-  Definition prod_BloomFilter  pair := let: (hashes, state) := pair in mkBloomFilter  hashes state.
+  Definition BloomFilter_prod (bf: BloomFilter) :=
+    (bloomfilter_cnt bf, bloomfilter_hashes bf, bloomfilter_state bf).
+  Definition prod_BloomFilter  pair := let: (cnt, hashes, state) := pair in @mkBloomFilter cnt hashes state.
 
   Lemma bloomfilter_cancel : cancel (BloomFilter_prod) (prod_BloomFilter).
   Proof.
@@ -75,6 +77,7 @@ Section BloomFilter.
 
   Definition bloomfilter_set_bit (value: 'I_(Hash_size.+1)) bf : BloomFilter :=
     mkBloomFilter
+      (bloomfilter_cnt bf)
       (bloomfilter_hashes bf)
       (set_tnth (bloomfilter_state bf) true value).
 
@@ -85,7 +88,7 @@ Section BloomFilter.
     let: hash_state := tnth (bloomfilter_hashes bf) index in
     hash_out <-$ (@hash _ input hash_state);
       let: (new_hash_state, hash_value) := hash_out in
-      ret (mkBloomFilter (set_tnth (bloomfilter_hashes bf) new_hash_state index) (bloomfilter_state bf), hash_value).
+      ret (mkBloomFilter (bloomfilter_cnt bf) (set_tnth (bloomfilter_hashes bf) new_hash_state index) (bloomfilter_state bf), hash_value).
 
 
   Definition bloomfilter_update_state (index: 'I_k) (hash_result: Comp [finType of (BloomFilter * 'I_(Hash_size.+1))]) : Comp [finType of BloomFilter] :=
@@ -130,8 +133,21 @@ Section BloomFilter.
                ).
         Qed.
 
+  Search _ (ordinal _).
 
-  Definition bloomfilter_add (value: B) (bf: BloomFilter) : Comp [finType of BloomFilter] := bloomfilter_add_internal value bf Hpredkvld.
+  Definition try_incr (count: 'I_k) : 'I_k.
+        case_eq (count.+1 < k) =>  H.
+        exact (Ordinal H).
+        exact count.
+    Defined.
+
+  Definition bloomfilter_add (value: B) (bf: BloomFilter) : Comp [finType of BloomFilter] :=
+    bf <-$ bloomfilter_add_internal value bf Hpredkvld;
+      ret (mkBloomFilter
+            (try_incr (bloomfilter_cnt bf))
+            (bloomfilter_hashes bf)
+            (bloomfilter_state  bf)
+          ).
 
 
 
