@@ -93,8 +93,23 @@ Section BloomFilter.
       apply/eqP => //=.
       rewrite Dist1.one //=.
       apply /eqP .
-      Search _ DistBind.d.
-  .
+      move: (Hpredkvld _).
+      elim: k.-1 => [//=|] .
+      rewrite /hash//= => Hltn.
+      rewrite -!DistBindA//=.
+      case Heqn: (hashstate_find _) => [Hrslt|]//=.
+      rewrite !DistBindA!DistBind1f //=.
+      have: (tnth (FixedList.set_tnth (bloomfilter_hashes bf) (tnth (bloomfilter_hashes bf) (Ordinal Hltn)) 0) 
+                 (Ordinal Hltn)) = (tnth (bloomfilter_hashes bf) (Ordinal Hltn)).
+      (* todo - should be trivial - tnth set_tnth cancel each other out *)
+        admit.
+      move=> ->; rewrite Heqn //=.
+      rewrite !DistBindA!DistBind1f/bloomfilter_get_bit //=.
+      move: (erefl _).
+      move: Hrslt Heqn => [hshind Hhshind] //= .
+      elim: hshind Hhshind => //= hshind Hhshind.
+
+Admitted.
 
 (* TODO: No False Negatives *)
 (* Theorem no_false_negative *)
