@@ -32,6 +32,9 @@ Proof idea
 
 
  *)
+
+Section Hash.
+
 Lemma hash_uni n
       (hash_state: HashState n)
       value
@@ -49,10 +52,42 @@ Proof.
       by  rewrite DistBindp1 Uniform.dE div1R  //=.
 Qed.
 
+End Hash.
 
-About BloomFilter.
 
-Lemma bloomfilter_putq n (
+
+Section BloomFilter.
+
+  (*
+    k - number of hashes
+   *)
+  Variable k: nat.
+  (*
+    n - maximum number of hashes supported
+   *)
+  Variable n: nat.
+  (* valid k *)
+  Variable Hkgt0: k >0.
+
+  About bloomfilter_add.
+  About bloomfilter_query.
+
+
+  Definition bloomfilter_not_full (bf: BloomFilter k n) : bool.
+  (* provided the finite maps of all the hash function are not full*)
+  Admitted.
+
+
+  Lemma bloomfilter_addq (bf: BloomFilter k n) (value: B):
+    (* provided bf is not full *)
+    bloomfilter_not_full bf ->
+    (* if bf' is the result of inserting into bf *)
+    forall bf',  P[ (bloomfilter_add Hkgt0 value bf) === bf']   = (Raxioms.INR 1) ->
+    (* bloomfilter_query for value will always reture true *)
+     P[ (bloomfilter_query Hkgt0 value bf') ] = (Raxioms.INR 1).
+
+
+  .
 
 (* TODO: No False Negatives *)
 (* Theorem no_false_negative *)
