@@ -82,58 +82,18 @@ Section BloomFilter.
     (* provided bf is not full *)
     bloomfilter_not_full bf ->
     (* if bf' is the result of inserting into bf *)
-    forall bf',  P[ (bloomfilter_add Hkgt0 value bf) === bf']   = (Raxioms.INR 1) ->
+    P[(bf' <-$ bloomfilter_add Hkgt0 value bf;
     (* bloomfilter_query for value will always reture true *)
-     P[ (bloomfilter_query Hkgt0 value bf') ] = (Raxioms.INR 1).
+         (bloomfilter_query Hkgt0 value bf'))] =
+    (Raxioms.INR 1).
     Proof.
-      rewrite /bloomfilter_not_full => /allP Hnfl bf'. 
+      rewrite /bloomfilter_not_full => /allP Hnfl. 
       rewrite /bloomfilter_add/bloomfilter_query//=.
       rewrite RIneq.INR_IZR_INZ //=.
-      move=> /eqP.
-      rewrite Dist1.one //= => /eqP Hdistbf'.
-      apply /eqP => //=.
-      rewrite Dist1.one .
-      rewrite /bloomfilter_query_internal //=.
-      move: (Hpredkvld  _) .
-      elim: k Hkgt0 bf bf' Hnfl Hdistbf' => //=.
-      move=> k' IHk' Hk'gt1 bf bf' Hnfl Hdistbf'.
-
-      About functional_extensionality.
-      rewrite /Dist1.d//=.
-      rewrite (functional_extensionality
-                (fix bloomfilter_query_internal (value0 : B) (bf0 : BloomFilter k n) (pos : nat) (Hpos : pos < k) {struct pos} : 
-      Comp [finType of bool] := _)
-                (fun (value0 : B) (bf0 : BloomFilter k n) (pos : nat) (Hpos : pos < k)  => (ret true)) ) => //=.
-      rewrite functional_Example #:# := #.
-      move: (Hpredkvld _).
-      rewrite /bloomfilter_query_internal //=.
-      rewrite /evalDist.
-      rewrite {1}/evalDist //=.
-      rewrite /bloomfilter_add_internal //=.
-      Search _ dist.
-      rewrite fun #:# => #
-      Search _ dist "eq".
-      About dist_eqMixin.
-      Print Equality.mixin_of.
-      Print Equality.axiom.
-      Search _ dist bool.
-      Check (fun x y => x == y :> Rdefinitions.R).
-      Search _ (_ == _ :> Rdefinitions.R).
-      Search _ dist.
-      Search "dist".
-Dist1.one  forall (A : finType) (P : dist A) (a : A), (P a == Rdefinitions.IZR 1 :> Rdefinitions.R) = (P == Dist1.d a :> dist_of (Phant A))
-      Sf
-      move: Hkgt0 bf bf' Hnfl; elim: k => //= k' IHk' Hk' bf bf' Hnfl.
-      rewrite /bloomfilter_add_internal //=.
-      rewrite IHk'.
-      apply IHk'.
-      rewrite /Hpredkvld//=.
-
-      Search _ evalDist.
-      rewrite  /bloomfilter_add //= /bloomfilter_add_internal //=.
-      Search DistBind.d.
-
-
+      apply/eqP => //=.
+      rewrite Dist1.one //=.
+      apply /eqP .
+      Search _ DistBind.d.
   .
 
 (* TODO: No False Negatives *)

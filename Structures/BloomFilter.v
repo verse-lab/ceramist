@@ -100,50 +100,37 @@ Section BloomFilter.
       let: (new_bf, hash_index) := result in
       ret (bloomfilter_get_bit hash_index new_bf).
 
-
-  Definition comp_fst (A B : finType) (cmp: Comp [finType of (A * B)]) :=
-    result <-$ cmp;
-      let: (a,b) := result in
-      ret a.
-
-  Definition comp_snd (A B : finType) (cmp: Comp [finType of (A * B)]) :=
-    result <-$ cmp;
-      let: (a,b) := result in
-      ret b.
+  Lemma Hltn_leq pos pos' (Hpos: pos < k) (Hpos': pos = pos'.+1) : pos' < k.
+      by  move: (Hpos); rewrite {1}Hpos' -{1}(addn1 pos') => /InvMisc.addr_ltn .
+    Qed.  
 
 
-  Fixpoint bloomfilter_add_internal (value: B) (bf: BloomFilter) (pos: nat) (Hpos: pos < k) : Comp [finType of BloomFilter].
-    case Heqpos': pos => [|pos'].
-    (* Case 1: pos is 0 *)
-        (* then update bitvector and return *)
-        move: (bloomfilter_calculate_hash (Ordinal Hpos) value bf) => /(bloomfilter_update_state (Ordinal Hpos)) updated_state.
-        exact updated_state.
-
-    (* Case 2: pos is pos.+1 *)
-        move: (Hpos); rewrite Heqpos' -(addn1 pos') => /InvMisc.addr_ltn Hpos'.
-        (* then update the bitvector*)
-        move: (bloomfilter_calculate_hash (Ordinal Hpos) value bf) => /(bloomfilter_update_state (Ordinal Hpos)) updated_state.
+  Fixpoint bloomfilter_add_internal (value: B) (bf: BloomFilter) (pos: nat) (Hpos: pos < k) : Comp [finType of BloomFilter] :=
+    (
+      match pos as pos' return (pos = pos' -> Comp [finType of BloomFilter]) with
+        (* Case 1: pos is 0 *)
+      | 0 => (fun Hpos': pos = 0 =>
+        (* then update the state and return *)
+               (bloomfilter_update_state (Ordinal Hpos) (bloomfilter_calculate_hash (Ordinal Hpos) value bf)))
+        (* Case 2: pos is pos.+1 *)
+    | pos'.+1 => (fun Hpos': pos = pos'.+1 =>
+        (* then update the state*)
+            (Bind (bloomfilter_update_state (Ordinal Hpos) (bloomfilter_calculate_hash (Ordinal Hpos) value bf)) 
         (* and recurse on a smaller argument *)
-        exact (@Bind _ _ updated_state
-                      (fun new_bf => 
-                                       bloomfilter_add_internal value new_bf pos' Hpos'
-                      )
-               ).
-        Defined.
+                                (fun new_bf => 
+                                       bloomfilter_add_internal value new_bf (Hltn_leq Hpos Hpos')
+                                )
+                    )
+            )
+     end
+    ) (erefl pos).
 
-  Definition try_incr (count: 'I_k) : 'I_k.
-        case_eq (count.+1 < k) =>  H.
-        exact (Ordinal H).
-        exact count.
-    Defined.
+
 
   Definition bloomfilter_add (value: B) (bf: BloomFilter) : Comp [finType of BloomFilter] :=
     bloomfilter_add_internal value bf Hpredkvld.
 
 
-  Lemma Hltn_leq pos pos' (Hpos: pos < k) (Hpos': pos = pos'.+1) : pos' < k.
-      by  move: (Hpos); rewrite {1}Hpos' -{1}(addn1 pos') => /InvMisc.addr_ltn .
-    Qed.  
 
   Fixpoint bloomfilter_query_internal (value : B) (bf : BloomFilter) 
                            (pos : nat) (Hpos : pos < k) {struct pos} :
@@ -156,9 +143,9 @@ Section BloomFilter.
                (bloomfilter_check_state (bloomfilter_calculate_hash (Ordinal Hpos) value bf)))
         (* Case 2: pos is pos.+1 *)
     | pos'.+1 => (fun Hpos': pos = pos'.+1 =>
-        (* then update the bitvector*)
+        (* then check the bitvector*)
             (Bind (bloomfilter_calculate_hash (Ordinal Hpos) value bf) 
-        (* and recurse on a smaller argument *)
+        (* and if successful recurse on a smaller argument *)
                                 (fun updated_state => 
                                     let: (new_bf, hash_index) := updated_state in
                                     match (bloomfilter_get_bit hash_index new_bf) with
