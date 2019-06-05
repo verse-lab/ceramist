@@ -153,6 +153,18 @@ Section BloomFilter.
     move: (Husn (tnth (bloomfilter_hashes bf) (Ordinal H0ltn)) (mem_tnth _ _)) => /eqP -> //=.
     rewrite !DistBindA//= !distbind_dist //=.
     rewrite /bloomfilter_get_bit/bloomfilter_set_bit/bloomfilter_state//.
+    rewrite (functional_extensionality
+            (fun x : 'I_Hash_size.+1 =>
+                Dist1.d (tnth (FixedList.set_tnth (let (_, bloomfilter_state) := bf in bloomfilter_state) true x) ind))
+            (fun x : 'I_Hash_size.+1 =>  Dist1.d (x == ind))
+            ) => //=.
+    move: (Hkenqn) Hkgt0; rewrite PeanoNat.Nat.eq_pred_0 => [[{1}->|]] //= Hkeqn1 Hgt0.
+    move: Hkgt0 H0ltn Hgt0 Hkenqn bf Hnfl Husn Hunset.
+    rewrite Hkeqn1 => _ _ _ _ bf Hnfl Husn Hunset.
+    rewrite Rpower.Rpower_1.
+    rewrite DistBind.dE.
+
+
 
   Admitted.
 
