@@ -69,14 +69,14 @@ Section BloomFilter.
   (* valid k *)
   Variable Hkgt0: k >0.
 
-  About bloomfilter_add.
-  About bloomfilter_query.
 
+  Definition hash_not_full (hsh: HashState n) : bool :=
+    FixedList.fixlist_length hsh < n.
 
-  Definition bloomfilter_not_full (bf: BloomFilter k n) : bool.
+  Definition bloomfilter_not_full (bf: BloomFilter k n) : bool :=
   (* provided the finite maps of all the hash function are not full*)
-  Admitted.
-
+    all hash_not_full (tval (bloomfilter_hashes bf)).
+    
 
   Lemma bloomfilter_addq (bf: BloomFilter k n) (value: B):
     (* provided bf is not full *)
