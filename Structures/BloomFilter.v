@@ -129,7 +129,7 @@ Section BloomFilter.
                                        bloomfilter_add_internal value new_bf pos' Hpos'
                       )
                ).
-        Qed.
+        Defined.
 
   Definition try_incr (count: 'I_k) : 'I_k.
         case_eq (count.+1 < k) =>  H.
@@ -138,39 +138,39 @@ Section BloomFilter.
     Defined.
 
   Definition bloomfilter_add (value: B) (bf: BloomFilter) : Comp [finType of BloomFilter] :=
-    bf <-$ bloomfilter_add_internal value bf Hpredkvld;
-      ret (mkBloomFilter
-            (bloomfilter_hashes bf)
-            (bloomfilter_state  bf)
-          ).
+    bloomfilter_add_internal value bf Hpredkvld.
 
 
+  Lemma Hltn_leq pos pos' (Hpos: pos < k) (Hpos': pos = pos'.+1) : pos' < k.
+      by  move: (Hpos); rewrite {1}Hpos' -{1}(addn1 pos') => /InvMisc.addr_ltn .
+    Qed.  
 
-  Fixpoint bloomfilter_query_internal (value: B) (bf: BloomFilter) (pos: nat) (Hpos: pos < k) : Comp [finType of bool].
-    case Heqpos': pos => [|pos'].
-    (* Case 1: pos is 0 *)
-        (* then update bitvector and return *)
-        move: (bloomfilter_calculate_hash (Ordinal Hpos) value bf) => /bloomfilter_check_state  updated_state.
-        exact updated_state.
-
-    (* Case 2: pos is pos.+1 *)
-        move: (Hpos); rewrite Heqpos' -(addn1 pos') => /InvMisc.addr_ltn Hpos'.
+  Fixpoint bloomfilter_query_internal (value : B) (bf : BloomFilter) 
+                           (pos : nat) (Hpos : pos < k) {struct pos} :
+  Comp [finType of bool] :=
+    (
+      match pos as pos' return (pos = pos' -> Comp [finType of bool]) with
+        (* Case 1: pos is 0 *)
+      | 0 => (fun Hpos': pos = 0 =>
+        (* then check corresponding bitvector and return *)
+               (bloomfilter_check_state (bloomfilter_calculate_hash (Ordinal Hpos) value bf)))
+        (* Case 2: pos is pos.+1 *)
+    | pos'.+1 => (fun Hpos': pos = pos'.+1 =>
         (* then update the bitvector*)
-        move: (bloomfilter_calculate_hash (Ordinal Hpos) value bf) => updated_state.
+            (Bind (bloomfilter_calculate_hash (Ordinal Hpos) value bf) 
         (* and recurse on a smaller argument *)
-        exact (@Bind _ _ updated_state
-                      (fun updated_state => 
-                         let: (new_bf, hash_index) := updated_state in
-                         match (bloomfilter_get_bit hash_index new_bf) with
-                           true => bloomfilter_query_internal value new_bf pos' Hpos'
-                         | false => ret false
-                                       
-                         end
-                      )
-               ).
-        Qed.
+                                (fun updated_state => 
+                                    let: (new_bf, hash_index) := updated_state in
+                                    match (bloomfilter_get_bit hash_index new_bf) with
+                                    true => bloomfilter_query_internal value new_bf (Hltn_leq Hpos Hpos')
+                                    | false => ret false
 
-
+                                    end
+                                )
+                    )
+            )
+     end
+    ) (erefl pos).
 
   Definition bloomfilter_query (value: B) (bf: BloomFilter ) : Comp [finType of bool] := bloomfilter_query_internal value bf Hpredkvld.
 
