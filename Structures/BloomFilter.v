@@ -31,11 +31,41 @@ Section BloomFilter.
   Variable n: nat.
   Variable Hkgt0: k >0.
 
+  (*
+     list of hash functions used in the bloom filter
+   *)
+  Variable hashes:  k.-tuple (HashState n).
+
 
   Lemma Hpredkvld: k.-1 < k.
     Proof.
         by  apply InvMisc.ltnn_subS.
     Qed.
+
+
+  Lemma Hltn_leq pos pos' (Hpos: pos < k) (Hpos': pos = pos'.+1) : pos' < k.
+      by  move: (Hpos); rewrite {1}Hpos' -{1}(addn1 pos') => /InvMisc.addr_ltn .
+    Qed.  
+
+
+
+    Definition hash_vec_int (value: hash_keytype)  (pos: nat) (Hpos: pos < k) : Comp [finType of (k.-tuple (HashState n) * (pos.+1.-tuple 'I_(Hash_size.+1)))] :=
+      (
+        match pos as pos' return (pos = pos' -> Comp [finType of (k.-tuple (HashState n) * (k'.-tuple 'I_(Hash_size.+1)))]) with
+        | 0 => (fun Hpos': pos = 0 =>
+                 (* retrieve the has function *)
+                 let hsh_fun := tnth hashes (Ordinal Hkgt0) in
+                 (* hash the value *)
+                 hash_vl <-$ hash value hsh_fun;
+                 let (new_hsh_fun, result) := hash_vl in
+                 let new_hashes := set_tnth hashes new_hsh_fun 0 in
+                 ret (new_hashes, [tuple result]))
+        | pos'.+1 => (fun Hpos': pos = pos'.+1 =>
+                       Hltn_leq
+
+        )
+
+      ) (erefl pos)
 
 
   Record BloomFilter := mkBloomFilter {
@@ -82,6 +112,17 @@ Section BloomFilter.
   Definition bloomfilter_get_bit (value: 'I_(Hash_size.+1)) bf : bool :=
       (tnth (bloomfilter_state bf) value).
 
+  Check ([:: 1;2;3]).
+
+  Fixpoint bloomfilter_add_internal (items: seq 'I_(Hash_size.+1)) bf : BloomFilter :=
+    match items with
+      h::t => bloomfilter_add_internal t (bloomfilter_set_bit h bf)
+    | [::]   => bf
+    end.
+
+
+
+
   Definition bloomfilter_calculate_hash (index: 'I_k) (input: B) (bf: BloomFilter) : Comp [finType of (BloomFilter * 'I_(Hash_size.+1))] :=
     let: hash_state := tnth (bloomfilter_hashes bf) index in
     hash_out <-$ (@hash _ input hash_state);
@@ -99,10 +140,6 @@ Section BloomFilter.
     result <-$ hash_result;
       let: (new_bf, hash_index) := result in
       ret (bloomfilter_get_bit hash_index new_bf).
-
-  Lemma Hltn_leq pos pos' (Hpos: pos < k) (Hpos': pos = pos'.+1) : pos' < k.
-      by  move: (Hpos); rewrite {1}Hpos' -{1}(addn1 pos') => /InvMisc.addr_ltn .
-    Qed.  
 
 
   Fixpoint bloomfilter_add_internal (value: B) (bf: BloomFilter) (pos: nat) (Hpos: pos < k) : Comp [finType of BloomFilter] :=

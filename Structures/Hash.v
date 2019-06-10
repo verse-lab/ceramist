@@ -50,4 +50,3 @@ Definition hash n (value: hash_keytype) (hash_state: HashState n) : Comp [finTyp
       ret (new_state, rnd)
   end.
 
-
