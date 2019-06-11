@@ -91,14 +91,13 @@ Section BloomFilter.
       ) (erefl pos).
 
 
-  Record BloomFilter := mkBloomFilter {
-                            bloomfilter_hashes: k.-tuple (HashState n);
-                            bloomfilter_state: BitVector
+    Record BloomFilter := mkBloomFilter {
+                              bloomfilter_state: BitVector
                           }.
 
   Definition BloomFilter_prod (bf: BloomFilter) :=
-    (bloomfilter_hashes bf, bloomfilter_state bf).
-  Definition prod_BloomFilter  pair := let: (hashes, state) := pair in @mkBloomFilter hashes state.
+    (bloomfilter_state bf).
+  Definition prod_BloomFilter  pair := let: (state) := pair in @mkBloomFilter state.
 
   Lemma bloomfilter_cancel : cancel (BloomFilter_prod) (prod_BloomFilter).
   Proof.
@@ -129,13 +128,10 @@ Section BloomFilter.
 
   Definition bloomfilter_set_bit (value: 'I_(Hash_size.+1)) bf : BloomFilter :=
     mkBloomFilter
-      (bloomfilter_hashes bf)
       (set_tnth (bloomfilter_state bf) true value).
 
   Definition bloomfilter_get_bit (value: 'I_(Hash_size.+1)) bf : bool :=
       (tnth (bloomfilter_state bf) value).
-
-  Check ([:: 1;2;3]).
 
   Fixpoint bloomfilter_add_internal (items: seq 'I_(Hash_size.+1)) bf : BloomFilter :=
     match items with
@@ -143,84 +139,26 @@ Section BloomFilter.
     | [::]   => bf
     end.
 
+  Definition bloomfilter_add (value: hash_keytype) (hashes: k.-tuple (HashState n)) (bf: BloomFilter) : Comp [finType of (k.-tuple (HashState n)) * BloomFilter] :=
+    hash_res <-$ (hash_vec_int value hashes Hpredkvld);
+      let (hashes, hash_vec) := hash_res in
+      let new_bf := bloomfilter_add_internal (tval hash_vec) bf in
+      ret (hashes, new_bf).
 
 
+  Fixpoint bloomfilter_query_internal (items: seq 'I_(Hash_size.+1)) bf : bool :=
+    match items with
+      h::t => if bloomfilter_get_bit h bf then
+                bloomfilter_query_internal t bf
+             else
+                false
+    | [::]   => true
+    end.
 
-  Definition bloomfilter_calculate_hash (index: 'I_k) (input: B) (bf: BloomFilter) : Comp [finType of (BloomFilter * 'I_(Hash_size.+1))] :=
-    let: hash_state := tnth (bloomfilter_hashes bf) index in
-    hash_out <-$ (@hash _ input hash_state);
-      let: (new_hash_state, hash_value) := hash_out in
-      ret (mkBloomFilter  (set_tnth (bloomfilter_hashes bf) new_hash_state index) (bloomfilter_state bf), hash_value).
-
-
-  Definition bloomfilter_update_state (index: 'I_k) (hash_result: Comp [finType of (BloomFilter * 'I_(Hash_size.+1))]) : Comp [finType of BloomFilter] :=
-    result <-$ hash_result;
-      let: (new_bf, hash_index) := result in
-      ret (bloomfilter_set_bit hash_index new_bf).
-                                  
-
-  Definition bloomfilter_check_state (hash_result: Comp [finType of (BloomFilter * 'I_(Hash_size.+1))]) : Comp [finType of bool] :=
-    result <-$ hash_result;
-      let: (new_bf, hash_index) := result in
-      ret (bloomfilter_get_bit hash_index new_bf).
-
-
-
-  Fixpoint bloomfilter_add_internal (value: B) (bf: BloomFilter) (pos: nat) (Hpos: pos < k) : Comp [finType of BloomFilter] :=
-    (
-      match pos as pos' return (pos = pos' -> Comp [finType of BloomFilter]) with
-        (* Case 1: pos is 0 *)
-      | 0 => (fun Hpos': pos = 0 =>
-        (* then update the state and return *)
-               (bloomfilter_update_state (Ordinal Hpos) (bloomfilter_calculate_hash (Ordinal Hpos) value bf)))
-        (* Case 2: pos is pos.+1 *)
-    | pos'.+1 => (fun Hpos': pos = pos'.+1 =>
-        (* then update the state*)
-            (Bind (bloomfilter_update_state (Ordinal Hpos) (bloomfilter_calculate_hash (Ordinal Hpos) value bf)) 
-        (* and recurse on a smaller argument *)
-                                (fun new_bf => 
-                                       bloomfilter_add_internal value new_bf (Hltn_leq Hpos Hpos')
-                                )
-                    )
-            )
-     end
-    ) (erefl pos).
-
-
-
-  Definition bloomfilter_add (value: B) (bf: BloomFilter) : Comp [finType of BloomFilter] :=
-    bloomfilter_add_internal value bf Hpredkvld.
-
-
-
-  Fixpoint bloomfilter_query_internal (value : B) (bf : BloomFilter) 
-                           (pos : nat) (Hpos : pos < k) {struct pos} :
-  Comp [finType of bool] :=
-    (
-      match pos as pos' return (pos = pos' -> Comp [finType of bool]) with
-        (* Case 1: pos is 0 *)
-      | 0 => (fun Hpos': pos = 0 =>
-        (* then check corresponding bitvector and return *)
-               (bloomfilter_check_state (bloomfilter_calculate_hash (Ordinal Hpos) value bf)))
-        (* Case 2: pos is pos.+1 *)
-    | pos'.+1 => (fun Hpos': pos = pos'.+1 =>
-        (* then check the bitvector*)
-            (Bind (bloomfilter_calculate_hash (Ordinal Hpos) value bf) 
-        (* and if successful recurse on a smaller argument *)
-                                (fun updated_state => 
-                                    let: (new_bf, hash_index) := updated_state in
-                                    match (bloomfilter_get_bit hash_index new_bf) with
-                                    true => bloomfilter_query_internal value new_bf (Hltn_leq Hpos Hpos')
-                                    | false => ret false
-
-                                    end
-                                )
-                    )
-            )
-     end
-    ) (erefl pos).
-
-  Definition bloomfilter_query (value: B) (bf: BloomFilter ) : Comp [finType of bool] := bloomfilter_query_internal value bf Hpredkvld.
-
+  Definition bloomfilter_query (value: hash_keytype) (hashes: k.-tuple (HashState n)) (bf: BloomFilter) : Comp [finType of (k.-tuple (HashState n)) * bool ] :=
+    hash_res <-$ (hash_vec_int value hashes Hpredkvld);
+      let (hashes, hash_vec) := hash_res in
+      let qres := bloomfilter_query_internal (tval hash_vec) bf in
+      ret (hashes, qres).
 
 End BloomFilter.
