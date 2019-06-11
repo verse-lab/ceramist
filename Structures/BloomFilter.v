@@ -34,7 +34,6 @@ Section BloomFilter.
   (*
      list of hash functions used in the bloom filter
    *)
-  Variable hashes:  k.-tuple (HashState n).
 
 
   Lemma Hpredkvld: k.-1 < k.
@@ -48,24 +47,48 @@ Section BloomFilter.
     Qed.  
 
 
+  Definition trcons A n (xs: n.-tuple A) (x: A) : (n.+1.-tuple A) :=
+    match xs as t return (_ <- t; (n.+1).-tuple A) with
+    | @Tuple _ _ x0 x1 =>
+        (fun (xs0 : seq A) (Hsz : size xs0 == n) =>
+            (Hmap <- (fun Hsz0 : size (xs0 <::< x) = n.+1 => Hrxs <- introT eqP Hsz0; Tuple Hrxs);
+            eq_rect_r (fun n' : nat => size (xs0 <::< x) = n'.+1 -> (n.+1).-tuple A) Hmap (elimTF eqP Hsz))
+            (size_rcons xs0 x))
+            x0 x1
+    end.
 
-    Definition hash_vec_int (value: hash_keytype)  (pos: nat) (Hpos: pos < k) : Comp [finType of (k.-tuple (HashState n) * (pos.+1.-tuple 'I_(Hash_size.+1)))] :=
+
+    Fixpoint hash_vec_int (value: hash_keytype) (hashes:  k.-tuple (HashState n))  (pos: nat) (Hpos: pos < k) : Comp [finType of (k.-tuple (HashState n) * (pos.+1.-tuple 'I_(Hash_size.+1)))] :=
       (
-        match pos as pos' return (pos = pos' -> Comp [finType of (k.-tuple (HashState n) * (k'.-tuple 'I_(Hash_size.+1)))]) with
+        match pos as pos' return (pos = pos' -> Comp [finType of (k.-tuple (HashState n) * ((pos'.+1).-tuple 'I_(Hash_size.+1)))]) with
         | 0 => (fun Hpos': pos = 0 =>
                  (* retrieve the has function *)
                  let hsh_fun := tnth hashes (Ordinal Hkgt0) in
                  (* hash the value *)
-                 hash_vl <-$ hash value hsh_fun;
+                 hash_vl <-$ hash _ value hsh_fun;
+                 (* retrieve the updated hash function and its result *)
                  let (new_hsh_fun, result) := hash_vl in
+                 (* update the hash vector with the new hash *)
                  let new_hashes := set_tnth hashes new_hsh_fun 0 in
                  ret (new_hashes, [tuple result]))
         | pos'.+1 => (fun Hpos': pos = pos'.+1 =>
-                       Hltn_leq
+                      (* recurse on smaller value to obtain a new sequence of hashes and results *)
+                      hash_vl <-$ (hash_vec_int value hashes  (Hltn_leq Hpos Hpos'));
+                      let (new_hashes, result_vec) := hash_vl in
 
-        )
+                      (* retrieve the pos-th hash function *)
+                      let hsh_fun := tnth new_hashes (Ordinal Hpos) in
+                      (* hash the value to obtain a result value *)
+                      hash_vl <-$ hash _ value hsh_fun;
 
-      ) (erefl pos)
+                      (* retrieve the updated hash function and hash result *)
+                      let (new_hsh_fun, result) := hash_vl in
+                      (* update the hash state *)
+                      let new_hashes := set_tnth new_hashes new_hsh_fun pos in
+                      ret (new_hashes, (@trcons _ _ result_vec result))
+                    )
+        end
+      ) (erefl pos).
 
 
   Record BloomFilter := mkBloomFilter {
@@ -140,6 +163,7 @@ Section BloomFilter.
     result <-$ hash_result;
       let: (new_bf, hash_index) := result in
       ret (bloomfilter_get_bit hash_index new_bf).
+
 
 
   Fixpoint bloomfilter_add_internal (value: B) (bf: BloomFilter) (pos: nat) (Hpos: pos < k) : Comp [finType of BloomFilter] :=
