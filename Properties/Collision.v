@@ -17,7 +17,7 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 From BloomFilter
-     Require Import Parameters Hash Comp Notationv1 BitVector BloomFilter.
+     Require Import Parameters Hash Comp Notationv1 BitVector BloomFilter InvMisc.
 
 (*
 Proof idea
@@ -34,8 +34,11 @@ Proof idea
  *)
 
 Notation "a '/R/' b " := (Rdefinitions.Rdiv a b) (at level 70).
+Notation "a '+R+' b " := (Rdefinitions.Rplus a b) (at level 70).
+Notation "a '-R-' b " := (Rdefinitions.Rminus a b) (at level 70).
 Notation "a '%R' " := (Raxioms.INR a) (at level 70).
 
+Definition Real := Rdefinitions.R.
 
 
 Lemma distbind_dist (A B C: finType) (a : dist A) (c : A -> B) (g: B -> dist C)  :
@@ -44,6 +47,30 @@ Lemma distbind_dist (A B C: finType) (a : dist A) (c : A -> B) (g: B -> dist C) 
     rewrite (functional_extensionality (fun x : A => DistBind.d (Dist1.d (c x)) g) (fun x : A => g (c x))) => //= x.
     by rewrite DistBind1f.
 Qed.
+
+
+
+Lemma prsumr_eq1P :
+forall (pr : dist [finType of bool]),
+ pr true = (0 %R) <-> pr false = (1 %R).
+Proof.
+  rewrite !RIneq.INR_IZR_INZ //=.
+  move=> [[f Hposf] Hdist].
+  split => //=.
+  move=> Htrue0.
+  move: Hdist.
+  rewrite unlock; rewrite /index_enum/[finType of bool]//=.
+  by rewrite unlock //= Htrue0 Raxioms.Rplus_comm !RIneq.Rplus_0_r => /eqP.
+  move=> Hfalse1.
+  move: Hdist.
+
+  rewrite unlock; rewrite /index_enum/[finType of bool]//=.
+  rewrite unlock; rewrite /index_enum//=.
+  rewrite Hfalse1 addR0.
+  by move => /eqP/subR_eq0 //=; rewrite -subRBA subRR RIneq.Rminus_0_r.
+
+Qed.
+
       
 Section Hash.
 
@@ -97,6 +124,7 @@ Section BloomFilter.
     (* provided the finite maps of all the hash function have not seen the value*)
     all (hash_unseen b) (tval hashes).
   
+     
 
   Lemma bloomfilter_addq (bf: BloomFilter) (value: B):
     (* provided bf is not full *)
@@ -111,7 +139,50 @@ Section BloomFilter.
      )] =
     (Raxioms.INR 1).
   Proof.
-    rewrite /bloomfilter_not_full => /allP Hnfl. 
+    rewrite /hashes_not_full => /allP Hnfl.
+    rewrite /evalDist/DistBind.d/DistBind.f//=.
+    unlock => //=.
+    rewrite !ffunE.
+    Search _ Rdefinitions.Rmult.
+About Rle_big_eqP.
+Search _ (\rsum_(_ in _) _).
+
+    rewrite !ffunE.
+    rewrite -DistBind.dE.
+    rewrite ConvDist.dE.
+    rewrite -rsum_dist_supp.
+
+
+
+    rewrite !/fun_of_fin //=.
+        Check (mem_enum [finType of bool] true) .
+
+    rewrite /finfun.fun_of_fin_rec //=.
+    
+    Search _ fun_of_fin.
+
+    Check (fun x => [ffun b => x]).
+
+    rewrite -addRA_rsum.
+
+    move: k Hkgt0 hashes Hnfl; clear k Hkgt0 hashes => k'.
+    rewrite RIneq.INR_IZR_INZ //=.
+
+    rewrite -epmf1.
+
+    rewrite DistBindp1 Uniform.dE div1R.
+
+    Print is_dist.
+
+    Search _ dist.
+    Search _ (1 %R).
+
+    induction k' as [|k] => //= Hkgt0 hashes Hnfl.
+    rewrite DistBindA => //=.
+    
+    rewrite distbind_dist.
+    Search _ DistBind.d.
+
     rewrite /bloomfilter_add/bloomfilter_query//=.
     rewrite RIneq.INR_IZR_INZ //=.
     apply/eqP => //=.
