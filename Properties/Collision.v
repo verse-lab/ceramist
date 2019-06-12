@@ -5,7 +5,7 @@ From mathcomp.ssreflect
      Require Import tuple.
 
 From mathcomp
-     Require Import path.
+     Require Import path .
 
 From infotheo
      Require Import ssrR Reals_ext logb ssr_ext ssralg_ext bigop_ext Rbigop proba.
@@ -33,6 +33,10 @@ Proof idea
 
  *)
 
+Notation "a '/R/' b " := (Rdefinitions.Rdiv a b) (at level 70).
+Notation "a '%R' " := (Raxioms.INR a) (at level 70).
+
+
 
 Lemma distbind_dist (A B C: finType) (a : dist A) (c : A -> B) (g: B -> dist C)  :
       DistBind.d a (fun x => DistBind.d (@Dist1.d _ (c x)) g) = DistBind.d a (fun x =>  g (c x) ).
@@ -43,18 +47,14 @@ Qed.
       
 Section Hash.
 
-  Lemma hash_uni n
-        (hash_state: HashState n)
-        value
-        (hash_value: 'I_Hash_size.+1) :
+  Lemma hash_uni n (hash_state: HashState n) value (hash_value: 'I_Hash_size.+1) :
     (hashstate_find _ value hash_state == None) ->
-    (P[ ((hash n value hash_state) |> (fun h => ret (snd h ))) === hash_value ] = (Rdefinitions.Rdiv (Raxioms.INR 1)  (Raxioms.INR #|ordinal Hash_size.+1|))).
+    (
+      P[ ((hash n value hash_state) |> (fun h => ret (snd h ))) === hash_value ] =
+     ((1 %R) /R/ (#|ordinal Hash_size.+1| %R))
+    ).
   Proof.
-
-    move=>/eqP Hhsfindnone.
-    rewrite /hash Hhsfindnone //=.
-    rewrite  DistBindA //=.
-    rewrite DistBindp1.
+    move=>/eqP Hhsfindnone; rewrite /hash Hhsfindnone //= DistBindA //= DistBindp1.
     rewrite (functional_extensionality (fun x : 'I_Hash_size.+1 => DistBind.d (Dist1.d (hashstate_put n value x hash_state, x)) (fun b : HashState n * 'I_Hash_size.+1 => Dist1.d b.2)) (fun x : 'I_Hash_size.+1 => Dist1.d x)); first last.
       by move=> x; rewrite DistBind1f //=.
         by  rewrite DistBindp1 Uniform.dE div1R  //=.
@@ -77,6 +77,9 @@ Section BloomFilter.
   (* valid k *)
   Variable Hkgt0: k >0.
 
+  (* the sequence of hash functions used to update the bloom filter *)
+  Variable hashes: k.-tuple (HashState n).
+
 
   Definition hash_not_full (hsh: HashState n) : bool :=
     FixedList.fixlist_length hsh < n.
@@ -86,22 +89,26 @@ Section BloomFilter.
 
 
 
-  Definition bloomfilter_not_full (bf: BloomFilter k n) : bool :=
+  Definition hashes_not_full : bool :=
     (* provided the finite maps of all the hash function are not full*)
-    all hash_not_full (tval (bloomfilter_hashes bf)).
+    all hash_not_full (tval hashes).
 
-  Definition bloomfilter_value_unseen (bf: BloomFilter k n) (b: B) : bool :=
+  Definition bloomfilter_value_unseen  (b: B) : bool :=
     (* provided the finite maps of all the hash function have not seen the value*)
-    all (hash_unseen b) (tval (bloomfilter_hashes bf)).
+    all (hash_unseen b) (tval hashes).
   
 
-  Lemma bloomfilter_addq (bf: BloomFilter k n) (value: B):
+  Lemma bloomfilter_addq (bf: BloomFilter) (value: B):
     (* provided bf is not full *)
-    bloomfilter_not_full bf ->
+    hashes_not_full ->
     (* if bf' is the result of inserting into bf *)
-    P[(bf' <-$ bloomfilter_add Hkgt0 value bf;
+    P[(add_result <-$ bloomfilter_add Hkgt0 value hashes bf;
+       let (new_hashes, bf') := add_result in 
          (* bloomfilter_query for value will always reture true *)
-         (bloomfilter_query Hkgt0 value bf'))] =
+       query_result <-$ (bloomfilter_query Hkgt0 value hashes bf');
+      let (new_hashes, query_val) := query_result in
+      ret query_val
+     )] =
     (Raxioms.INR 1).
   Proof.
     rewrite /bloomfilter_not_full => /allP Hnfl. 
