@@ -35,7 +35,12 @@ Proof idea
 
 Notation "a '/R/' b " := (Rdefinitions.Rdiv a b) (at level 70).
 Notation "a '+R+' b " := (Rdefinitions.Rplus a b) (at level 70).
+Notation "a '*R*' b " := (Rdefinitions.Rmult a b) (at level 70).
 Notation "a '-R-' b " := (Rdefinitions.Rminus a b) (at level 70).
+Notation "a '-<-' b " := (Rdefinitions.Rlt a b) (at level 70).
+Notation "a '-<=-' b " := (Rdefinitions.Rle a b) (at level 70).
+Notation "a '->-' b " := (Rdefinitions.Rgt a b) (at level 70).
+Notation "a '->=-' b " := (Rdefinitions.Rge a b) (at level 70).
 Notation "a '%R' " := (Raxioms.INR a) (at level 70).
 
 Definition Real := Rdefinitions.R.
@@ -68,7 +73,6 @@ Proof.
   rewrite unlock; rewrite /index_enum//=.
   rewrite Hfalse1 addR0.
   by move => /eqP/subR_eq0 //=; rewrite -subRBA subRR RIneq.Rminus_0_r.
-
 Qed.
 
       
@@ -124,8 +128,66 @@ Section BloomFilter.
     (* provided the finite maps of all the hash function have not seen the value*)
     all (hash_unseen b) (tval hashes).
   
-     
+  Lemma evalDist1f (A B: finType) (p : A) :
+      evalDist (ret p) = Dist1.d p.     
+  Proof. by []. Qed.
 
+  
+  Lemma evalDistBinv (p: Comp [finType of bool]) :
+    evalDist p true = (1 %R) <-> evalDist (x <-$ p; ret ~~ x) true = (0 %R).
+  Proof.
+    split=>//=.
+    case: (evalDist p).
+    move=> pmf Hpmf //= HpmfT.
+    rewrite /DistBind.d; unlock; rewrite/DistBind.f//= ffunE.
+    apply prsumr_eq0P.
+    move=> [] Hb.
+      - rewrite HpmfT; move: (RIneq.Rmult_ne ((Dist1.d (~~ true)) true)) => [H ->] //=.
+        by rewrite Dist1.dE//=; apply RIneq.pos_INR.
+      - have: (pmf false = (0 %R)).
+        move: Hpmf; rewrite unlock; rewrite/index_enum/[finType of bool]//=;
+        rewrite unlock; rewrite /index_enum//= HpmfT addR0 addRC.
+        by rewrite eq_sym; move=>/eqP; rewrite -subR_eq//= subRR => <- //=.
+      - by move=> ->; rewrite RIneq.Rmult_0_l; apply RIneq.Rle_refl.
+
+    move=> [] Hb //=.
+      - rewrite HpmfT; move: (RIneq.Rmult_ne ((Dist1.d false) true)) => [_ ->] //=.
+        by rewrite Dist1.dE//=.
+      - have: (pmf false = (0 %R)).  
+        move: Hpmf; rewrite unlock; rewrite/index_enum/[finType of bool]//=;
+        rewrite unlock; rewrite /index_enum//= HpmfT addR0 addRC.
+        by rewrite eq_sym; move=>/eqP; rewrite -subR_eq//= subRR => <- //=.
+      - by move=> ->; rewrite RIneq.Rmult_0_l. 
+
+    case: (evalDist p).
+    move=> pmf  //=.
+    rewrite /DistBind.d; unlock; rewrite/DistBind.f//= ffunE.
+
+    rewrite unlock; rewrite /index_enum/[finType of bool]//=;
+                            rewrite unlock; rewrite /index_enum//=.
+    rewrite  !Dist1.dE !addR0 mulR0 add0R mulR1 //= => H1 H2.
+    by move: H1; rewrite H2 addR0 =>/eqP ->.
+
+  Qed.
+
+  Lemma prsum_multeq0 (A B: finType) (pr1 :  A -> Rdefinitions.R) (pr2 : B -> Rdefinitions.R):
+    (forall (a : A) (b: B), (pr1 a) *R* (pr2 b) = Rdefinitions.IZR 0) ->
+    (\rsum_(a in A) (pr1 a) *R* \rsum_(b in B) (pr2 b)) = Rdefinitions.IZR 0.
+    move=> H1.
+    rewrite unlock; rewrite /index_enum/reducebig//=.
+    elim: (Finite.enum _) => //=; first by rewrite mul0R.
+    elim: (Finite.enum _) => [x xs Hxs |] //=; first by rewrite mulR0.
+    move=> y ys Hxs x xs Hys.
+    rewrite RIneq.Rmult_plus_distr_r Hys addR0 Raxioms.Rmult_plus_distr_l H1 add0R.
+    by move: (Hxs x [::]) => //=; rewrite mul0R addR0 => ->.
+  Qed.
+  
+  
+  Lemma pr_eq0P (A : finType) (P : dist A) :  \rsum_(a in A) (pmf P) a = Rdefinitions.IZR 0 <-> (forall a : A, (pmf P) a = Rdefinitions.IZR 0).        
+
+    Admitted.
+
+    
   Lemma bloomfilter_addq (bf: BloomFilter) (value: B):
     (* provided bf is not full *)
     hashes_not_full ->
@@ -133,13 +195,82 @@ Section BloomFilter.
     P[(add_result <-$ bloomfilter_add Hkgt0 value hashes bf;
        let (new_hashes, bf') := add_result in 
          (* bloomfilter_query for value will always reture true *)
-       query_result <-$ (bloomfilter_query Hkgt0 value hashes bf');
-      let (new_hashes, query_val) := query_result in
+       query_result <-$ (bloomfilter_query Hkgt0 value new_hashes bf');
+      let (new_query_hashes, query_val) := query_result in
       ret query_val
      )] =
     (Raxioms.INR 1).
   Proof.
     rewrite /hashes_not_full => /allP Hnfl.
+    apply /evalDistBinv.
+    rewrite /bloomfilter_add/bloomfilter_query//=.
+    rewrite /DistBind.d//=.
+     unlock => //=; rewrite/DistBind.f/[finType of bool]//=.
+     rewrite !ffunE //=.
+     apply prsumr_eq0P.
+        - move=> [] _ //=; rewrite ?ffunE//=.
+          apply RIneq.Rmult_le_pos.
+          apply rsumr_ge0 => [[new_hashes new_bf] _]; rewrite !ffunE.
+          apply RIneq.Rmult_le_pos.
+          apply rsumr_ge0 => [[new_hashes' hash_vec] _]//=.
+          by apply RIneq.Rmult_le_pos; apply dist_ge0.
+          by apply dist_ge0.
+          by apply dist_ge0.
+          apply RIneq.Rmult_le_pos; last by apply dist_ge0.
+          apply rsumr_ge0 => [[new_hashes new_bf] _]; rewrite ?ffunE//=.
+          apply RIneq.Rmult_le_pos.
+          apply rsumr_ge0 => [[new_hashes' hash_vec] _].
+          by apply RIneq.Rmult_le_pos; apply dist_ge0.
+          by apply dist_ge0.
+        - move=> [] _; rewrite !ffunE //=.
+             by rewrite Dist1.dE //= mulR0.
+          rewrite Dist1.dE //= mulR1.
+          apply prsumr_eq0P => [[new_hashes new_bf] _].
+             - apply RIneq.Rmult_le_pos; rewrite ?ffunE.
+               apply rsumr_ge0 => [[new_hashes' hash_vec] _].
+               by apply RIneq.Rmult_le_pos; apply dist_ge0.
+               by apply dist_ge0.
+               move=> [new_hashes new_bf _]; rewrite !ffunE.
+          (* rewrite RIneq.Rmult_eq_0_compat_l //=. *)
+     rewrite DistBind.dE//= -/evalDist.
+     Check prsum_multeq0.
+
+
+     apply prsumr_eq0P => [[new_hashes'  []] _] //=;
+     rewrite ?Dist1.dE //= ?mulR1 ?mulR0 //=.
+       by apply dist_ge0.
+       by apply leRR.
+     move=>[query_hashes [] ] _ //=.
+     rewrite DistBind.dE //=.
+     rewrite Dist1.dE ?mulR1 ?mulR0 //=.
+     apply prsumr_eq0P => [[a5 a6] _].
+     by apply RIneq.Rmult_le_pos; apply dist_ge0.
+     move=> [query_hashes' hash_vec] _ //=.
+       rewrite Dist1.dE //=.
+       by apply dist_ge0.
+     Search _ (?x -<=- ?x).
+     apply rsumr_ge0 => [[a3 a4] _].
+
+
+
+             Search _ (_ *R* _).
+     Search _ (0 -<=- _).
+     case: (evalDist _)=> [[pmf Hpmf]]//=.
+     Search _ "rsum".
+
+
+     Search _ (_ -<=- (_ *R* _)).
+
+
+    rewrite (functional_extensionality (DistBind.d (evalDist (hash_vec_int Hkgt0 value hashes (Hpredkvld Hkgt0)))
+        (fun b : k.-tuple (HashState n) * (k.-1.+1).-tuple 'I_Hash_size.+1 =>
+         evalDist (let (hashes0, hash_vec) := b in ret (hashes0, bloomfilter_add_internal hash_vec bf))))).
+    rewrite [evalDist (let (_,_) := b in ret (_, _))]evalDist1f.
+    rewrite /functional_extensionality.
+
+    
+    Print Dist1.d.
+
     rewrite /evalDist/DistBind.d/DistBind.f//=.
     unlock => //=.
     rewrite !ffunE.

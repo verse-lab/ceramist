@@ -141,9 +141,9 @@ Section BloomFilter.
 
   Definition bloomfilter_add (value: hash_keytype) (hashes: k.-tuple (HashState n)) (bf: BloomFilter) : Comp [finType of (k.-tuple (HashState n)) * BloomFilter] :=
     hash_res <-$ (hash_vec_int value hashes Hpredkvld);
-      let (hashes, hash_vec) := hash_res in
+      let (new_hashes, hash_vec) := hash_res in
       let new_bf := bloomfilter_add_internal (tval hash_vec) bf in
-      ret (hashes, new_bf).
+      ret (new_hashes, new_bf).
 
 
   Fixpoint bloomfilter_query_internal (items: seq 'I_(Hash_size.+1)) bf : bool :=
@@ -157,8 +157,8 @@ Section BloomFilter.
 
   Definition bloomfilter_query (value: hash_keytype) (hashes: k.-tuple (HashState n)) (bf: BloomFilter) : Comp [finType of (k.-tuple (HashState n)) * bool ] :=
     hash_res <-$ (hash_vec_int value hashes Hpredkvld);
-      let (hashes, hash_vec) := hash_res in
+      let (new_hashes, hash_vec) := hash_res in
       let qres := bloomfilter_query_internal (tval hash_vec) bf in
-      ret (hashes, qres).
+      ret (new_hashes, qres).
 
 End BloomFilter.
