@@ -181,11 +181,43 @@ Section BloomFilter.
     rewrite RIneq.Rmult_plus_distr_r Hys addR0 Raxioms.Rmult_plus_distr_l H1 add0R.
     by move: (Hxs x [::]) => //=; rewrite mul0R addR0 => ->.
   Qed.
-  
+
+  (* There must be some lemma I'm missing for the following: *)
+  Lemma rsum_Rmul_distr_l (A: finType) (pr: A -> Rdefinitions.R) x :
+    x *R* \rsum_(a in A) (pr a) = \rsum_(a in A) (x *R* (pr a)).
+  Proof.
+    rewrite unlock => //=; elim: (index_enum _) x => [x|] //=; first by rewrite mulR0.
+    move=> y ys Hys x.
+    by rewrite Raxioms.Rmult_plus_distr_l; apply f_equal; rewrite Hys. 
+  Qed.
+
+  Lemma rsum_Rmul_distr_r (A: finType) (pr: A -> Rdefinitions.R) x :
+    \rsum_(a in A) (pr a) *R*  x  = \rsum_(a in A) (x *R* (pr a)).
+  Proof.
+    by rewrite mulRC rsum_Rmul_distr_l.
+  Qed.
+
   
   Lemma pr_eq0P (A : finType) (P : dist A) :  \rsum_(a in A) (pmf P) a = Rdefinitions.IZR 0 <-> (forall a : A, (pmf P) a = Rdefinitions.IZR 0).        
 
     Admitted.
+
+  Lemma bloomfilter_set_get_eq hash_value bf :  bloomfilter_get_bit hash_value (bloomfilter_set_bit hash_value bf).
+    Proof.
+        by rewrite /bloomfilter_get_bit/bloomfilter_set_bit// /bloomfilter_state FixedList.tnth_set_nth_eq //=.
+    Qed.
+
+
+    
+  Lemma hashstate_find_put_eq l (hashstate: HashState l)  key value :
+    FixedList.fixlist_length hashstate < l ->
+     hashstate_find l key (hashstate_put l key value hashstate) = Some value.
+  Proof.
+    clear =>  Hltn.
+    case: l hashstate Hltn =>[//=|] l hashstate Hltn.
+    by rewrite /hashstate_find/hashstate_put FixedMap.fixmap_ident.
+  Qed.
+
 
     
   Lemma bloomfilter_addq (bf: BloomFilter) (value: B):
@@ -205,9 +237,9 @@ Section BloomFilter.
     apply /evalDistBinv.
     rewrite /bloomfilter_add/bloomfilter_query//=.
     rewrite /DistBind.d//=.
-     unlock => //=; rewrite/DistBind.f/[finType of bool]//=.
-     rewrite !ffunE //=.
-     apply prsumr_eq0P.
+    unlock => //=; rewrite/DistBind.f/[finType of bool]//=.
+    rewrite !ffunE //=.
+    apply prsumr_eq0P.
         - move=> [] _ //=; rewrite ?ffunE//=.
           apply RIneq.Rmult_le_pos.
           apply rsumr_ge0 => [[new_hashes new_bf] _]; rewrite !ffunE.
@@ -231,11 +263,164 @@ Section BloomFilter.
                by apply RIneq.Rmult_le_pos; apply dist_ge0.
                by apply dist_ge0.
                move=> [new_hashes new_bf _]; rewrite !ffunE.
-          (* rewrite RIneq.Rmult_eq_0_compat_l //=. *)
+     (* Finished proof of trivial properties - now to tackle the main algorithm *)
+
+     (* Before we proceed we must convert the algorithm from a monadic form,
+      into a sequence of products of each statement - i.e:
+                                     forall x y,
+       evalDist (x <-$ prx;              (prx x) * 
+                 y <-$ pry;       =>     (pry y) * 
+                ret (x + y))             (x + y == value)
+        value = 1                         = 1 
+      *)               
      rewrite DistBind.dE//= -/evalDist.
-     Check prsum_multeq0.
+     apply prsum_multeq0.
+     move=> [new_hashes' hash_vec] [new_hashes'' []] //=; first by rewrite !Dist1.dE //= !mulR0.
+     rewrite !Dist1.dE //= mulR1 DistBind.dE.
+     rewrite rsum_Rmul_distr_l.
+     apply prsumr_eq0P => [new_hashes''' hash_vec'].
+       - do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=.
+         by case: (_ == _) => //=; apply leR0n.
+     move=> [new_hashes''' hash_vec'] _ //=.
+     rewrite Dist1.dE.
+     case Heq: (_ == _) => //=; last by rewrite mulR0 mul0R.
+     rewrite xpair_eqE in Heq; move/andP: Heq => [/eqP -> /eqP ->].
+     rewrite xpair_eqE; case Heq: (_ == _) => //=; last by rewrite ?mulR0.
+     move/eqP: Heq <-; clear new_hashes new_bf new_hashes'''; rewrite ?mulR1.
+
+     (* The algorithm has now been simplified to the product of three terms:
+       1)    (hash_internal hashes == new_hashes)   *R*
+       2)    (hash_internal new_hashes == new_hashes'')    *R*
+       3)    false == (bloomfilter_query new_hashes' (bloomfilter_add new_hashes bf))
+
+       the first two can not be zero, and the last one must be
+      *)
+     elim: (k.-1) (Hpredkvld Hkgt0) hash_vec hash_vec' new_hashes' new_hashes'' hashes Hnfl  => //= [_ hash_vec hash_vec' new_hashes' new_hashes|].
+         clear hashes => hashes Hnfl.
+         - rewrite DistBind.dE //=.
+           rewrite rsum_Rmul_distr_r prsumr_eq0P; last first.
+                - move=> [hash_state pos] _.
+                  do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=.
+                  by case: (_ == _) => //=; apply leR0n.
+            move=> [hash_state pos] _; rewrite DistBind.dE //=.
+            rewrite ?rsum_Rmul_distr_r prsumr_eq0P; last first.
+                - move=> [hash_state' pos'] _.
+                  do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=.
+                  by case: (_ == _) => //=; apply leR0n.
+             move=> [hash_state' pos'] _; rewrite !Dist1.dE //=.
+
+             rewrite !xpair_eqE; case Heq: (_ == _) => //=; last by rewrite mulR0 mul0R.
+             move/eqP: Heq ->.
+             case: (new_hashes == _) => //=; last by rewrite !mulR0.
+             case Heq: (hash_vec' == _) => //=; last by rewrite !mulR0.
+             move/eqP: Heq ->.
+             case Heq: (hash_vec == _) => //=; last by rewrite !mulR0 !mul0R.
+             move/eqP: Heq ->.
+             clear hash_vec hash_vec' new_hashes new_hashes'; rewrite !mulR1.
+             have:  (tnth (FixedList.set_tnth hashes hash_state 0) (Ordinal Hkgt0)) = hash_state.
+                have: (O = (Ordinal Hkgt0)). by [].
+                by move=> {1}->; rewrite FixedList.tnth_set_nth_eq.
+             move=> ->.
+
+             rewrite /hash//=.
+             case_eq (hashstate_find n value (tnth hashes (Ordinal Hkgt0))) => [hash_value|] Heq //=.
+                - rewrite Dist1.dE xpair_eqE.
+                  case Heq': (_ == _) => //=; last by rewrite mul0R.
+
+                  move/eqP: Heq' ->; rewrite Heq //= Dist1.dE xpair_eqE; clear Heq.
+                  case Heq': (_ == _) => //=; last by rewrite mul0R.
+                  move/eqP: Heq' ->.
+                  case: (hash_state' == _) => //=; last by rewrite ?mulR0.
+                  case Heq': (pos' == _) => //=; last by rewrite ?mulR0.
+
+                  move/eqP: Heq' ->; rewrite mul1R mulR1 //=.
+                  by rewrite bloomfilter_set_get_eq //=.
+
+                - rewrite !DistBind.dE rsum_Rmul_distr_r prsumr_eq0P; last first.
+                       move=> H1 _.
+                       do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=.
+                       by case: (_ == _) => //=; apply leR0n.
+
+                  move=> pos'' _.     
+                  rewrite DistBind.dE //= ?rsum_Rmul_distr_r rsum_Rmul_distr_l prsumr_eq0P; last first.
+                       move=> H1 _.
+                       do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=.
+                       by case: (_ == _) => //=; apply leR0n.
+                   move=> pos''' _.
+                   rewrite !Dist1.dE Uniform.dE xpair_eqE.     
+
+                   case Heq': (hash_state == _) => //=; last by rewrite !mul0R !mulR0.
+                   move/eqP: Heq' ->.
+
+                   case Heq': (pos == _) => //=; last by rewrite !mul0R !mulR0.
+                   move/eqP: Heq' <-.
+                   case Heq': (pos == _) => //=; last by rewrite !mulR0.
+
+                   move/eqP: Heq' => ->.
+
+                   rewrite  hashstate_find_put_eq //=; last by apply Hnfl => //=; apply mem_tnth.
+
+                   rewrite Dist1.dE //= xpair_eqE.
+                   case: (hash_state' == _) => //=; last by rewrite mulR0 mul0R.
+                   case Heq': (pos' == _) => //=; last by rewrite mulR0 mul0R.
+                   by move/eqP: Heq' <-; rewrite bloomfilter_set_get_eq //= ?mul0R.
+
+                   move=>p_k IHk hkprf hash_vec hash_vec' new_hashes' new_hashes''.
+                   clear hashes => hashes Hnfl.
+                   rewrite DistBind.dE rsum_Rmul_distr_r prsumr_eq0P; last first.
+                     - move=> [new_hashes''' result_vec] _.
+                       do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=.
+                       by case: (_ == _) => //=; apply leR0n.
+
+                   move=>[new_hashes''' result_vec] _.    
+
+                   rewrite DistBind.dE !rsum_Rmul_distr_r prsumr_eq0P; last first.
+
+                      - move=> [new_hashes'''' resut_vec0] _.
+                        do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=.
+                          by case: (_ == _) => //=; apply leR0n.
+
+                   move=>[new_hashes'''' result_vec'] _ //=.
+
+                   rewrite DistBind.dE rsum_Rmul_distr_l rsum_Rmul_distr_r prsumr_eq0P; last first.
+
+                       - move=> [a1 a2] _.
+                         do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=.
+                         by case: (_ == _) => //=; apply leR0n.
+
+                    move=>[new_hsh_fun result] _.
+
+                    rewrite DistBind.dE !rsum_Rmul_distr_l rsum_Rmul_distr_r prsumr_eq0P; last first.
+                       - move=> [a1 a2] _.
+                         do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=.
+                         by case: (_ == _) => //=; apply leR0n.
+
+                    move=> [new_hsh_fun' result'] _ //=.     
+
+                    rewrite !Dist1.dE !xpair_eqE.
+
+                    case Heq: (new_hashes' == _) => //=; last by rewrite !mulR0 mul0R.
+                    move/eqP: Heq ->.
+                    case Heq: (hash_vec == _) => //=; last by rewrite !mulR0 mul0R.
+                    move/eqP: Heq ->.
+                    case: (new_hashes'' == _) => //=; last by rewrite !mulR0.
+                    case Heq: (hash_vec' == _) => //=; last by rewrite !mulR0.
+                    move/eqP: Heq ->; rewrite !mulR1; move: (Hltn_leq _ _).
+                    move=> Hprf //=.
+                    move: (IHk Hprf  result_vec result_vec' new_hashes''' new_hashes'''' hashes Hnfl); clear IHk => IHk.
 
 
+
+
+
+
+
+
+
+
+
+
+                    
      apply prsumr_eq0P => [[new_hashes'  []] _] //=;
      rewrite ?Dist1.dE //= ?mulR1 ?mulR0 //=.
        by apply dist_ge0.
@@ -253,10 +438,6 @@ Section BloomFilter.
 
 
 
-             Search _ (_ *R* _).
-     Search _ (0 -<=- _).
-     case: (evalDist _)=> [[pmf Hpmf]]//=.
-     Search _ "rsum".
 
 
      Search _ (_ -<=- (_ *R* _)).
