@@ -527,77 +527,41 @@ Section BloomFilter.
     Rpower.Rpower (1 -R- Rdefinitions.Rinv (Hash_size.+1)%:R) k%:R.
   Proof.
     rewrite /bloomfilter_add/hashes_not_full/bloomfilter_value_unseen/hash_unseen /hash_not_full /bloomfilter_get_bit  => /allP Hnfl /allP Husn Hunset //= .  
-    rewrite !DistBind.dE //=; rewrite rsum_split => //=.
+    rewrite !DistBind.dE //=.
 
+    Search _ (bigop).
 
-    suff: (\rsum_(b in _) ((DistBind.d (d[ hash_vec_int Hkgt0 value hashes (Hpredkvld Hkgt0)])
-            (fun b0 : k.-tuple (HashState n) * (k.-1.+1).-tuple 'I_Hash_size.+1 =>
-             d[ let (new_hashes, hash_vec) := b0 in ret (new_hashes, bloomfilter_add_internal hash_vec bf)])) 
-           (_, b) *R* (Dist1.d (tnth (bloomfilter_state b) ind)) true)) = (1 %R).
+    About eq_bigr.
+    rewrite [\rsum_(a in (_)) _](@eq_bigr _ _ _ _ _ _
+                                          (fun a => ((DistBind.d _ _) a *R* _))
+                                          (fun a => (\rsum_(a0 in [finType of k.-tuple (HashState n)])
+                                                      \rsum_(b in [finType of (k.-1.+1).-tuple 'I_Hash_size.+1])
+                                                      ((d[ hash_vec_int Hkgt0 value hashes (Hpredkvld Hkgt0)]) (a0, b) *R*
+                                                       (a == (a0, bloomfilter_add_internal b bf) %R) ) *R*
+                                                     (d[ let '(_, bf') := a in ret tnth (bloomfilter_state bf') ind]) true)));
+      last first.
+      - by move=> a _; rewrite DistBind.dE => //= ; rewrite rsum_split => //=;
+           rewrite mulRC (mulRC _ (_ true)); apply f_equal; apply eq_bigr;
+           move=> i _; apply eq_bigr=> i' _; rewrite Dist1.dE.
 
-    
-    About DistBind.dE.
+    rewrite rsum_split=> //=.
 
-    Check (\rsum_(a in [finType of (bool * bool)]) (fst a %R)).
+    rewrite (@eq_bigr _ _ _ _ _ _
+                      (fun (a: [finType of k.-tuple  (HashState n)]) => \rsum_(_ in [finType of BloomFilter]) _)
+                      (fun a =>
+                         \rsum_(b in [finType of BloomFilter])
+                          (\rsum_(a0 in [finType of k.-tuple (HashState n)])
+                            \rsum_(b0 in [finType of  (k.-1.+1).-tuple 'I_Hash_size.+1])
+                            ((d[ hash_vec_int Hkgt0 value hashes (Hpredkvld Hkgt0)]) (a0, b0) *R*
+                             (((a == a0) && (b == bloomfilter_add_internal b0 bf)) %R)) *R*
+                            (true == (tnth (bloomfilter_state b) ind) %R) 
+                            ))); last first.
 
+       - by move=> a _; apply eq_bigr => a' _; rewrite Dist1.dE;
+            rewrite mulRC; apply f_equal; apply eq_bigr => a'' _;
+            apply eq_bigr => a''' _.
 
-    have: (fun a => BigBody a Rdefinitions.Rplus _
-       ((DistBind.d (d[ hash_vec_int Hkgt0 value hashes (Hpredkvld Hkgt0)])
-                    (fun b => d[ let (new_hashes, hash_vec) := b in
-                                 ret (
-                                     new_hashes,
-                                     bloomfilter_add_internal hash_vec bf
-                                 )])) a *R*
-        (d[ let '(_, bf') := a in
-            ret tnth (bloomfilter_state bf') ind]) true)) =
-          (fun a  => BigBody a Rdefinitions.Rplus _
-                             ((\rsum_(b in _)
-                                ((d[ hash_vec_int Hkgt0 value hashes (Hpredkvld Hkgt0)]) b *R*
-                    (d[ let (new_hashes, hash_vec) := b in
-                                 ret (
-                                     new_hashes,
-                                     bloomfilter_add_internal hash_vec bf
-                                 )]) a)) *R*
-        
-        (tnth (bloomfilter_state (snd a)) ind == true %R))). 
-(DistBind.d p g) x = \rsum_(a in A) (p a *R* (g a) x)
-
-    elim: k Hkgt0 hashes => //= k' IHk.
-    Search _ (_ ^R^ _).
-
-    Search _ (_.+1 %R).
-
-    rewrite (RIneq.S_INR k') Rpower.Rpower_plus => Hprf hashes' //=.
-
-    rewrite DistBind.dE.
-    (*
-
-       \rsum_(a in A) p a  = (1 - 1/m)^k
-
-        A * c   = (1 - 1 / m) ^ k
-            c   = (1 - 1 / m) ^ k / A
-     *)
-    
-    elim: (index_enum _) => //=.
-    elim: k Hkgt0 hashes => //=.
-    move: ind bf Hnfl Husn Hunset (Hpredkvld _).
-    induction k.-1 eqn: Hkenqn => [ind  bf  Hnfl Husn Hunset H0ltn|]//=.
-    rewrite /hash /hashstate_find.
-    move: (Husn (tnth (bloomfilter_hashes bf) (Ordinal H0ltn)) (mem_tnth _ _)) => /eqP -> //=.
-    rewrite !DistBindA//= !distbind_dist //=.
-    rewrite /bloomfilter_get_bit/bloomfilter_set_bit/bloomfilter_state//.
-    rewrite (functional_extensionality
-            (fun x : 'I_Hash_size.+1 =>
-                Dist1.d (tnth (FixedList.set_tnth (let (_, bloomfilter_state) := bf in bloomfilter_state) true x) ind))
-            (fun x : 'I_Hash_size.+1 =>  Dist1.d (x == ind))
-            ) => //=.
-    move: (Hkenqn) Hkgt0; rewrite PeanoNat.Nat.eq_pred_0 => [[{1}->|]] //= Hkeqn1 Hgt0.
-    move: Hkgt0 H0ltn Hgt0 Hkenqn bf Hnfl Husn Hunset.
-    rewrite Hkeqn1 => _ _ _ _ bf Hnfl Husn Hunset.
-    rewrite Rpower.Rpower_1.
-    rewrite DistBind.dE.
-
-
+    rewrite  //=.    
 
   Admitted.
 
