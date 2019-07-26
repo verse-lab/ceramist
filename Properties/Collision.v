@@ -616,8 +616,21 @@ Section BloomFilter.
 
                       -  apply prsumr_eq0P => bf' /andP [H1 /Bool.negb_true_iff H2]; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
                            by rewrite big_pred1_eq H2 //= mulR0.
-
-      (* Sum has now been simplified to simplest form *)              
+      (*
+        Sum has now been simplified to simplest form:
+         \rsum_(hs in k.-tuple (HashState n))
+            \rsum_(hashs in k.-tuple 'I_Hash_size.+1)
+               ((d[ hash_vec_int Hkgt0 value hashes (Hpredkvld Hkgt0)]) (hs, hashs) *R*
+                (tnth (bloomfilter_state (bloomfilter_add_internal hashs bf)) ind %R)) =
+         ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ (k %R))
+       *)              
+      (*
+         It is also clear now why the probability is the the way it is - given that bit at ind is unset at the start,
+         the probability it will be set after bloomfilter_add_internal is equal to the probability that all the k hashes
+         produced by hash_vec_int are 0 (where each hash has a probability of 1 - 1/HashSize of not selecting ind
+       *)
+                           
+                           
   Admitted.
 
   Search _ Rpower.Rpower.
