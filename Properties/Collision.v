@@ -530,12 +530,10 @@ Section BloomFilter.
       Qed.
       
 
-        Lemma bloomfilter_add_internal_hit
-              bf (ind: 'I_Hash_size.+1) hshs :
-          ( ind \in hshs) ->
+        Lemma bloomfilter_add_internal_hit bf (ind: 'I_Hash_size.+1) hshs :
+          (ind \in hshs) ->
           (tnth (bloomfilter_state (bloomfilter_add_internal hshs bf)) ind).
           Proof.
-
             elim: hshs bf  => //= hsh hshs IHs bf.
 
             rewrite in_cons => /orP [/eqP -> | H]; last by apply IHs.
@@ -546,18 +544,10 @@ Section BloomFilter.
                   by move=> bf hsh; rewrite FixedList.tnth_set_nth_eq => //=.
               - move=> hsh hshs IHs bf hsh'.    
                 move=> //=.
-
-                apply IHs.
-            Search _ FixedList.set_tnth.
-            elim: hsh.
-            rewrite /bloomfilter_set_bit/bloomfilter_state //.
-
-            Search _ tnth_set_tnth.
-            rewrite in_cons.
-            rewrite negb_or => /andP [Hneq Hnotin].
-            apply IHs.
-            rewrite /bloomfilter_state/bloomfilter_set_bit.
-            rewrite FixedList.tnth_set_nth_neq => //=.
+                rewrite bloomfilter_set_bitC .
+                by apply IHs.
+          Qed.
+          
 
         Lemma bloomfilter_add_internal_miss
               bf (ind: 'I_Hash_size.+1) hshs :
@@ -578,6 +568,19 @@ Section BloomFilter.
           Qed.
           
 
+          Lemma prsumr_sans_one (A: finType) (f: A -> Rdefinitions.R) (a': A) c:
+            f a' = c ->
+            \rsum_(a in A) (f a) = (1 %R) ->
+            \rsum_(a | a != a') (f a) = (1 -R- c).
+            Proof.
+              have: ((Rdefinitions.IZR (BinNums.Zpos BinNums.xH)) == (1 %R)). by [].
+              move=> /eqP -> <- //=  <-.
+              rewrite [\rsum_(a in A) _](bigID (fun a => a == a')) => //=.
+              rewrite big_pred1_eq.
+              by rewrite addRC -subRBA subRR subR0.
+            Qed.
+            
+          
   (* for a given index ind *)
   Lemma bloomfilter_addn (ind: 'I_(Hash_size.+1)) (bf: BloomFilter) (value: B):
     (* provided the bloom filter is not full *)
@@ -864,17 +867,40 @@ Section BloomFilter.
                                 apply H.  
                                      - apply prsumr_eq0P => i /Bool.negb_true_iff -> //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size) => [].                        
                                        by rewrite !mulR0.
-
                                 by rewrite big_pred1_eq eq_refl //= mulR1.
-
                         rewrite (bigID (fun a1 => a1 == ind)).        
-
                         have H x y z:  x = (0 %R) -> y = z -> x +R+ y = z.
                           by move=> -> ->; rewrite add0R.
                         apply H.  
                         apply prsumr_eq0P => a /eqP Ha; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size) => [].                        
+                        rewrite Ha bloomfilter_add_internal_hit => //=; first by rewrite mul0R.
+                        by rewrite mem_seq1.
 
-                        Search _ (bloomfilter_add_internal).
+                        transitivity (
+                            \rsum_(i | i != ind) (Rdefinitions.Rinv (#|ordinal_finType Hash_size.+1| %R))
+                          ).
+
+                        apply eq_bigr => i Htnth.
+                        rewrite bloomfilter_add_internal_miss //=; first by rewrite mul1R.
+                        rewrite mem_seq1.
+                        by apply/eqP => Heq; move/eqP: Htnth; rewrite Heq => H2; apply H2.
+
+                        Search _ (?x <> ?x).
+
+                        Search _ (?x == ?y)  (?y == ?x).
+
+                        Set Printing All.
+                        Search _ (?x != ?y) (?y != ?x).
+                        Search _ (_ \in _ ::  _).
+
+                        
+                        
+                        Search _ (\big[_/_]_(_ <- _ | _ != _) _).
+                        Search _ (_ \in _ :: _).
+                        Locate "a \in b".
+
+                        Search _ (_ \in _).
+
                         rewrite Ha /bloomfilter_add_internal.
                         Search _ (\big[_/_]_(_ <- _ | _ != _) _).
                                 Search _ (_ -R- _).
