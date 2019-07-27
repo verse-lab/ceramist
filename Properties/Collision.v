@@ -884,31 +884,13 @@ Section BloomFilter.
                         rewrite bloomfilter_add_internal_miss //=; first by rewrite mul1R.
                         rewrite mem_seq1.
                         by apply/eqP => Heq; move/eqP: Htnth; rewrite Heq => H2; apply H2.
+                        apply prsumr_sans_one => //=.
+                        by rewrite card_ord.
+                        rewrite bigsum_card_constE card_ord RIneq.Rinv_r //=.
+                        by apply RIneq.not_0_INR => //=.
+                        apply RIneq.Rlt_Rminus.
+                        Search _ (Rdefinitions.Rinv _ -<- _).
 
-                        Search _ (?x <> ?x).
-
-                        Search _ (?x == ?y)  (?y == ?x).
-
-                        Set Printing All.
-                        Search _ (?x != ?y) (?y != ?x).
-                        Search _ (_ \in _ ::  _).
-
-                        
-                        
-                        Search _ (\big[_/_]_(_ <- _ | _ != _) _).
-                        Search _ (_ \in _ :: _).
-                        Locate "a \in b".
-
-                        Search _ (_ \in _).
-
-                        rewrite Ha /bloomfilter_add_internal.
-                        Search _ (\big[_/_]_(_ <- _ | _ != _) _).
-                                Search _ (_ -R- _).
-                                Search _ (\rsum_(_ in _ | _) _ = _ -R- _).
-
-                        move.        
-
-                        Search _ (1 -R- _).
   Admitted.
 
   Search _ Rpower.Rpower.
