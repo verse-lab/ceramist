@@ -507,7 +507,25 @@ Section BloomFilter.
       Qed.
       
 
-        Search _ (\big[_/_]_(_ <- _ | _) (?x _) = ?x _) (_ -> _ = _).
+        Lemma bloomfilter_add_internal_miss
+              bf (ind: 'I_Hash_size.+1) hshs :
+          ~~ tnth (bloomfilter_state bf) ind ->
+          ~~ ( ind \in hshs) ->
+          (~~ tnth (bloomfilter_state (bloomfilter_add_internal hshs bf)) ind).
+          Proof.
+
+            move=> Htnth.
+            elim: hshs bf Htnth => //= hsh hshs IHs bf Htnth.
+            move=> H; move: (H).
+            rewrite in_cons.
+            rewrite negb_or => /andP [Hneq Hnotin].
+            apply IHs.
+            rewrite /bloomfilter_state/bloomfilter_set_bit.
+            rewrite FixedList.tnth_set_nth_neq => //=.
+            exact Hnotin.
+          Qed.
+          
+
   (* for a given index ind *)
   Lemma bloomfilter_addn (ind: 'I_(Hash_size.+1)) (bf: BloomFilter) (value: B):
     (* provided the bloom filter is not full *)
@@ -797,7 +815,8 @@ Section BloomFilter.
 
                                 by rewrite big_pred1_eq eq_refl //= mulR1.
 
-                        move.        
+
+ds                        move.        
 
                         Search _ (1 -R- _).
   Admitted.
