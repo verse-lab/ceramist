@@ -507,6 +507,58 @@ Section BloomFilter.
       Qed.
       
 
+      Lemma bloomfilter_set_bitC bf ind ind':
+        (bloomfilter_set_bit ind (bloomfilter_set_bit ind' bf)) =
+         (bloomfilter_set_bit ind' (bloomfilter_set_bit ind bf)).
+      Proof.
+        rewrite /bloomfilter_set_bit/bloomfilter_state//.
+        apply f_equal => //.
+        apply eq_from_tnth => pos.
+        case Hpos: (pos == ind); case Hpos': (pos == ind').
+          - by rewrite !FixedList.tnth_set_nth_eq.
+          - rewrite FixedList.tnth_set_nth_eq; last by [].
+            rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos' ->.
+            by rewrite FixedList.tnth_set_nth_eq; last by [].
+          - rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos ->.
+            rewrite FixedList.tnth_set_nth_eq; last by [].
+            by rewrite FixedList.tnth_set_nth_eq; last by [].
+
+          - rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos ->.  
+            rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos' ->.
+            rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos' ->.  
+            by rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos ->.
+      Qed.
+      
+
+        Lemma bloomfilter_add_internal_hit
+              bf (ind: 'I_Hash_size.+1) hshs :
+          ( ind \in hshs) ->
+          (tnth (bloomfilter_state (bloomfilter_add_internal hshs bf)) ind).
+          Proof.
+
+            elim: hshs bf  => //= hsh hshs IHs bf.
+
+            rewrite in_cons => /orP [/eqP -> | H]; last by apply IHs.
+
+            clear IHs ind hashes Hkgt0.
+            elim: hshs bf hsh => //.
+              - rewrite /bloomfilter_add_internal/bloomfilter_set_bit/bloomfilter_state //.
+                  by move=> bf hsh; rewrite FixedList.tnth_set_nth_eq => //=.
+              - move=> hsh hshs IHs bf hsh'.    
+                move=> //=.
+
+                apply IHs.
+            Search _ FixedList.set_tnth.
+            elim: hsh.
+            rewrite /bloomfilter_set_bit/bloomfilter_state //.
+
+            Search _ tnth_set_tnth.
+            rewrite in_cons.
+            rewrite negb_or => /andP [Hneq Hnotin].
+            apply IHs.
+            rewrite /bloomfilter_state/bloomfilter_set_bit.
+            rewrite FixedList.tnth_set_nth_neq => //=.
+
         Lemma bloomfilter_add_internal_miss
               bf (ind: 'I_Hash_size.+1) hshs :
           ~~ tnth (bloomfilter_state bf) ind ->
@@ -815,8 +867,20 @@ Section BloomFilter.
 
                                 by rewrite big_pred1_eq eq_refl //= mulR1.
 
+                        rewrite (bigID (fun a1 => a1 == ind)).        
 
-ds                        move.        
+                        have H x y z:  x = (0 %R) -> y = z -> x +R+ y = z.
+                          by move=> -> ->; rewrite add0R.
+                        apply H.  
+                        apply prsumr_eq0P => a /eqP Ha; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size) => [].                        
+
+                        Search _ (bloomfilter_add_internal).
+                        rewrite Ha /bloomfilter_add_internal.
+                        Search _ (\big[_/_]_(_ <- _ | _ != _) _).
+                                Search _ (_ -R- _).
+                                Search _ (\rsum_(_ in _ | _) _ = _ -R- _).
+
+                        move.        
 
                         Search _ (1 -R- _).
   Admitted.
