@@ -33,6 +33,16 @@ Proof idea
 
  *)
 
+
+
+
+
+
+
+
+
+
+
 Notation "a '/R/' b " := (Rdefinitions.Rdiv a b) (at level 70).
 Notation "a '+R+' b " := (Rdefinitions.Rplus a b) (at level 70).
 Notation "a '*R*' b " := (Rdefinitions.Rmult a b) (at level 70).
@@ -41,10 +51,21 @@ Notation "a '-<-' b " := (Rdefinitions.Rlt a b) (at level 70).
 Notation "a '-<=-' b " := (Rdefinitions.Rle a b) (at level 70).
 Notation "a '->-' b " := (Rdefinitions.Rgt a b) (at level 70).
 Notation "a '->=-' b " := (Rdefinitions.Rge a b) (at level 70).
-Notation "a '^R^' b" := (Rpower.Rpower a b) (at level 70).
+Reserved Notation "a '^R^' b"  (at level 70).
 Notation "a '%R' " := (Raxioms.INR a) (at level 70).
 Notation "d[ a ]" := (evalDist a) (at level 70).
 Definition Real := Rdefinitions.R.
+
+
+
+(* We'll use the definition of rpower for natural numbers as
+   coq's Rpower doesn't support raising 0 to a power  *)
+Notation "a '^R^' b" := (Rpow_def.pow a b).
+
+
+
+
+
 
 
 Lemma distbind_dist (A B C: finType) (a : dist A) (c : A -> B) (g: B -> dist C)  :
@@ -490,6 +511,12 @@ Section BloomFilter.
   Admitted.
 
 
+  
+                                
+
+
+  
+    
     Lemma rsum_split (A B: finType) p :
       \rsum_(x in [finType of (A * B)]) (p x) = \rsum_(a in A) \rsum_(b in B) (let x := (a,b) in (p x)).
       Proof.
@@ -598,7 +625,7 @@ Section BloomFilter.
             ret (~~ bloomfilter_get_bit ind bf')
         )
       ] = 
-    Rpower.Rpower (1 -R- Rdefinitions.Rinv (Hash_size.+1)%:R) k%:R.
+     ((1 -R- Rdefinitions.Rinv (Hash_size.+1)%:R) ^R^ k).
   Proof.
     rewrite /bloomfilter_add/hashes_not_full/bloomfilter_value_unseen/hash_unseen /hash_not_full /bloomfilter_get_bit  => /allP Hnfl /allP Husn Hunset //= .  
     rewrite !DistBind.dE //=.
@@ -713,9 +740,9 @@ Section BloomFilter.
         move: (Hpredkvld Hkgt0).
         elim: k Hkgt0 hashes Hnfl Husn => //=.
         clear k hashes Hkgt0.
-        case=> [ _  |k IHk] Hkgt0 hashes Hnfl Husn //=.
-                      - move=> _.
-                        rewrite Rpower.Rpower_1.
+        case=> [ _  |k IHk] Hkgt0 hashes Hnfl Husn.
+                      - move=> _ //=.
+                        rewrite mulR1.
 
                         transitivity (
                             \rsum_(a0 in [finType of 1.-tuple (HashState n)])
@@ -773,6 +800,7 @@ Section BloomFilter.
                               - apply eq_bigr => a _.
                                 apply eq_bigr => b _.
                                 rewrite (bigID (fun a0 => a0 == [tuple of a :: behead hashes])).
+
                                 have H (x y z: Rdefinitions.R): y = Rdefinitions.R0 -> x = z -> x +R+ y = z.
                                   by move=> -> ->; rewrite addR0.
                                 apply H.  
@@ -888,8 +916,11 @@ Section BloomFilter.
                         by rewrite card_ord.
                         rewrite bigsum_card_constE card_ord RIneq.Rinv_r //=.
                         by apply RIneq.not_0_INR => //=.
-                        apply RIneq.Rlt_Rminus.
-                        Search _ (Rdefinitions.Rinv _ -<- _).
+
+                        (* Base case completed *) 
+
+                        move=> Hpredkvld .
+                        rewrite -(IHk _ (FixedList.ntuple_tail hashes)); last first.
 
   Admitted.
 
