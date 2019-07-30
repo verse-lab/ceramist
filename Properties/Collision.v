@@ -10,6 +10,7 @@ From mathcomp
 From infotheo
      Require Import ssrR Reals_ext logb ssr_ext ssralg_ext bigop_ext Rbigop proba.
 
+Require Import Coq.Logic.ProofIrrelevance.
 Require Import Coq.Logic.FunctionalExtensionality.
 
 Set Implicit Arguments.
@@ -614,18 +615,19 @@ Proof.
   rewrite (reindex (fun (aas: (A * m.-tuple A)) => let: (x,xs) := aas in cons_tuple x xs)) => //=.
     by apply eq_bigr => [[x xs] _].
   split with (fun xs => (thead xs, tbehead xs)).
-  move=> [x xs] _ //=.
-  rewrite theadE.
-  apply f_equal.
-  rewrite /tbehead/cons_tuple //=.
-  rewrite tupleE/behead_tuple//=.
-  move: (behead_tupleP _).
-  move: xs (valP _) => [xs Hxs].
+  - move=> [x xs] _ //=.
+    rewrite theadE.
+    apply f_equal.
+    (* Now just to deal with the annoying dependant type errors *)
+    rewrite /tbehead/cons_tuple //=.
+    rewrite /[tuple of _] //=.
+    move: (behead_tupleP _) => //=; move: xs => [xs Hxs] Hxs'.
+      by rewrite (proof_irrelevance _ Hxs' Hxs).
 
-  (* Now just to deal with the annoying dependant type errors *)
+  - move=> [[//=| x xs] Hxs] _ //=.
+    by erewrite (tuple_eta) => //=.
+Qed.
 
-
-  Admitted.
 
 
 
