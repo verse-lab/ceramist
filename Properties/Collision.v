@@ -606,8 +606,33 @@ Section BloomFilter.
               rewrite big_pred1_eq.
               by rewrite addRC -subRBA subRR subR0.
             Qed.
-            
-          
+
+Lemma rsum_tuple_split (A: finType) m (f: (m.+1).-tuple A -> Rdefinitions.R) :
+  \rsum_(a in [finType of (m.+1).-tuple A]) (f a) =
+  \rsum_(aas in [finType of (A * m.-tuple A)]) (let: (x, xs) := aas in f (cons_tuple x xs)).
+Proof.
+  rewrite (reindex (fun (aas: (A * m.-tuple A)) => let: (x,xs) := aas in cons_tuple x xs)) => //=.
+    by apply eq_bigr => [[x xs] _].
+  split with (fun xs => (thead xs, tbehead xs)).
+  move=> [x xs] _ //=.
+  rewrite theadE.
+  apply f_equal.
+  rewrite /tbehead/cons_tuple //=.
+  rewrite tupleE/behead_tuple//=.
+  move: (behead_tupleP _).
+  move: xs (valP _) => [xs Hxs].
+
+  (* Now just to deal with the annoying dependant type errors *)
+
+
+  Admitted.
+
+
+
+
+
+
+  
   (* for a given index ind *)
   Lemma bloomfilter_addn (ind: 'I_(Hash_size.+1)) (bf: BloomFilter) (value: B):
     (* provided the bloom filter is not full *)
@@ -922,6 +947,30 @@ Section BloomFilter.
                         move=> Hpredkvld .
                         rewrite -(IHk _ (FixedList.ntuple_tail hashes)); last first.
 
+                             - destruct hashes eqn: Hhashes => ls.
+                               clear Hnfl; move: tval i Hhashes Husn => [//= | x [//=| y xs]] Hprf Heq Hnfl.
+                               rewrite FixedList.ntuple_tail_coerce => Hin; apply Hnfl => //=.
+                                 by move: Hin; rewrite [ls \in [:: x, y & xs]]in_cons /tval => ->; rewrite Bool.orb_true_r.
+
+                             - destruct hashes eqn: Hhashes => ls.
+                               clear Husn; move: tval i Hhashes Hnfl => [//= | x [//= | y xs]] Hprf Heq Husn.
+                               rewrite FixedList.ntuple_tail_coerce => Hin; apply Husn => //=.
+                                 by move: Hin; rewrite [ls \in [:: x, y & xs]]in_cons /tval => ->; rewrite Bool.orb_true_r.
+                             - rewrite mulRC !rsum_Rmul_distr_r.
+
+                               Search _ (?x.-tuple _) ((?x.+1).-tuple _).
+                               rewrite 
+
+
+                               rewrite (@big_tcast _ _ _ .
+                               rewrite exchange_big [\rsum_(a in tuple_finType _ _) _]exchange_big.
+big_tcast
+                               rewrite big_exchange.
+
+                               About big_rec2.
+                               eapply  (@big_rec2 Rdefinitions.R Rdefinitions.R (fun x y => x = y)).
+                               Search _ (thead).
+                               move: (tuple_eta ).
   Admitted.
 
   Search _ Rpower.Rpower.
