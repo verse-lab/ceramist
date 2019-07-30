@@ -959,6 +959,43 @@ Qed.
                                rewrite FixedList.ntuple_tail_coerce => Hin; apply Husn => //=.
                                  by move: Hin; rewrite [ls \in [:: x, y & xs]]in_cons /tval => ->; rewrite Bool.orb_true_r.
                              - rewrite mulRC !rsum_Rmul_distr_r.
+                               rewrite rsum_tuple_split rsum_split exchange_big  //.
+
+                               transitivity (\rsum_(j in [finType of (k.+1).-tuple (HashState n)])
+
+                                              \rsum_(i in [finType of HashState n])
+                                              \rsum_(a in  'I_Hash_size.+1)
+                                              \rsum_(b in [finType of  (k.+1).-tuple ('I_Hash_size.+1)])
+                                              ((d[ hash_vec_int Hkgt0 value hashes Hpredkvld]) (cons_tuple i j, cons_tuple a b) *R*
+                                               (~~ tnth
+                                                   (bloomfilter_state
+                                                      (bloomfilter_add_internal
+                                                         (cons_tuple a b)
+                                                         bf))
+                                                   ind %R)) 
+                                            ).
+                                    - apply eq_bigr => j _.
+                                      apply eq_bigr => i _.
+                                      rewrite rsum_tuple_split rsum_split.
+                                      by apply eq_bigr => a _ //.
+
+                               apply eq_bigr => a0 _.
+                               rewrite mulRC rsum_Rmul_distr_r.
+                               apply Logic.eq_sym => //=.
+
+                               transitivity (
+                                   \rsum_(a in tuple_finType k.+1 (ordinal_finType Hash_size.+1))
+                                    ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) *R*
+                                     ((d[ hash_vec_int Hkgt0 value (FixedList.ntuple_tail hashes) Hpredkvld]) (a0, a) *R*
+                                      (~~ tnth (bloomfilter_state (bloomfilter_add_internal a bf)) ind %R)))
+                                 ).
+                               
+
+                               Search _ (?x = ?y) "sym".
+
+                               
+                               apply eq_bigr => b0 _ //=.
+
 
                                Search _ (?x.-tuple _) ((?x.+1).-tuple _).
                                rewrite 
