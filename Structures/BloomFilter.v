@@ -85,7 +85,7 @@ Section BloomFilter.
                       let (new_hsh_fun, result) := hash_vl in
                       (* update the hash state *)
                       let new_hashes := set_tnth new_hashes new_hsh_fun pos in
-                      ret (new_hashes, (@trcons _ _ result_vec result))
+                      ret (new_hashes, (@cons_tuple _ _  result result_vec))
                     )
         end
       ) (erefl pos).
