@@ -575,7 +575,21 @@ Section BloomFilter.
                 rewrite bloomfilter_set_bitC .
                 by apply IHs.
           Qed.
-          
+
+        Lemma bloomfilter_add_internal_preserve bf ind hshs:
+          tnth (bloomfilter_state bf) ind ->
+          tnth (bloomfilter_state (bloomfilter_add_internal hshs bf)) ind.
+          Proof.
+
+            elim: hshs bf ind => //= hsh hshs IHs bf ind Htnth.
+            apply IHs.
+            rewrite /bloomfilter_set_bit/bloomfilter_state //.
+            case Hhsh: (ind == hsh).
+              - by rewrite FixedList.tnth_set_nth_eq //=.
+              - rewrite FixedList.tnth_set_nth_neq; first by move: Htnth; rewrite/bloomfilter_state//=.
+                  by move/Bool.negb_true_iff: Hhsh.
+          Qed.
+               
 
         Lemma bloomfilter_add_internal_miss
               bf (ind: 'I_Hash_size.+1) hshs :
@@ -984,24 +998,139 @@ Qed.
                              - rewrite mulRC !rsum_Rmul_distr_r.
                                rewrite rsum_tuple_split rsum_split exchange_big  //.
 
-                               transitivity (\rsum_(j in [finType of (k.+1).-tuple (HashState n)])
-                                              \rsum_(b in [finType of  (k.+1).-tuple ('I_Hash_size.+1)])
-                                              \rsum_(i in [finType of HashState n])
-                                              \rsum_(a in  'I_Hash_size.+1)
-                                              ((d[ hash_vec_int Hkgt0 value hashes Hpredkvld]) (cons_tuple i j, cons_tuple a b) *R*
-                                               (~~ tnth
-                                                   (bloomfilter_state
-                                                      (bloomfilter_add_internal
-                                                         (cons_tuple a b)
-                                                         bf))
-                                                   ind %R)) 
+                               transitivity (\rsum_(a0 in [finType of (k.+1).-tuple (HashState n)])
+                                              \rsum_(b0 in [finType of  (k.+1).-tuple ('I_Hash_size.+1)])
+                                              \rsum_(a0' in [finType of HashState n])
+                                              \rsum_(b0' in  'I_Hash_size.+1)
+                                              \rsum_(new_hashes in tuple_finType k.+2 (hashstate_of_finType n))
+                                              \rsum_(result in tuple_finType k.+1 (ordinal_finType Hash_size.+1))
+                                              \rsum_(new_hsh_fun in hashstate_of_finType n)
+                                              \rsum_(result' in ordinal_finType Hash_size.+1)
+                                              ((d[ hash_vec_int Hkgt0 value hashes (Hltn_leq Hpredkvld (erefl k.+1))]) (new_hashes, result) *R*
+                                               ((~~ tnth (bloomfilter_state (bloomfilter_add_internal b0 (bloomfilter_set_bit b0' bf))) ind %R) *R*
+                                                ((d[ hash n value (tnth new_hashes (Ordinal Hpredkvld))]) (new_hsh_fun, result') *R*
+                                                 ([&& (a0' == FixedList.ntuple_head new_hashes) &&
+                                                      (a0 == FixedList.ntuple_tail (FixedList.set_tnth new_hashes new_hsh_fun  (Ordinal Hpredkvld))),
+                                                   b0' == result'
+                                                   & b0 == result] %R))))
                                             ).
-                                    - apply eq_bigr => j _ //=.
+                                    - apply eq_bigr => a0 _ //=.
                                       rewrite exchange_big rsum_tuple_split rsum_split exchange_big.
-                                      apply eq_bigr => i _ //=.
+                                      apply eq_bigr => b0 _ //=.
                                       rewrite exchange_big.
-                                      by apply eq_bigr => a _ //.
-                               apply eq_bigr => a0 _.
+                                      apply eq_bigr => a0' _.
+                                      apply eq_bigr => b0' _.
+                                      rewrite !DistBind.dE !rsum_split rsum_Rmul_distr_r.
+                                      apply eq_bigr => new_hashes _.
+                                      rewrite mulRC rsum_Rmul_distr_r.
+                                      apply eq_bigr => result _ //=.
+                                      rewrite DistBind.dE.
+                                      rewrite mulRC -mulRA rsum_Rmul_distr_r mulRC rsum_Rmul_distr_r.
+                                      rewrite rsum_split.
+                                      apply eq_bigr => new_hsh_fun _.
+                                      apply eq_bigr => result' _ //=.
+                                      rewrite Dist1.dE !xpair_eqE !xcons_eqE.
+                                      by do ?apply f_equal.
+
+
+
+                               transitivity (
+                                   \rsum_(new_hashes in tuple_finType k.+2 (hashstate_of_finType n))
+                                    \rsum_(a0 in [finType of (k.+1).-tuple (HashState n)])
+                                    \rsum_(b0 in [finType of (k.+1).-tuple 'I_Hash_size.+1])
+                                    \rsum_(a0' in [finType of HashState n])
+                                    \rsum_(b0' in 'I_Hash_size.+1)
+                                    \rsum_(result in tuple_finType k.+1 (ordinal_finType Hash_size.+1))
+                                    \rsum_(new_hsh_fun in hashstate_of_finType n)
+                                    \rsum_(result' in ordinal_finType Hash_size.+1)
+                                    ((d[ hash_vec_int Hkgt0 value hashes (Hltn_leq Hpredkvld (erefl k.+1))])
+                             (new_hashes, result) *R*
+                                     ((~~ tnth
+                                          (bloomfilter_state
+                                             (bloomfilter_add_internal b0 (bloomfilter_set_bit b0' bf))) ind %R) *R*
+                                      ((d[ hash n value (tnth new_hashes (Ordinal Hpredkvld))]) (new_hsh_fun, result') *R*
+                                       ([&& (a0' == FixedList.ntuple_head new_hashes) &&
+                                            (a0 == FixedList.ntuple_tail
+                                                     (FixedList.set_tnth new_hashes new_hsh_fun (Ordinal Hpredkvld))),
+                                         b0' == result'
+                                         & b0 == result] %R))))).                                      
+                                    - apply Logic.eq_sym.
+                                      rewrite exchange_big; apply eq_bigr => a0 _.
+                                      rewrite exchange_big; apply eq_bigr => b0 _.
+                                      rewrite exchange_big; apply eq_bigr => a0' _.
+                                      rewrite exchange_big; apply eq_bigr => b0' _.
+                                        by apply eq_bigr => new_hashes _.
+
+                               transitivity (
+                                   \rsum_(new_hashes in tuple_finType k.+2 (hashstate_of_finType n))
+                                    \rsum_(result in tuple_finType k.+1 (ordinal_finType Hash_size.+1))
+                                    \rsum_(a0 in [finType of (k.+1).-tuple (HashState n)])
+                                    \rsum_(b0 in [finType of (k.+1).-tuple 'I_Hash_size.+1])
+                                    \rsum_(a0' in [finType of HashState n])
+                                    \rsum_(b0' in 'I_Hash_size.+1)
+                                    \rsum_(new_hsh_fun in hashstate_of_finType n)
+                                    \rsum_(result' in ordinal_finType Hash_size.+1)
+                                    ((d[ hash_vec_int Hkgt0 value hashes (Hltn_leq Hpredkvld (erefl k.+1))])
+                             (new_hashes, result) *R*
+                                     ((~~ tnth
+                                          (bloomfilter_state
+                                             (bloomfilter_add_internal b0 (bloomfilter_set_bit b0' bf))) ind %R) *R*
+                                      ((d[ hash n value (tnth new_hashes (Ordinal Hpredkvld))]) (new_hsh_fun, result') *R*
+                                       ([&& (a0' == FixedList.ntuple_head new_hashes) &&
+                                            (a0 == FixedList.ntuple_tail
+                                                     (FixedList.set_tnth new_hashes new_hsh_fun (Ordinal Hpredkvld))),
+                                         b0' == result'
+                                         & b0 == result] %R))))).                                      
+                                    - apply Logic.eq_sym.
+                                      apply eq_bigr => new_hashes _.
+                                      rewrite exchange_big; apply eq_bigr => a0 _.
+                                      rewrite exchange_big; apply eq_bigr => b0 _.
+                                      rewrite exchange_big; apply eq_bigr => a0' _.
+                                      rewrite exchange_big; apply eq_bigr => b0' _.
+                                        by apply eq_bigr => result _.
+
+                               apply Logic.eq_sym.
+
+                               transitivity (
+                                  \rsum_(b0 in [finType of (k.+1).-tuple 'I_Hash_size.+1])
+                                   \rsum_(a in tuple_finType k.+1 (hashstate_of_finType n))
+                                    ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) *R*
+                                     ((d[
+                                           (@hash_vec_int (k.+1) n Hkgt0 value (@FixedList.ntuple_tail (HashState n) (k.+1) hashes) ((k.+1).-1) Hpredkvld)
+                                           ]) (a, b0) *R*
+                                       (~~ tnth (bloomfilter_state (bloomfilter_add_internal b0 bf)) ind %R)))
+                                 ).
+                                    - rewrite exchange_big; apply eq_bigr => a _ //=.
+                                      by rewrite mulRC rsum_Rmul_distr_r.
+
+                               apply Logic.eq_sym.
+
+                               rewrite exchange_big; apply eq_bigr => result _.
+                               rewrite rsum_tuple_split rsum_split //.         
+
+                               rewrite exchange_big; apply eq_bigr => new_hsh_fun' _.
+
+                               move=> //=.
+
+
+                               Check (@hash_vec_int (S k) n Hkgt0 value
+                         (@FixedList.ntuple_tail (HashState n) (S k) hashes) k Hpredkvld).
+
+
+                               About hash_vec_int.
+ (d[ hash_vec_int Hkgt0 value hashes (prf: k < k.+2)])
+
+ (cons_tuple i new_hsh_fun', result)                               
+
+ (d[ hash_vec_int Hkgt0 value (FixedList.ntuple_tail hashes) (prf: k.+1 < k.+2)])
+ (new_hsh_fun', result)
+
+                               rewrite /hash_vec_int.
+
+
+
+                               apply eq_bigr => new_hashes _.
+
                                rewrite mulRC rsum_Rmul_distr_r.
                                apply eq_bigr => b0 _.
 
@@ -1154,6 +1283,40 @@ Qed.
                                            rewrite bloomfilter_add_internal_miss //; last by move/Bool.negb_true_iff: Hind.
                                            have: (true %R) = (1 %R). by [].
                                            move=> ->; rewrite mulR1.
+
+                                           move=> //=.
+                                           transitivity (
+                                               \rsum_(hvec in [finType of (k.+2).-tuple (HashState n)])
+                                                \rsum_(ind' in 'I_Hash_size.+1)
+                                                \rsum_(hs' in [finType of HashState n])
+                                                (((~~
+                                                     tnth (bloomfilter_state (bloomfilter_add_internal b0 (bloomfilter_set_bit ind' bf)))
+                                                     ind %R) *R*
+                                                  (d[ hash_vec_int Hkgt0 value hashes (Hltn_leq Hpredkvld (erefl k.+1))]) (hvec, b0)) *R*
+                                                 ((d[ hash n value (tnth hvec (Ordinal Hpredkvld))]) (hs', ind') *R*
+                                                  ((a0 ==
+      match k as n0 return (k = n0 -> (k.+1).-tuple (HashState n)) with
+      | 0 => fun _ : k = 0 => [tuple of hs' :: behead (behead hvec)]
+      | n0.+1 =>
+          fun _ : k = n0.+1 =>
+          [tuple of FixedList.ntuple_head (FixedList.ntuple_tail hvec)
+                    :: FixedList.set_tnth (FixedList.ntuple_tail (FixedList.ntuple_tail hvec)) hs' n0]
+      end (erefl k)) %R)))
+                                             ).
+                                               - apply eq_bigr => hvec _; apply eq_bigr => ind' _; apply eq_bigr => hs' _.
+                                                 by rewrite ntuple_tailE //=.
+                                           rewrite exchange_big (bigID (fun ind' => ind' == ind)) //=.
+
+                                           have H x y z: (y = (0 %R)) -> x = z -> y +R+ x = z.
+                                             by move => -> -> //=; rewrite add0R.
+                                           apply H.  
+                                           rewrite big_pred1_eq.
+                                           apply prsumr_eq0P => hvec _; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size).
+                                           apply prsumr_eq0P => hs' _; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size).
+                                           rewrite bloomfilter_add_internal_preserve; first by rewrite //= !mul0R.
+
+                                           rewrite /bloomfilter_state/bloomfilter_set_bit//.
+                                           by rewrite FixedList.tnth_set_nth_eq.
 
   Admitted.
 
