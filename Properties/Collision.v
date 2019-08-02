@@ -1362,5 +1362,24 @@ Qed.
 
   About bloomfilter_addn.
 
+  About bloomfilter_query.
   (* TODO: No False Negatives *)
-  (* Theorem no_false_negative *)
+  Theorem no_false_negative (bf : BloomFilter) (value_ins value_find : B):
+     hashes_not_full ->
+     bloomfilter_value_unseen value_find ->
+     bloomfilter_value_unseen value_ins ->
+     (d[  (* provided value_find is not in the bloomfilter *)
+          res_1 <-$ bloomfilter_query value_find hashes bf;
+          let '(hshs_1, qbef) := res_1 in
+          (* then, after inserting value_ins *)
+          res_2 <-$ bloomfilter_add value_ins hshs_1 bf;
+          let '(hshs_2, bf') := res_2 in
+          (* searching for value_find returns false *)
+          res_3 <-$ bloomfilter_query value_find hshs_2 bf';
+          let '(hshs_3, qaft) := res_3 in
+          (* we want the situation in which both queries are false *)
+          ret (~~ qbef && ~~ qaft)
+    ]) true =
+((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ (k * n)).
+
+    (* Need to rewrite *) 
