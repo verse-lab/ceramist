@@ -767,7 +767,7 @@ Qed.
                              \rsum_(values'' in ordinal_finType Hash_size.+1)
   ((((true == ~~ tnth (bloomfilter_state (bloomfilter_add_internal exp_bf bf)) ind) %R) *R*
     ((hashes' == [tuple]) && (values' == [tuple]) %R)) *R*
-   ((d[ hash n value (thead (hash_vec_int_cast (erefl 1) hashes))]) (hashes'', values'') *R*
+   ((d[ hash n value (thead hashes)]) (hashes'', values'') *R*
     ((exp_hashes == [tuple of hashes'' :: hashes']) && (exp_bf == [tuple of values'' :: values']) %R)))
                           ).
 
@@ -785,21 +785,14 @@ Qed.
                                  by rewrite Dist1.dE xpair_eqE//=.
 
                         transitivity (
-
                             \rsum_(exp_hashes in [finType of 1.-tuple (HashState n)])
-
                              \rsum_(hashes' in [finType of 0.-tuple (HashState n)])
-
                              \rsum_(values' in [finType of 0.-tuple 'I_Hash_size.+1])
-
                              \rsum_(hashes'' in hashstate_of_finType n)
-
                              \rsum_(values'' in ordinal_finType Hash_size.+1)
-
                              ((((true == ~~ tnth (bloomfilter_state (bloomfilter_add_internal [tuple of values'' :: values'] bf)) ind)
                        %R) *R* ((hashes' == [tuple]) && (values' == [tuple]) %R)) *R*
-
-                              ((d[ hash n value (thead (hash_vec_int_cast (erefl 1) hashes))])
+                              ((d[ hash n value (thead hashes)])
                         (hashes'', values'') *R*
 
                                ((exp_hashes == [tuple of hashes'' :: hashes']) %R)))
@@ -824,216 +817,125 @@ Qed.
                              \rsum_(values'' in ordinal_finType Hash_size.+1)
                              ((((true == ~~ tnth (bloomfilter_state (
                                                       bloomfilter_add_internal [tuple of values'' :: [tuple]] bf)) ind) %R) *R*
-                              ((d[ hash n value (thead (hash_vec_int_cast (erefl 1) hashes))])
+                              ((d[ hash n value (thead hashes)])
                                  (hashes'', values''))))
                           ).                                 
+                               - rewrite exchange_big.
+                                 rewrite (bigID (fun i => i == [tuple])) big_pred1_eq.
+                                 have H x y z: y = (0 %R) -> x = z -> x +R+ y = z. by move=> -> ->; rewrite addR0.
+                                 apply H.
+                                      - apply prsumr_eq0P => i /Bool.negb_true_iff -> //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
+                                        apply prsumr_eq0P => i' _ //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
+                                        apply prsumr_eq0P => values' _ //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
+                                        apply prsumr_eq0P => hashes''  _ //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
+                                        apply prsumr_eq0P => values''  _ //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
+                                          by rewrite !mulR0 mul0R.
 
-                        rewrite exchange_big.
-                        rewrite (bigID (fun i => i == [tuple])) big_pred1_eq.
-                        have H x y z: y = (0 %R) -> x = z -> x +R+ y = z. by move=> -> ->; rewrite addR0.
-                        apply H.
-                                 - apply prsumr_eq0P => i /Bool.negb_true_iff -> //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
-                                   apply prsumr_eq0P => i' _ //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
-                                   apply prsumr_eq0P => values' _ //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
-                                   apply prsumr_eq0P => hashes''  _ //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
-                                   apply prsumr_eq0P => values''  _ //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
-                                   by rewrite !mulR0 mul0R.
-                      rewrite exchange_big //= (bigID (fun i => i == [tuple])) big_pred1_eq //=. 
+                                 rewrite exchange_big //= (bigID (fun i => i == [tuple])) big_pred1_eq //=. 
+                                 apply H.
+                                       - apply prsumr_eq0P => i /Bool.negb_true_iff -> //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
+                                         apply prsumr_eq0P => i' _ //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
+                                         apply prsumr_eq0P => values' _ //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
+                                         apply prsumr_eq0P => hashes''  _ //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
+                                           by rewrite !mulR0 mul0R.
+                                rewrite exchange_big; apply eq_bigr => hashes'' _.
+                                rewrite exchange_big; apply eq_bigr => values'' _.
+                                rewrite (bigID (fun i => i == [tuple hashes''])) big_pred1_eq //=.
 
-                      apply H.
-                                 - apply prsumr_eq0P => i /Bool.negb_true_iff -> //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
-                                   apply prsumr_eq0P => i' _ //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
-                                   apply prsumr_eq0P => values' _ //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
-                                   apply prsumr_eq0P => hashes''  _ //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
-                                   by rewrite !mulR0 mul0R.
-                        rewrite exchange_big; apply eq_bigr => hashes'' _.
-                        rewrite exchange_big; apply eq_bigr => values'' _.
+                                apply H.
+                                     - apply prsumr_eq0P => i /Bool.negb_true_iff -> //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
+                                         by rewrite !mulR0.
+                                rewrite mulR1; do ?(apply f_equal).
+                                  by rewrite (eq_refl [tuple hashes'']) //= mulR1.
 
-                        rewrite (bigID (fun i => i == [tuple hashes''])) big_pred1_eq //=.
+                                rewrite /hash/hashstate_find.
+                                have Hthead: (thead hashes) \in hashes.
+                                by clear; rewrite (tuple_eta hashes) theadE//=; apply mem_head.
+                                move/eqP: (Husn (thead hashes) Hthead) ->.
 
-                        apply H.
-                                 - apply prsumr_eq0P => i /Bool.negb_true_iff -> //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
-                                   by rewrite !mulR0.
+                                rewrite exchange_big (bigID (fun values'' => values'' == ind)).
 
-                        rewrite mulR1; do ?(apply f_equal).
-                        by rewrite (eq_refl [tuple hashes'']) //= mulR1.
+                                have H x y z: y = (0 %R) -> x = z -> y +R+ x = z.
+                                by move=> -> ->; rewrite add0R.
 
-                                 by rewrite big_pred1_eq eq_refl //= !Bool.andb_true_r.
+                                apply H.
+                                     - apply prsumr_eq0P => ind' /eqP ->; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
+                                       rewrite bloomfilter_add_internal_hit //=.
+                                       apply prsumr_eq0P => i' _; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
+                                       by rewrite mul0R.
+                                       by apply mem_head.
 
+                        transitivity ( 
+                            \rsum_(i in 'I_Hash_size.+1 | i != ind)
+                             \rsum_(i0 in hashstate_of_finType n)
+                             ((d[ rnd <-$ gen_random; ret (hashstate_put n value rnd (thead hashes), rnd)]) (i0, i))
+                          ).
 
-                                 transitivity (
-                            \rsum_(a0 in [finType of 1.-tuple (HashState n)])
-                             \rsum_(b0 in [finType of 1.-tuple 'I_Hash_size.+1])
-                             \rsum_(a in [finType of HashState n])
-                             \rsum_(b in [finType of 'I_Hash_size.+1])
-                             ((~~ tnth (bloomfilter_state (bloomfilter_add_internal b0 bf)) ind %R) *R*
-                              ((d[ hash n value (tnth hashes (Ordinal Hkgt0))]) (a, b) *R*
-                               ((a0 == [tuple of a :: behead hashes]) && (b0 == [tuple b]) %R)))
-                        ).
-                              - apply eq_bigr => a0 _.
-                                apply eq_bigr => b0 _.
+                                     - apply eq_bigr => ind' /andP [_ Hnind].
+                                       apply eq_bigr => vl _.
+                                       rewrite bloomfilter_add_internal_miss.
+                                       by rewrite eq_refl //= mul1R.
+                                       by [].
+                                       by rewrite mem_seq1 eq_sym. 
+
+                        move=> //=.               
+
+                        transitivity (
+                            \rsum_(i < Hash_size.+1 | i != ind)
+                             \rsum_(hs in [finType of HashState n])
+                             \rsum_(hs' in [finType of 'I_Hash_size.+1])
+                             \rsum_(i' in ordinal_finType Hash_size.+1)
+                             (((hs == hashstate_put n value hs' (thead hashes)) && (i == hs') %R) *R*
+                              (Rdefinitions.Rinv (#|ordinal_finType Hash_size.+1| %R) *R* ((hs' == i') %R)))
+                          ).
+                              - apply eq_bigr => i Hneq.
+                                apply eq_bigr => hs _.
                                 rewrite DistBind.dE.
-                                rewrite rsum_split => //=.
-                                rewrite rsum_Rmul_distr_r.
-                                apply eq_bigr => a _.
-                                rewrite mulRC rsum_Rmul_distr_r.
-                                apply eq_bigr => b _.
-                                by rewrite Dist1.dE xpair_eqE //=.
+                                apply eq_bigr => hs' _.
+                                rewrite DistBind.dE rsum_Rmul_distr_r.
+                                apply eq_bigr => i' _.
+                                by rewrite !Dist1.dE Uniform.dE xpair_eqE.
 
-                        transitivity (
-                           \rsum_(a in [finType of HashState n])
-                            \rsum_(a0 in [finType of 1.-tuple (HashState n)])
-                             \rsum_(b0 in [finType of 1.-tuple 'I_Hash_size.+1])
-                             \rsum_(b in [finType of 'I_Hash_size.+1])
-                             ((~~ tnth (bloomfilter_state (bloomfilter_add_internal b0 bf)) ind %R) *R*
-                              ((d[ hash n value (tnth hashes (Ordinal Hkgt0))]) (a, b) *R*
-                               ((a0 == [tuple of a :: behead hashes]) && (b0 == [tuple b]) %R)))
-                          ).        
-                              - rewrite [\rsum_(a in [finType of HashState n]) _]exchange_big => //=.
-                                apply eq_bigr => a0 _.
-                                by rewrite [\rsum_(i in [finType of HashState n]) _]exchange_big => //=.
-
-                        transitivity (
-                           \rsum_(a in [finType of HashState n])
-                            \rsum_(b in [finType of 'I_Hash_size.+1])
-                            \rsum_(a0 in [finType of 1.-tuple (HashState n)])
-                            \rsum_(b0 in [finType of 1.-tuple 'I_Hash_size.+1])
-                            ((~~ tnth (bloomfilter_state (bloomfilter_add_internal b0 bf)) ind %R) *R*
-                             ((d[ hash n value (tnth hashes (Ordinal Hkgt0))]) (a, b) *R*
-                              ((a0 == [tuple of a :: behead hashes]) && (b0 == [tuple b]) %R)))
-                           ).        
-                              - apply eq_bigr => a _ //=.
-
-                                rewrite [\rsum_(b in [finType of 'I_Hash_size.+1]) _]exchange_big //=.
-                                apply eq_bigr=> a0 _ //=.
-                                by rewrite [\rsum_(i in [finType of 'I_Hash_size.+1]) _]exchange_big //=.
-                        transitivity (
-                           \rsum_(a in [finType of HashState n])
-                            \rsum_(b in [finType of 'I_Hash_size.+1])
-                             ((~~ tnth (bloomfilter_state (bloomfilter_add_internal [tuple b] bf)) ind %R) *R*
-                              ((d[ hash n value (tnth hashes (Ordinal Hkgt0))]) (a, b)))
+                        transitivity (        
+                            \rsum_(i < Hash_size.+1 | i != ind)
+                             \rsum_(hs in [finType of HashState n])
+                             \rsum_(i' in ordinal_finType Hash_size.+1)
+                             (((hs == hashstate_put n value i' (thead hashes)) && (i == i') %R) *R*
+                              (Rdefinitions.Rinv (#|ordinal_finType Hash_size.+1| %R)))
                           ).
 
-                              - apply eq_bigr => a _.
-                                apply eq_bigr => b _.
-                                rewrite (bigID (fun a0 => a0 == [tuple of a :: behead hashes])).
+                              - apply eq_bigr => i Hneq.
+                                apply eq_bigr => hs _.
+                                rewrite exchange_big; apply eq_bigr=> i' _.
+                                rewrite (bigID (fun i0 => i0 == i')) //= addRC.
+                                apply H.
+                                      - apply prsumr_eq0P => i0 /Bool.negb_true_iff ->; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size) => [].
+                                          by rewrite //= !mulR0.
 
-                                have H (x y z: Rdefinitions.R): y = Rdefinitions.R0 -> x = z -> x +R+ y = z.
-                                  by move=> -> ->; rewrite addR0.
-                                apply H.  
-                                  - apply prsumr_eq0P => a0 /Bool.negb_true_iff -> //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
-                                    apply prsumr_eq0P => b0 _; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
-                                    by rewrite !mulR0.
-
-                                   - rewrite big_pred1_eq.  
-                                     rewrite (bigID (fun b0 => b0 == [tuple b])).
-                                     apply H.
-                                        - apply prsumr_eq0P => a0 /Bool.negb_true_iff -> //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n.
-                                         - by rewrite Bool.andb_false_r //= !mulR0.
-
-                                rewrite big_pred1_eq !eq_refl.       
-
-                                have: (true && true %R) = (1 %R). by [].
-                                by move=> ->; rewrite mulR1.
-
+                                by rewrite big_pred1_eq eq_refl //= mulR1; do ?(apply f_equal).
                         transitivity (
-                                \rsum_(a0 in ordinal_finType Hash_size.+1)                            
-                                 \rsum_(a in [finType of HashState n])
-                                 \rsum_(b in [finType of 'I_Hash_size.+1])
-                                 \rsum_(a1 in ordinal_finType Hash_size.+1)
-                                 ((~~ tnth (bloomfilter_state (bloomfilter_add_internal [tuple b] bf)) ind %R) *R*
-                                  (((a == hashstate_put n value a0 (tnth hashes (Ordinal Hkgt0))) && (b == a0) %R) *R*
-                                   (Rdefinitions.Rinv (#|ordinal_finType Hash_size.+1| %R) *R* ((a0 == a1) %R))))
-                         ).
-                            rewrite [\rsum_(a0 in  ordinal_finType Hash_size.+1) _]exchange_big.
-                            apply eq_bigr => a _ .
-                            rewrite [\rsum_(i in 'I_Hash_size.+1) \rsum_(_ in _) _]exchange_big.
-                            apply eq_bigr => b _.
-                            rewrite /hash/hashstate_find.
-                            move /eqP:(Husn (tnth hashes (Ordinal Hkgt0)) (mem_tnth _ _)) ->.
-                            transitivity (
-                                ((~~ tnth
-                                    (bloomfilter_state (bloomfilter_add_internal [tuple b] bf))
-                                    ind %R) *R*
-                                 (DistBind.d
-                                    (DistBind.d
-                                       (Uniform.d (size_enum_equiv (size_enum_ord Hash_size.+1)))
-                                                [eta Dist1.d (A:=ordinal_finType Hash_size.+1)])
-                                    (fun b0 : 'I_Hash_size.+1 =>
-                                       Dist1.d (hashstate_put n value b0
-                                                              (tnth hashes (Ordinal Hkgt0)), b0)))
-     (a, b))
-                              ).
-                                by [].
-                            rewrite DistBind.dE mulRC rsum_Rmul_distr_r.    
-                            apply eq_bigr => a0 _.
-                            rewrite Dist1.dE xpair_eqE DistBind.dE mulRC !rsum_Rmul_distr_r.
-                            apply eq_bigr => a1 _.
-                            by rewrite Uniform.dE Dist1.dE.
-
-                        transitivity (
-                            \rsum_(a0 in [finType of 'I_Hash_size.+1])
-                             \rsum_(a1 in ordinal_finType Hash_size.+1)
-                             ((~~ tnth (bloomfilter_state (bloomfilter_add_internal [tuple a0] bf)) ind %R) *R*
-                                  (Rdefinitions.Rinv (#|ordinal_finType Hash_size.+1| %R) *R* ((a0 == a1) %R)))
-                          ).    
-                            apply eq_bigr => a0 _.
-
-                            rewrite (bigID (fun a => a == hashstate_put n value a0 (tnth hashes (Ordinal Hkgt0)))).
-                            have H (x y z: Rdefinitions.R): y = Rdefinitions.R0 -> x = z -> x +R+ y = z.
-                              by move=> -> ->; rewrite addR0.
-                            apply H.  
-                                -  move=> //=; apply prsumr_eq0P => a0' /Bool.negb_true_iff -> //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size) => [].
-                                   apply prsumr_eq0P => b _; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size) => [].
-                                   apply prsumr_eq0P => a1 _; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size) => [].
-
-                                   by rewrite mul0R mulR0.
-
-                            rewrite big_pred1_eq eq_refl.
-                            rewrite (bigID (fun b => b == a0)).
-                            apply H.
-                                    - apply prsumr_eq0P => i /Bool.negb_true_iff -> //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size) => [].
-                                      apply prsumr_eq0P => a1 _ //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size) => [].
-
-                                      by rewrite mul0R mulR0.
-                            rewrite big_pred1_eq eq_refl.          
-                            apply eq_bigr => a1 _.
-                            have: (true && true %R) = (1 %R). by [].
-                            by move=> ->; rewrite mul1R.
-
-                        transitivity (     
-                            \rsum_(a1 in ordinal_finType Hash_size.+1)
-                             ((~~ tnth (bloomfilter_state (bloomfilter_add_internal [tuple a1] bf)) ind %R) *R*
-                              (Rdefinitions.Rinv (#|ordinal_finType Hash_size.+1| %R)))).
-                              - rewrite exchange_big; apply eq_bigr => a1 _.
-                                rewrite (bigID (fun a0 => a0 == a1)).
-                                have H (x y z: Rdefinitions.R): y = Rdefinitions.R0 -> x = z -> x +R+ y = z.
-                                    by move=> -> ->; rewrite addR0.
-                                apply H.  
-                                     - apply prsumr_eq0P => i /Bool.negb_true_iff -> //=; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size) => [].                        
-                                       by rewrite !mulR0.
-                                by rewrite big_pred1_eq eq_refl //= mulR1.
-                        rewrite (bigID (fun a1 => a1 == ind)).        
-                        have H x y z:  x = (0 %R) -> y = z -> x +R+ y = z.
-                          by move=> -> ->; rewrite add0R.
-                        apply H.  
-                        apply prsumr_eq0P => a /eqP Ha; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size) => [].                        
-                        rewrite Ha bloomfilter_add_internal_hit => //=; first by rewrite mul0R.
-                        by rewrite mem_seq1.
-
-                        transitivity (
-                            \rsum_(i | i != ind) (Rdefinitions.Rinv (#|ordinal_finType Hash_size.+1| %R))
+                            \rsum_(i < Hash_size.+1 | i != ind)
+                             Rdefinitions.Rinv (#|ordinal_finType Hash_size.+1| %R)
                           ).
 
-                        apply eq_bigr => i Htnth.
-                        rewrite bloomfilter_add_internal_miss //=; first by rewrite mul1R.
-                        rewrite mem_seq1.
-                        by apply/eqP => Heq; move/eqP: Htnth; rewrite Heq => H2; apply H2.
+                                      - apply eq_bigr => i Hneq.
+                                        rewrite exchange_big (bigID (fun i' => i' == i)) //= addRC.
+                                        apply H.
+                                             - apply prsumr_eq0P => i0 /Bool.negb_true_iff Heq; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size) => [].
+                                               apply prsumr_eq0P => i1 _; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size) => [].
+                                               by rewrite eq_sym in Heq; rewrite Heq //= Bool.andb_false_r //= mul0R.
+                                        rewrite big_pred1_eq.       
+                                        rewrite (bigID (fun i0 => i0 == hashstate_put n value i (thead hashes))) big_pred1_eq //= addRC.
+
+                                        apply H.
+                                             - apply prsumr_eq0P => i0 /Bool.negb_true_iff ->; first by do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size) => [].
+                                               by rewrite //= mul0R.
+
+                                        by rewrite !eq_refl Bool.andb_true_l //= mul1R.       
                         apply prsumr_sans_one => //=.
                         by rewrite card_ord.
                         rewrite bigsum_card_constE card_ord RIneq.Rinv_r //=.
                         by apply RIneq.not_0_INR => //=.
-
                         (* Base case completed *) 
 
                         move=> Hpredkvld .
