@@ -1416,7 +1416,26 @@ Qed.
                   (let '(_, bf') := res in ret ~~ bloomfilter_get_bit ind bf')]) true = (0 %R).
     Proof.
 
-      Admitted.
+      move=> Htnth //=.
+
+      rewrite DistBind.dE; apply prsumr_eq0P => a _ ; first by dispatch_Rgt.
+      move: a => [hashes' bf'].
+      rewrite DistBind.dE rsum_Rmul_distr_r; apply prsumr_eq0P => a _; first by dispatch_Rgt.
+      move: a => [hashes'' hvec] //=.
+
+      rewrite !Dist1.dE xpair_eqE.
+
+      case Hgth: (_ == _) => //=; rewrite ?mul1R; last by rewrite !mul0R.
+      case Hhashes: (_ == _) => //=; rewrite ?Bool.andb_true_l; last by rewrite !mulR0.
+      case Hbf: (_ == _) => //=; rewrite ?mulR1; last by rewrite mulR0.
+
+      move/eqP: Hgth.
+      move/eqP: Hbf ->.
+      rewrite/bloomfilter_get_bit.
+      by rewrite bloomfilter_add_internal_preserve //=.
+
+    Qed.
+         
 
         
   Lemma bloomfilter_addn_insert_multiple hashes l (ind: 'I_Hash_size.+1) (bf: BloomFilter) (values: seq B):
