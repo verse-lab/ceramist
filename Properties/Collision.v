@@ -1407,6 +1407,77 @@ Qed.
         (hashes_have_free_spaces hshs' 1) && (bloomfilter_value_unseen hshs' x).
   Proof.
 
+    move=> //=.
+
+    elim: xs  x l hshs hshs' bf bf' Hlen Hfree Huns => [//=| y ys IHy ] x l hshs hshs' bf bf' Hlen Hfree Huns.
+
+       - rewrite Dist1.dE xpair_eqE; case Hhsh: (hshs' == _) => //= .
+            - move=> _; move/eqP: Hhsh Hfree Huns <- => /allP Hfree  Huns; apply/andP;split.
+              rewrite/hashes_have_free_spaces; apply/allP => cell Hcell.
+                by move: (Hfree cell Hcell); move/eqP: Hlen ->; rewrite/hash_has_free_spaces addnS //=.
+            - move: Huns; rewrite /bloomfilter_value_unseen Bool.andb_true_r => /allP Husn; apply/allP => cell Hcell.
+
+                by apply Husn.
+         by move=>/eqP //=.
+       -
+
+              move=> //=; rewrite DistBind.dE //= => Hneq.
+              case: l Hlen Hfree => [//=| l ] Hlen Hfree.
+              eapply IHy; first by move: Hlen => //=.
+              move:  Hfree (Hlen) => /allP Hfree.
+              rewrite //= !eqSS  => /eqP ->; apply /allP => cell Hcell; move: (Hfree cell Hcell).
+              by rewrite /hash_has_free_spaces; rewrite addnS => /ltnW.
+
+
+              have: (\rsum_(a in [finType of k.-tuple (HashState n)])
+                      \rsum_(b in [finType of BloomFilter])
+                      ((d[ bloomfilter_add_multiple hshs bf ys]) (a, b) *R*
+                       (DistBind.d (d[ hash_vec_int y a])
+                                   (fun b0 : k.-tuple (HashState n) * k.-tuple 'I_Hash_size.+1 =>
+                                      d[ let (new_hashes, hash_vec) := b0 in
+                                         ret (new_hashes, bloomfilter_add_internal hash_vec b)])) 
+                         (hshs', bf'))) =
+                    \rsum_(e_hshs' in [finType of k.-tuple (HashState n)])
+                     \rsum_(e_bf' in [finType of BloomFilter])
+                     \rsum_(e_hshs'' in [finType of k.-tuple (HashState n)])
+                     \rsum_(e_ind' in [finType of k.-tuple 'I_Hash_size.+1])
+                     ((d[ bloomfilter_add_multiple hshs bf ys]) (e_hshs', e_bf') *R*
+                      ((d[ hash_vec_int y e_hshs']) (e_hshs'', e_ind') *R*
+                       ((hshs' == e_hshs'') && (bf' == bloomfilter_add_internal e_ind' e_bf') %R))).
+
+                  - apply eq_bigr => e_hshs' _; apply eq_bigr => e_bf' _ //=.
+                    rewrite mulRC DistBind.dE rsum_Rmul_distr_r rsum_split.
+                    apply eq_bigr => e_hshs'' _; apply eq_bigr => e_ind' _ //=.
+                    by rewrite Dist1.dE xpair_eqE.
+              move=> ->.      
+
+              have: (  \rsum_(e_hshs' in [finType of k.-tuple (HashState n)])
+     \rsum_(e_bf' in [finType of BloomFilter])
+        \rsum_(e_hshs'' in [finType of k.-tuple (HashState n)])
+           \rsum_(e_ind' in [finType of k.-tuple 'I_Hash_size.+1])
+              ((d[ bloomfilter_add_multiple hshs bf ys]) (e_hshs', e_bf') *R*
+               ((d[ hash_vec_int y e_hshs']) (e_hshs'', e_ind') *R*
+                ((hshs' == e_hshs'') && (bf' == bloomfilter_add_internal e_ind' e_bf') %R))) =
+                       \rsum_(e_hshs' in [finType of k.-tuple (HashState n)])
+                        \rsum_(e_bf' in [finType of BloomFilter])
+                        \rsum_(e_ind' in [finType of k.-tuple 'I_Hash_size.+1])
+                        ((d[ bloomfilter_add_multiple hshs bf ys]) (e_hshs', e_bf') *R*
+                         ((d[ hash_vec_int y e_hshs']) (hshs', e_ind') *R*
+                          ((bf' == bloomfilter_add_internal e_ind' e_bf') %R)))
+                    ).
+
+              apply eq_bigr => e_hshs' _; apply eq_bigr => e_bf' _.
+
+              rewrite (bigID (fun e_hshs'' => e_hshs'' == hshs')) //=.
+              
+              transitivity (1 %R).
+              case: l Hlen Hfree => [//= | l] Hlen Hfree.
+         move=> Hprev; eapply IHy.
+              rewrite //= DistBind.dE rsum_split.
+              
+    
+    Search _ (_ %R).
+    Search _ (_ + _.+1).
   Admitted.
 
 
