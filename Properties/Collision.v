@@ -98,6 +98,43 @@ Proof.
   by move => /eqP/subR_eq0 //=; rewrite -subRBA subRR RIneq.Rminus_0_r.
 Qed.
 
+
+Lemma prsum_nge0p {A: finType}  f : 
+  (forall a : A, 0 -<=- f a) -> (forall a : A, ~ (f a  ->- (0 %R))) -> (forall a, f a = (0 %R)).
+Proof.
+  move=> Hdist Hngt a; move/RIneq.Rnot_gt_le: (Hngt a) (Hdist a).
+  by move=>/RIneq.Rle_antisym H /H.
+Qed.
+
+Lemma prsumr_ge0 (A : finType) (f: A -> Rdefinitions.R) : (forall a : A, (0 -<=- f a)) -> \rsum_(a in A) f a <> (0 %R) <-> (exists a,  f a ->- (0 %R)).
+Proof.
+  have HforalleqP : (forall x, f x = (0 %R)) -> (forall x, (fun _ => true) x -> f x = (0 %R)). by [].
+  have HforallgtP : (forall x, 0 -<=- f x) -> (forall x, (fun _ => true) x -> 0 -<=- f x). by [].
+  move=> Hgt0.
+  split.
+  - move=>/eqP/negP Rsumr0.
+    case Heq0: (~~ [exists a, (gtRb (f a) (0 %R))]).
+    move/negP/negP:Heq0 => Heq0.
+    rewrite negb_exists in Heq0.
+    have Hforalleq: (forall x, ~~ (geRb (f x)  (0 %R))) -> (forall x, ~ (geRb (f x) 0)).
+      by move=> Hb x; move/negP: (Hb x) => Hbool //=.
+      move/forallP: Heq0 => Heq0.
+      have: (forall x:A, ~ (f x) ->- 0).
+        by move=> x; apply/gtRP.
+        move/(prsum_nge0p Hgt0) => H.
+
+      have: False.  
+         apply Rsumr0; apply/eqP.
+         transitivity (\rsum_(a in A) (0 %R)).
+           by apply eq_bigr=> a _; rewrite H.
+         by rewrite (bigsum_card_constE A) mulR0.
+      by [].
+      by move/negP/negP/existsP: Heq0 => [x Hx]; split with x;  move/gtRP: Hx.
+      move=>[a  Ha].
+      move=>/prsumr_eq0P H.
+      have: (forall a: A, a \in A -> 0 -<=- f a); first by move=> a' _; apply Hgt0.
+      by move=>/H H'; move: Ha; rewrite H' //= => /RIneq.Rgt_irrefl.
+Qed.
       
 Section Hash.
 
@@ -1449,7 +1486,8 @@ Qed.
                     rewrite mulRC DistBind.dE rsum_Rmul_distr_r rsum_split.
                     apply eq_bigr => e_hshs'' _; apply eq_bigr => e_ind' _ //=.
                     by rewrite Dist1.dE xpair_eqE.
-              move=> ->.      
+              About prsumr_ge0P.
+move=> ->.      
 
               have: (  \rsum_(e_hshs' in [finType of k.-tuple (HashState n)])
      \rsum_(e_bf' in [finType of BloomFilter])
