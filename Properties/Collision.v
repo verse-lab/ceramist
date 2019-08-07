@@ -1446,76 +1446,202 @@ Qed.
 
     move=> //=.
 
+    
+    (* move: hshs hshs' Hlen Hfree Huns; rewrite/hash_vec/hashes_have_free_spaces/bloomfilter_value_unseen. *)
+
+    move: Hfree Huns; rewrite /hashes_have_free_spaces/hash_has_free_spaces/bloomfilter_value_unseen=>/allP Hltn /allP Huns /eqP Hhsh; apply/andP; split.
+
+       - clear Huns. apply/allP => x' Hx'.
+         rewrite addnS addn0.
+
+         elim: l xs x' bf' hshs' Hx' Hhsh  Hlen Hltn  => //= [| l IHl] xs x' bf' hshs' Hx' Hhsh.
+                 - rewrite eqSS.
+                   case: xs  Hhsh Hx' => //=  //=; rewrite Dist1.dE.
+                   case Heq: (_ == _) => //=; move: Heq; rewrite xpair_eqE =>/andP [/eqP -> /eqP _] _ Hin _ Hfree.
+                   by move: (Hfree x' Hin); rewrite addn1.
+                 - case: xs Hhsh Hx' => [//=| y ys] //=.
+                   rewrite DistBind.dE prsumr_ge0 => [[[hsh_vec2 bf2]]]; last by move=>a; dispatch_Rgt.
+                   move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg [ Haddm Hadd ] Hx' Hlen Hltn.
+                   eapply (IHl _ _ _ _ _ Haddm).
+                      by move: Hlen; rewrite eqSS.
+                      move=> x'' Hin; move: (Hltn x'' Hin).
+                      by rewrite addnS => /ltnW.
+       - clear Hltn; apply/allP => x' Hx'.
+         rewrite /hash_unseen.
+         elim: l xs x' bf' hshs' Hx' Hhsh  Hlen Huns  => //= [| l IHl] xs x' bf' hshs' Hx' Hhsh.
+                 - rewrite eqSS /hash_unseen.
+                   case: xs  Hhsh Hx' => //=  //=; rewrite Dist1.dE.
+                   case Heq: (_ == _) => //=; move: Heq; rewrite xpair_eqE =>/andP [/eqP -> /eqP _] _ Hin _ Hfree.
+                   have Hinx : x \in [:: x]. by rewrite mem_seq1.
+                   move/allP: (Hfree x Hinx) => Hfree'.
+                   by move: (Hfree' x' Hin).
+                 - case: xs Hhsh Hx' => [//=| y ys] //=.
+                   rewrite DistBind.dE prsumr_ge0 => [[[hsh_vec2 bf2]]]; last by move=>a; dispatch_Rgt.
+                   move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg [ Haddm Hadd ] Hx' Hlen Hltn.
+                   eapply (IHl _ _ _ _ _ Haddm).
+                      by move: Hlen; rewrite eqSS.
+                      move=> x'' Hin.
+
+                      have Hinx': (x'' \in [:: x, y & ys]).
+                           move: Hin; rewrite !in_cons => /orP [/eqP -> | ] //=.
+                              by rewrite eq_refl //= Bool.andb_true_l.
+                              by move=> ->; rewrite !Bool.orb_true_r.
+                      by move: (Hltn x'' Hinx').        
+
+      Unshelve.                
+
+      
+  Qed.
+
+    rewrite addnS.
+    elim: l Hlen Hfree.
+
+    move: x xs bf bf' l Hkgt0 hshs hshs' Hfree Huns Hlen ; rewrite/hash_vec/hashes_have_free_spaces/bloomfilter_value_unseen/bloomfilter_add_multiple.
+
+    clear Hkgt0; elim: k => //=; clear k => [[//= _|k IHk]] x xs bf bf' l Hkgt0 hshs hshs' Hfree Huns Hlen.
+
+    move=> //=.
+
     elim: xs  x l hshs hshs' bf bf' Hlen Hfree Huns => [//=| y ys IHy ] x l hshs hshs' bf bf' Hlen Hfree Huns.
+       - move=>/eqP; rewrite Dist1.dE; case Heq: (_ == _) => //=; move: Heq; rewrite xpair_eqE =>/andP [ /eqP -> /eqP _] _; apply/andP; split.
+             by move/eqP: Hlen Hfree => <-.
+             by move/andP: Huns => [] //=.
+
+         move=> /eqP //=; rewrite DistBind.dE prsumr_ge0 => [[[e_hshs e_bf]]]; last by move=> a; dispatch_Rgt.
+         move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg [ Hadd ]; rewrite //= DistBind.dE.
+         rewrite prsumr_ge0 => [[[f_hshs f_hshvec]]]; last by move=> a; dispatch_Rgt.
+         move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg [  ].
+         rewrite DistBind.dE prsumr_ge0 => [[[et et']]]; last by move=> a; dispatch_Rgt.
+         move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg [  ] //=; rewrite Dist1.dE DistBind.dE.
+
+         case Heq: (_ == _) => //= _; move: Heq; rewrite xpair_eqE => /andP [/eqP -> /eqP ->]; clear et et' => //=.
+         rewrite prsumr_ge0 => [[[g_hsh g_val]]]; last by move=> a; dispatch_Rgt.
+
+         move=> //=; rewrite !Dist1.dE.
+         move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg [ Hhash  ] //=.
+
+         case Heq: (_ == _) => //= _; move: Heq; rewrite xpair_eqE => /andP [/eqP -> /eqP ->].
+         case Heq: (_ == _) => //= _; move: Heq; rewrite xpair_eqE => /andP [/eqP -> /eqP _].
+         case: l Hlen Hfree => [//=| l ] Hlen Hfree.
+
+         suff: all (hash_has_free_spaces 1) e_hshs && all (hash_unseen x) e_hshs.
+            apply (IHy_bf) => //=.
+
+         move: Hhash; rewrite/hash.
+
+         Search _ (thead _).
+
+         rewrite 3!(tuple_eta e_hshs) //= !theadE /hash_has_free_spaces => //=.
+         rewrite tupleE.
+         rewrite /hash_has_free_spaces.
+
+         move: (IHy x l hshs e_hshs bf bf') .
+ 
+         
 
        - rewrite Dist1.dE xpair_eqE; case Hhsh: (hshs' == _) => //= .
             - move=> _; move/eqP: Hhsh Hfree Huns <- => /allP Hfree  Huns; apply/andP;split.
               rewrite/hashes_have_free_spaces; apply/allP => cell Hcell.
-                by move: (Hfree cell Hcell); move/eqP: Hlen ->; rewrite/hash_has_free_spaces addnS //=.
+                rewrite subSnn.
+                  by move: (Hfree cell Hcell); move/eqP: Hlen ->; rewrite/hash_has_free_spaces addnS //=.
             - move: Huns; rewrite /bloomfilter_value_unseen Bool.andb_true_r => /allP Husn; apply/allP => cell Hcell.
-
                 by apply Husn.
          by move=>/eqP //=.
-       -
+       - move=> //=; rewrite DistBind.dE //=.
+         move=>/eqP; rewrite prsumr_ge0; move=> [[e_hshs e_bf]]; last by move=> b; dispatch_Rgt.
+         move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg [ Hadd ]; rewrite //= DistBind.dE.
+         rewrite prsumr_ge0; move=> [[e_hshs' e_hshsvec]]; last by move=>b ; dispatch_Rgt.
+         move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg [Hhsh] //=; rewrite Dist1.dE //=.
+         case Heq: (_ == _) => //= _; move: Heq;rewrite xpair_eqE => /andP [/eqP Heq_hshs' /eqP Hbf'].
+         rewrite Heq_hshs'; clear Heq_hshs' hshs'.
+         case: l Hlen Hfree => [//=| l ] Hlen Hfree.
 
-              move=> //=; rewrite DistBind.dE //= => Hneq.
-              case: l Hlen Hfree => [//=| l ] Hlen Hfree.
-              eapply IHy; first by move: Hlen => //=.
-              move:  Hfree (Hlen) => /allP Hfree.
-              rewrite //= !eqSS  => /eqP ->; apply /allP => cell Hcell; move: (Hfree cell Hcell).
-              by rewrite /hash_has_free_spaces; rewrite addnS => /ltnW.
+
+         have: (hashes_have_free_spaces e_hshs (l.+1 - l) && bloomfilter_value_unseen e_hshs x).
+             - apply: (IHy x l hshs e_hshs bf e_bf);first by move: Hlen => //=.
+                 - move: Hfree; rewrite /hashes_have_free_spaces/hash_has_free_spaces => /allP Hfree.
+                    by apply/allP=> cell Hcell; move: (Hfree cell Hcell); rewrite addnS =>/ltnW.
+                 - move: Huns=>/allP Huns; apply/allP => cell Hcell; apply Huns.
+                   move: Hcell; rewrite !in_cons => /orP [ /eqP -> //= | ->] //=.
+                     by rewrite eq_refl //=.
+                     by apply/orP; right; apply/orP; right.
+                 -  by move/eqP: Hadd.
+
+         Search _ (_.+1 - _).           
 
 
-              have: (\rsum_(a in [finType of k.-tuple (HashState n)])
-                      \rsum_(b in [finType of BloomFilter])
-                      ((d[ bloomfilter_add_multiple hshs bf ys]) (a, b) *R*
-                       (DistBind.d (d[ hash_vec_int y a])
-                                   (fun b0 : k.-tuple (HashState n) * k.-tuple 'I_Hash_size.+1 =>
-                                      d[ let (new_hashes, hash_vec) := b0 in
-                                         ret (new_hashes, bloomfilter_add_internal hash_vec b)])) 
-                         (hshs', bf'))) =
-                    \rsum_(e_hshs' in [finType of k.-tuple (HashState n)])
-                     \rsum_(e_bf' in [finType of BloomFilter])
-                     \rsum_(e_hshs'' in [finType of k.-tuple (HashState n)])
-                     \rsum_(e_ind' in [finType of k.-tuple 'I_Hash_size.+1])
-                     ((d[ bloomfilter_add_multiple hshs bf ys]) (e_hshs', e_bf') *R*
-                      ((d[ hash_vec_int y e_hshs']) (e_hshs'', e_ind') *R*
-                       ((hshs' == e_hshs'') && (bf' == bloomfilter_add_internal e_ind' e_bf') %R))).
+         move: Hhsh; clear Hadd Hbf' e_bf IHy Hkgt0 Huns Hfree hshs.           
 
-                  - apply eq_bigr => e_hshs' _; apply eq_bigr => e_bf' _ //=.
-                    rewrite mulRC DistBind.dE rsum_Rmul_distr_r rsum_split.
-                    apply eq_bigr => e_hshs'' _; apply eq_bigr => e_ind' _ //=.
-                    by rewrite Dist1.dE xpair_eqE.
-              About prsumr_ge0P.
-move=> ->.      
+         rewrite/hashes_have_free_spaces/bloomfilter_value_unseen;
+         elim: k e_hshs e_hshs' e_hshsvec; clear k; [move=>//=| move=> k Ihk] => e_hshs e_hshs' e_hshsvec.
 
-              have: (  \rsum_(e_hshs' in [finType of k.-tuple (HashState n)])
-     \rsum_(e_bf' in [finType of BloomFilter])
-        \rsum_(e_hshs'' in [finType of k.-tuple (HashState n)])
-           \rsum_(e_ind' in [finType of k.-tuple 'I_Hash_size.+1])
-              ((d[ bloomfilter_add_multiple hshs bf ys]) (e_hshs', e_bf') *R*
-               ((d[ hash_vec_int y e_hshs']) (e_hshs'', e_ind') *R*
-                ((hshs' == e_hshs'') && (bf' == bloomfilter_add_internal e_ind' e_bf') %R))) =
-                       \rsum_(e_hshs' in [finType of k.-tuple (HashState n)])
-                        \rsum_(e_bf' in [finType of BloomFilter])
-                        \rsum_(e_ind' in [finType of k.-tuple 'I_Hash_size.+1])
-                        ((d[ bloomfilter_add_multiple hshs bf ys]) (e_hshs', e_bf') *R*
-                         ((d[ hash_vec_int y e_hshs']) (hshs', e_ind') *R*
-                          ((bf' == bloomfilter_add_internal e_ind' e_bf') %R)))
-                    ).
+            - by rewrite Dist1.dE; case Heq: (_ == _) => //=; move: Heq; rewrite xpair_eqE => /andP[/eqP -> /eqP Hhshvec] _ //=.
 
-              apply eq_bigr => e_hshs' _; apply eq_bigr => e_bf' _.
+            -  move=> //=; rewrite DistBind.dE prsumr_ge0 => [[[f_hshs f_hshsvec]]]; last by move=> a; dispatch_Rgt.
 
-              rewrite (bigID (fun e_hshs'' => e_hshs'' == hshs')) //=.
-              
-              transitivity (1 %R).
-              case: l Hlen Hfree => [//= | l] Hlen Hfree.
-         move=> Hprev; eapply IHy.
-              rewrite //= DistBind.dE rsum_split.
-              
-    
-    Search _ (_ %R).
-    Search _ (_ + _.+1).
+               move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg [ Hint //=].
+
+               rewrite DistBind.dE prsumr_ge0 => [[[f_hsh f_hshvec_h]]] //=; last by move=> a; dispatch_Rgt.
+               move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg [ Hhsh ] //=.
+               rewrite Dist1.dE; case Heq: (_ == _) => //= _; move: Heq; rewrite xpair_eqE => /andP[/eqP Hehshs /eqP Hehshsvec] Hall.
+
+
+               rewrite Hehshs; clear Hehshs e_hshs' => //=.
+
+               have: ([&&
+                         hash_has_free_spaces 1 f_hsh &&
+                         all (hash_has_free_spaces 1) f_hshs,
+                       hash_unseen x f_hsh    &
+                       all (hash_unseen x) f_hshs] = (
+                         hash_has_free_spaces 1 f_hsh &&
+                                              hash_unseen x f_hsh  
+                      ) && (
+                         all (hash_has_free_spaces 1) f_hshs &&
+                             all (hash_unseen x) f_hshs
+                     )).
+                   by case: (hash_has_free_spaces _); case: (all _); case: (hash_unseen _); case: (all _) => //=.
+
+               move=>->.
+               apply/andP; split; last first.
+                   - eapply Ihk; clear Ihk.
+                      - exact Hint.
+                      - move/andP: Hall => [ /allP Hfree /allP Huns]; apply/andP; split.
+                            - apply/allP => cell Hcell; apply: (Hfree cell).
+                              move: Hcell; clear; case: e_hshs => //= [//= [ //= | x xs] _] //=.
+                              by rewrite inE => ->; rewrite Bool.orb_true_r.
+                            - apply/allP => cell Hcell; apply: (Huns cell).
+                              move: Hcell; clear; case: e_hshs => //= [//= [ //= | x xs] _] //=.
+                              by rewrite inE => ->; rewrite Bool.orb_true_r.
+                   - move/andP:Hall => [/allP Hfree /allP Huns].
+
+                     move: Hhsh.
+
+
+                              elim: tval => //= x xs IHx.
+
+                              Search _ (_ \in behead _).
+               rewrite Bool.andb_comm.
+
+               rewrite Bool.andb_assoc.
+
+               rewrite Bool.andb_comm.
+
+               rewrite Bool.andb_assoc.
+
+               rewrite Bool.andb_comm.
+
+               rewrite Bool.andb_assoc.
+
+               rewrite Bool.andb_comm.
+               rewrite  Bool.andb_assoc Bool.andb_comm Bool.andb_assoc Bool.andb_comm Bool.andb_assoc.
+               apply/andP.
+
+
+
+               Search _ (all _ (_ :: _)).
+               move: e_hshs' Hehshs.
+               eapply (Ihk _ e_hshs').
+               
   Admitted.
 
 
