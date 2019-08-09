@@ -56,13 +56,22 @@ Section fixmap.
 
             
 
-    Definition fixmap_put (k : K) (v : V) (n : nat) (map : fixmap n) : fixmap n :=
-        match (fixmap_find_ind k map) with
-            | None =>  (fixlist_insert map (k,v)) 
-            | Some ind => (fixlist_set_nth map (k,v) ind)
-        end.
+    Fixpoint fixmap_put (k : K) (v : V) (n : nat) (map : fixmap n) {struct n} : fixmap n :=
+      match n as n0 return (n = n0 -> fixmap n0 -> fixmap n0) with
+         | 0 => fun (_ : n = 0) (map : fixmap 0) => map
+         | n0.+1 => fun (Hn: n = n0.+1) (map: fixmap n0.+1) =>
+                      match ntuple_head map with
+                      | Some (k',v') => if k' == k
+                                           then ntuple_cons (Some (k,v)) (ntuple_tail map)
+                                           else ntuple_cons (Some (k',v')) (fixmap_put k v (ntuple_tail map))
+                      | None         =>  ntuple_cons (Some (k,v)) (ntuple_tail map)
+                     end                                                                   
+     end (erefl n) map.                
 
-
+        (* match (fixmap_find_ind k map) with *)
+        (*     | None =>  (fixlist_insert map (k,v))  *)
+        (*     | Some ind => (fixlist_set_nth map (k,v) ind) *)
+        (* end. *)
 
 
     Lemma fixmap_find_ind_pred n  (fm : fixmap n) k acc ind  : 
@@ -101,78 +110,6 @@ Section fixmap.
     Qed.   
 
 
-    Lemma fixmap_put_top_heavy n (fm : fixmap n) k v : fixlist_is_top_heavy fm ->
-                                                    fixlist_is_top_heavy (fixmap_put k v fm).
-    Proof.
-        rewrite /fixmap_put.
-        case Hfind_eqn: (fixmap_find_ind _) => [ind | ] Hith; last first.
-        by apply fixlist_insert_preserves_top_heavy.
-
-        move: fm ind v Hfind_eqn Hith   => []; elim: n .
-          by move=> [] //=.
-        move=> n IHn [//=| x xs] Heqn ind v.
-        rewrite/fixmap_find_ind //= /ntuple_head/thead (tnth_nth x) //=.
-        move: Heqn; case x => //=.
-        move=> [k' v'] .
-        move: (erefl _ ) => //=; case: (_ == _) => _ //= Heqn.
-          move=> [] <- //= Hith  ; move: Hith .
-          rewrite /tuple/behead_tuple.
-          move: (behead_tupleP _) (behead_tupleP _) => //= prf prf'.
-          by rewrite (proof_irrelevance _ prf prf').
-        move=> Hfind_ind Hith .
-        move: Hfind_ind.
-        case: ind => //= .
-        move=> Hfind_ind; move: Hith; rewrite /tuple/behead_tuple.
-        move: (behead_tupleP _) => //= prf.
-        move: (behead_tupleP _) => //= prf'.
-        by rewrite (proof_irrelevance _ prf prf').
-        rewrite/ntuple_tail //=.
-        move: {1}(behead_tupleP _) => //= prf ind.
-        rewrite/tuple/behead_tuple/fixlist_set_nth//=/ntuple_head/ntuple_tail//=.
-        move: (behead_tupleP
-          [tuple of _]) => //=.
-        rewrite /ntuple_tail //=.
-        move: (behead_tupleP _)  => //= prf'.
-        rewrite (proof_irrelevance _ prf' prf) => Hprf.
-        have:
-         (Tuple Hprf) =  set_tnth (Tuple   prf) (Some (k, v)) ind.
-          move: Hprf.
-          case: (set_tnth _) => [[]] //=.
-          move=> prf0 prf1; by rewrite (proof_irrelevance _ prf0 prf1).
-          move=> x' xs' prf0 prf1; by rewrite (proof_irrelevance _ prf0 prf1).
-        move=> -> //= Hfind.
-        apply IHn => //=; last first.
-          move: Hith; rewrite/tuple/behead_tuple; move: (behead_tupleP _) => //= prf0.
-          by rewrite (proof_irrelevance _ prf0 prf).
-        move: Hfind =>  /(fixmap_find_ind_pred ) //= H.
-        by apply H.
-        case: ind => //=.
-          move=> Heqn Hfind.
-          rewrite/tuple/behead_tuple //=; move:(behead_tupleP _) => //= prf0.
-          move:(behead_tupleP _) => //= prf1.
-          rewrite (proof_irrelevance _ prf0 prf1); clear prf0.
-          by move=> /fixlist_is_empty_top_heavy.
-        move=> ind Heqn.
-        rewrite/ntuple_tail//=.
-        move: {1}(behead_tupleP _) => //= Heqn' Hfind Hempty.
-        move: Hfind.
-        by rewrite fixmap_find_ind_empty //=.
-    Qed.
-
-
-
-
-
-
-
-    Lemma fixmap_ident (n : nat) (map : fixmap n) : n > 0 -> forall k v, fixmap_find k  (fixmap_put k v  map) = Some v.
-    Proof.
-        move=> H.
-        (* TODO(Kiran): Complete this proof. *)
-    Admitted.
-
-
-       
 
 
 
