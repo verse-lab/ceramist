@@ -25,16 +25,28 @@ Section fixmap.
     Definition fixmap_empty n : fixmap n := 
             (fixlist_empty _ n).
 
-    Fixpoint fixmap_find  (k : K) (n : nat) (map : fixmap n) : option V.
-        case n eqn: H.
-            exact None.
-        case (ntuple_head map).
-            move=> [k' v'].
-            case (k' == k) eqn: H'.
-                exact (Some v').
-                exact (fixmap_find k n0 (ntuple_tail map)).
-            exact (fixmap_find k n0  (ntuple_tail map)).
-   Defined.
+
+    Fixpoint fixmap_find  (k : K) (n : nat) (map : fixmap n) {struct n} : option V :=
+      match n as n0 return (n = n0 -> fixmap n0 -> option V) with
+        | 0 => fun (_ :n = 0) (map: fixmap 0) => None
+        | n0.+1 => fun (H: n = n0.+1) (map: fixmap n0.+1) =>
+                     match ntuple_head map with
+                     | Some (k',v') => if k' == k
+                                        then Some v'          
+                                        else fixmap_find k (ntuple_tail map)
+                     | None         => None
+                     end
+      end (erefl n) map.
+      
+        (* case n eqn: H. *)
+        (*     exact None. *)
+        (* case (ntuple_head map). *)
+        (*     move=> [k' v']. *)
+        (*     case (k' == k) eqn: H'. *)
+        (*         exact (Some v'). *)
+        (*         exact (fixmap_find k n0 (ntuple_tail map)). *)
+        (*     exact (fixmap_find k n0  (ntuple_tail map)). *)
+
 
     Fixpoint fixmap_find_ind'  (acc: nat) (k : K) (n : nat) (map : fixmap n) : option nat.
         case n eqn: H.
