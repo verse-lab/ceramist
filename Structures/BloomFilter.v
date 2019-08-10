@@ -244,15 +244,8 @@ Section BloomFilter.
       let new_bf := bloomfilter_add_internal (tval hash_vec) bf in
       ret (new_hashes, new_bf).
 
-
-  Fixpoint bloomfilter_query_internal (items: seq 'I_(Hash_size.+1)) bf : bool :=
-    match items with
-      h::t => if bloomfilter_get_bit h bf then
-                bloomfilter_query_internal t bf
-             else
-                false
-    | [::]   => true
-    end.
+  Definition bloomfilter_query_internal (items: seq 'I_(Hash_size.+1)) bf : bool :=
+    all (fun h => bloomfilter_get_bit h bf) items.
 
   Definition bloomfilter_query (value: hash_keytype) (hashes: k.-tuple (HashState n)) (bf: BloomFilter) : Comp [finType of (k.-tuple (HashState n)) * bool ] :=
     hash_res <-$ (hash_vec_int value hashes);
