@@ -311,14 +311,14 @@ Section BloomFilter.
 
 
     
-  Lemma hashstate_find_put_eq l (hashstate: HashState l)  key value :
-    FixedList.fixlist_length hashstate < l ->
-     hashstate_find l key (hashstate_put l key value hashstate) = Some value.
-  Proof.
-    clear =>  Hltn.
-    case: l hashstate Hltn =>[//=|] l hashstate Hltn.
-    by rewrite /hashstate_find/hashstate_put FixedMap.fixmap_ident.
-  Qed.
+  (* Lemma hashstate_find_put_eq l (hashstate: HashState l)  key value : *)
+  (*   FixedList.fixlist_length hashstate < l -> *)
+  (*    hashstate_find l key (hashstate_put l key value hashstate) = Some value. *)
+  (* Proof. *)
+  (*   clear =>  Hltn. *)
+  (*   case: l hashstate Hltn =>[//=|] l hashstate Hltn. *)
+  (*    rewrite /hashstate_find/hashstate_put. *)
+  (* Qed. *)
 
 
 
@@ -1552,15 +1552,9 @@ Qed.
                         case Heq: (_ == _)=>//=;move:Heq;rewrite xpair_eqE=>/andP[/eqP -> /eqP <-] _;clear ind3.
                         apply/andP;split;last first.
                            - rewrite /hashstate_put.
-
                              move: Huniq => //=/andP[];rewrite in_cons Bool.negb_orb=>/andP[Hneq _ _].
-
-                             Search _ (FixedMap.fixmap_put).
-
-
-                   Print FixedList.fixlist_length.
-                   
-                     Search _ (FixedList.ntuple_tail).
+                             by rewrite fixmap_find_neq //=.
+                           - move: Hlen.
 
 
 
