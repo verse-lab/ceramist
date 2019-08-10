@@ -41,6 +41,20 @@ Proof idea
 
 Ltac dispatch_Rgt :=  do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size).
 
+Lemma ntuple_tail_consP n A (ls: n.-tuple A) val : (FixedList.ntuple_tail (FixedList.ntuple_cons val ls)) = ls.
+Proof.
+  rewrite /FixedList.ntuple_tail/FixedList.ntuple_cons//=.
+  case: ls => [ls Hls]; move: (behead_tupleP _) =>//= Hls'.
+  by rewrite (proof_irrelevance _ Hls Hls').
+Qed.
+
+Lemma ntuple_head_consP n A (ls: n.-tuple A) val : (thead (FixedList.ntuple_cons val ls)) = val.
+Proof.
+  rewrite /FixedList.ntuple_tail/FixedList.ntuple_cons//=.
+  by case: ls => [ls Hls]; move: (eq_ind _ _ _ ) =>//= Hls'.
+Qed.
+
+
 Lemma fixmap_find_neq
           (K V : eqType) (n : nat) (map : FixedMap.fixmap K V n)
           (x y : K) (v: V):
@@ -48,50 +62,27 @@ Lemma fixmap_find_neq
       (FixedMap.fixmap_find x map == None) ->
       (FixedMap.fixmap_find x (FixedMap.fixmap_put y v map) == None).
 Proof.
-  elim: n map x y v => [//=|n IHn] map x y v Hneq /eqP Hz.
-  have Hnone: FixedMap.fixmap_find x map = None -> FixedMap.fixmap_find x map = FixedMap.fixmap_find x (FixedList.ntuple_tail map).
-    by move=> //=; case: (FixedList.ntuple_head _) => //= [[k' v']]; case: (_ == _) => //=.
-  move: (Hnone Hz); clear Hnone=> Hnone; move: Hnone Hz =>-> /eqP Hfind.
-  move: (IHn _ _ _ v Hneq Hfind); clear IHn.
+  elim: n map x y v => [//=|n IHn] [[//=|m ms] Hmap] x y v Hneq /eqP Hz.
+  apply/eqP; move: Hz; move=> //=.
+  rewrite/FixedList.ntuple_head //=.
+  have: thead (Tuple Hmap) = m. by []. move=>->.
+  case: m Hmap => [[k' v']|] Hmap //=.
+  case Hk': (k' == x) => //=.
+  - case: (k' == y) => //=.
+      - move/Bool.negb_true_iff: Hneq; rewrite (eq_sym y) => -> //=.
+        move: Hmap (eq_ind _ _ _ _ _) => //= Hmap Hmap'.
+        rewrite (proof_irrelevance _  Hmap' Hmap);   move=> <- //=.
+        rewrite/FixedList.ntuple_tail; move: (behead_tupleP _) (behead_tupleP _) => //= H1 H2.
+          by rewrite (proof_irrelevance _ H1 H2).
+      -  by rewrite ntuple_head_consP Hk' ntuple_tail_consP => /eqP/(IHn _ _ _ _ Hneq)/eqP; apply.
+   - rewrite eq_sym; move/Bool.negb_true_iff: (Hneq) ->.
 
-  have: FixedMap.fixmap_find x (FixedMap.fixmap_put y v (FixedList.ntuple_tail map)) =
-                FixedMap.fixmap_find x (FixedList.ntuple_tail (FixedMap.fixmap_put y v map)).
-  clear.
+     move: Hmap (eq_ind _ _ _ _ _) => //=Hmap Hmap'.
+     rewrite (proof_irrelevance _ Hmap Hmap') /FixedList.ntuple_tail//=.
+     move: (behead_tupleP _) (behead_tupleP _) => //= H H'.
+     by rewrite (proof_irrelevance _ H H'). 
+Qed.
 
-  rewrite/FixedList.ntuple_tail;move:map (behead_tupleP _) ;elim:n =>[//=|n //= IHn ].
-
-  Search _ (_.+1.-1).
-  rewrite -{1}pred_Sn.
-  move=> map //=.
-
-  
-  move=> //=.
-move=>//=.
-
-
-  case Hhead: (FixedList.ntuple_head _) => [[k1 v1]|]//;first case Heq: (k1 == y) => //;
-  move=>/eqP/(IHn _ _ _ v Hneq)/eqP //=; clear IHn=> Hfind.
-  case Hhput: (FixedList.ntuple_head _) => //= [[k2 v2]|].
-  move: Hfind Hhead Hhput.
-  rewrite/FixedList.ntuple_head/FixedMap.fixmap_put//=.
-  move: map Hhead => [[//=| m ms] Hm] //=; rewrite/FixedList.ntuple_head//=.
-  rewrite /thead/FixedList.ntuple_tail //=.
-  rewrite{1}/tnth//= => Hmeq.
-  move: Hm; rewrite Hmeq; clear Hmeq => Hmms //=.
-  move: (behead_tupleP _) => //= Hms Hfindx.
-
-
-  rewrite/tnth {2}/FixedMap.fixmap_put/FixedMap.fixmap_find_ind //=.
-  rewrite Heq //=.
-
-  rewrite{1}/FixedList.ntuple_tail.
-
-  rewrite -pred_Sn.
-  Search _ (tnth).
-
-  rewrite tnth0.
-  
-  rewrite/FixedMap.fixmap_find.
 
 
 Notation "a '/R/' b " := (Rdefinitions.Rdiv a b) (at level 70).

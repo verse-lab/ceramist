@@ -34,7 +34,7 @@ Section fixmap.
                      | Some (k',v') => if k' == k
                                         then Some v'          
                                         else fixmap_find k (ntuple_tail map)
-                     | None         => None
+                     | None         => fixmap_find k (ntuple_tail map)
                      end
       end (erefl n) map.
       
