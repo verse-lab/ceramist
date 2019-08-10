@@ -1609,13 +1609,14 @@ Qed.
        length values == l ->
        hashes_have_free_spaces hashes l ->
        all (bloomfilter_value_unseen hashes) values ->
+       uniq values ->
        ~~ bloomfilter_get_bit ind bf ->
        (d[ res <-$ bloomfilter_add_multiple hashes bf values;
            (let '(_, bf') := res in ret ~~ bloomfilter_get_bit ind bf')]) true =
        ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ (k * l)).
 
     elim: l ind bf values hashes => [|l IHl] ind bf values hashes0 .
-      - case: values => //= _ _ _ Htnth; rewrite muln0 //= DistBind.dE rsum_split //=.
+      - case: values => //= _ _ _ _ Htnth; rewrite muln0 //= DistBind.dE rsum_split //=.
 
         transitivity (
             \rsum_(a in [finType of k.-tuple (HashState n)])
@@ -1642,7 +1643,7 @@ Qed.
         by rewrite Htnth.
       - rewrite mulnS.
 
-        case: values => [//= | x xs] Hlen Hfree Huns Hnb.
+        case: values => [//= | x xs] Hlen Hfree Huns Huniq Hnb.
         rewrite bloomfilter_add_multiple_unfold.
         rewrite RealField.Rdef_pow_add.
         erewrite <- (IHl ind bf xs hashes0) => //=.
@@ -1650,7 +1651,9 @@ Qed.
         case Hnz: (d[ bloomfilter_add_multiple hashes0 bf xs ] (hshs', bf') == (0 %R));
           first by move/eqP: Hnz ->; rewrite !mul0R mulR0.
         move/Bool.negb_true_iff: Hnz => Hnz.
-        move: (bloomfilter_add_multiple_preserve Hlen Hfree Huns Hnz) => /andP [].
+
+        move: Hfree; rewrite -(addn0 l) => Hfree.
+        move: (bloomfilter_add_multiple_preserve Huniq Hlen Hfree Huns Hnz) => /andP [].
         rewrite /hashes_have_free_spaces/bloomfilter_value_unseen => Hfree' Huns'.
         apply Logic.eq_sym; rewrite mulRA mulRC mulRA mulRC; apply f_equal; apply Logic.eq_sym.
         case Htnth': (~~ bloomfilter_get_bit ind bf').
@@ -1671,6 +1674,7 @@ Qed.
       move /allP: Huns => Huns; apply/allP => x' Hx'.
       apply Huns => //=.
       by rewrite in_cons Hx' Bool.orb_true_r.
+      by move: Huniq => //= /andP [].
    Qed.
       
   (* TODO: No False Negatives *)
