@@ -186,7 +186,151 @@ Proof.
       have: (forall a: A, a \in A -> 0 -<=- f a); first by move=> a' _; apply Hgt0.
       by move=>/H H'; move: Ha; rewrite H' //= => /RIneq.Rgt_irrefl.
 Qed.
-      
+
+
+
+Lemma evalDistBinv (p: Comp [finType of bool]) :
+  evalDist p true = (1 %R) <-> evalDist (x <-$ p; ret ~~ x) true = (0 %R).
+Proof.
+  split=>//=.
+  case: (evalDist p).
+  move=> pmf Hpmf //= HpmfT.
+  rewrite /DistBind.d; unlock; rewrite/DistBind.f//= ffunE.
+  apply prsumr_eq0P.
+  move=> [] Hb.
+  - rewrite HpmfT; move: (RIneq.Rmult_ne ((Dist1.d (~~ true)) true)) => [H ->] //=.
+      by rewrite Dist1.dE//=; apply RIneq.pos_INR.
+  - have: (pmf false = (0 %R)).
+    move: Hpmf; rewrite unlock; rewrite/index_enum/[finType of bool]//=;
+                                       rewrite unlock; rewrite /index_enum//= HpmfT addR0 addRC.
+      by rewrite eq_sym; move=>/eqP; rewrite -subR_eq//= subRR => <- //=.
+  - by move=> ->; rewrite RIneq.Rmult_0_l; apply RIneq.Rle_refl.
+
+    move=> [] Hb //=.
+  - rewrite HpmfT; move: (RIneq.Rmult_ne ((Dist1.d false) true)) => [_ ->] //=.
+      by rewrite Dist1.dE//=.
+  - have: (pmf false = (0 %R)).  
+    move: Hpmf; rewrite unlock; rewrite/index_enum/[finType of bool]//=;
+                                       rewrite unlock; rewrite /index_enum//= HpmfT addR0 addRC.
+      by rewrite eq_sym; move=>/eqP; rewrite -subR_eq//= subRR => <- //=.
+  - by move=> ->; rewrite RIneq.Rmult_0_l. 
+
+    case: (evalDist p).
+    move=> pmf  //=.
+    rewrite /DistBind.d; unlock; rewrite/DistBind.f//= ffunE.
+
+    rewrite unlock; rewrite /index_enum/[finType of bool]//=;
+                            rewrite unlock; rewrite /index_enum//=.
+    rewrite  !Dist1.dE !addR0 mulR0 add0R mulR1 //= => H1 H2.
+      by move: H1; rewrite H2 addR0 =>/eqP ->.
+
+Qed.
+
+Lemma prsum_multeq0 (A B: finType) (pr1 :  A -> Rdefinitions.R) (pr2 : B -> Rdefinitions.R):
+  (forall (a : A) (b: B), (pr1 a) *R* (pr2 b) = Rdefinitions.IZR 0) ->
+  (\rsum_(a in A) (pr1 a) *R* \rsum_(b in B) (pr2 b)) = Rdefinitions.IZR 0.
+  move=> H1.
+  rewrite unlock; rewrite /index_enum/reducebig//=.
+  elim: (Finite.enum _) => //=; first by rewrite mul0R.
+  elim: (Finite.enum _) => [x xs Hxs |] //=; first by rewrite mulR0.
+  move=> y ys Hxs x xs Hys.
+  rewrite RIneq.Rmult_plus_distr_r Hys addR0 Raxioms.Rmult_plus_distr_l H1 add0R.
+    by move: (Hxs x [::]) => //=; rewrite mul0R addR0 => ->.
+Qed.
+
+(* There must be some lemma I'm missing for the following: *)
+Lemma rsum_Rmul_distr_l (A: finType) (pr: A -> Rdefinitions.R) x :
+  x *R* \rsum_(a in A) (pr a) = \rsum_(a in A) (x *R* (pr a)).
+Proof.
+  rewrite unlock => //=; elim: (index_enum _) x => [x|] //=; first by rewrite mulR0.
+  move=> y ys Hys x.
+    by rewrite Raxioms.Rmult_plus_distr_l; apply f_equal; rewrite Hys. 
+Qed.
+
+Lemma rsum_Rmul_distr_r (A: finType) (pr: A -> Rdefinitions.R) x :
+  \rsum_(a in A) (pr a) *R*  x  = \rsum_(a in A) (x *R* (pr a)).
+Proof.
+    by rewrite mulRC rsum_Rmul_distr_l.
+Qed.
+
+    
+Lemma rsum_split (A B: finType) p :
+  \rsum_(x in [finType of (A * B)]) (p x) = \rsum_(a in A) \rsum_(b in B) (let x := (a,b) in (p x)).
+Proof.
+  unfold all => //=.
+  rewrite /index_enum/[finType of _]//= /prod_finMixin/prod_countMixin //=.
+  rewrite {1}Finite.EnumDef.enumDef/prod_enum //=.
+  rewrite !enumT.
+  elim: (Finite.enum A); elim: (Finite.enum B); try by rewrite unlock => //=.
+  rewrite unlock => //=; move=> _ xs //=.
+  have: (flatten [seq [::] | _ <- xs] = [::]).
+    by move=> T; elim: xs => //=.
+      by move=> -> //=; rewrite add0R.
+      move=> x xs IHx x' xs' IHx'.
+        by rewrite big_allpairs !big_cons.
+Qed.
+
+
+Lemma prsumr_sans_one (A: finType) (f: A -> Rdefinitions.R) (a': A) c:
+  f a' = c ->
+  \rsum_(a in A) (f a) = (1 %R) ->
+  \rsum_(a | a != a') (f a) = (1 -R- c).
+Proof.
+  have: ((Rdefinitions.IZR (BinNums.Zpos BinNums.xH)) == (1 %R)). by [].
+  move=> /eqP -> <- //=  <-.
+  rewrite [\rsum_(a in A) _](bigID (fun a => a == a')) => //=.
+  rewrite big_pred1_eq.
+    by rewrite addRC -subRBA subRR subR0.
+Qed.
+
+Lemma rsum_tuple_split (A: finType) m (f: (m.+1).-tuple A -> Rdefinitions.R) :
+  \rsum_(a in [finType of (m.+1).-tuple A]) (f a) =
+  \rsum_(aas in [finType of (A * m.-tuple A)]) (let: (x, xs) := aas in f (cons_tuple x xs)).
+Proof.
+  rewrite (reindex (fun (aas: (A * m.-tuple A)) => let: (x,xs) := aas in cons_tuple x xs)) => //=.
+    by apply eq_bigr => [[x xs] _].
+    split with (fun xs => (thead xs, tbehead xs)).
+  - move=> [x xs] _ //=.
+    rewrite theadE.
+    apply f_equal.
+    (* Now just to deal with the annoying dependant type errors *)
+    rewrite /tbehead/cons_tuple //=.
+    rewrite /[tuple of _] //=.
+    move: (behead_tupleP _) => //=; move: xs => [xs Hxs] Hxs'.
+      by rewrite (proof_irrelevance _ Hxs' Hxs).
+
+  - move=> [[//=| x xs] Hxs] _ //=.
+      by erewrite (tuple_eta) => //=.
+Qed.
+
+
+
+(* unused last version for rcons inductions - however, rcons lacks an
+ equivalent of tail*)
+Definition tlast (n : nat) (T : Type) tuple :=
+  (tnth (T:=T) tuple (Ordinal (ltnSn n))).
+
+
+
+
+Lemma xcons_eqE {A: eqType} {l: nat} (h  h': A) (t t': l.-tuple A): ((cons_tuple h t) == (cons_tuple h' t')) = (h == h') && (t == t').
+Proof.
+    by rewrite /cons_tuple//=.
+Qed.
+
+
+Lemma ntuple_tailE A l (x:A) (xs: l.-tuple A): FixedList.ntuple_tail [tuple of x :: xs] = xs.
+Proof.
+  rewrite /FixedList.ntuple_tail/[tuple of _]//=.
+  move: xs (behead_tupleP _) => [xs Hxs Hxs'].
+    by rewrite (proof_irrelevance _ Hxs Hxs').
+Qed.
+
+
+
+
+
+
 Section Hash.
 
   Lemma hash_uni n (hash_state: HashState n) value (hash_value: 'I_Hash_size.+1) :
@@ -205,6 +349,201 @@ Section Hash.
 End Hash.
 
 
+Lemma hash_vec_insert_length n l (value: hash_keytype) (hashes: l.-tuple (HashState n)) (inds: l.-tuple 'I_Hash_size.+1):
+  size (map (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
+               let (hash,ind) := pair in @hashstate_put _ value ind hash)
+            (zip (tval hashes) (tval inds))) == l.
+Proof.
+    by rewrite size_map size_zip !size_tuple /minn ltnn //=.
+Qed.
+
+
+Lemma cons_sizeP T l (x : T) xs : (size (x :: xs) == l.+1) -> (size xs == l).
+    by [].
+Qed.
+
+
+
+Lemma hash_vec_insert_length_consP n l (value: hash_keytype)
+      (hashes: seq (HashState n)) (hash: HashState n) (Hhashes: size (hash :: hashes) == l.+1)
+        (inds: seq 'I_Hash_size.+1) (ind: 'I_Hash_size.+1) (Hind: size (ind :: inds) == l.+1) :
+    Tuple (hash_vec_insert_length value (Tuple Hhashes) (Tuple Hind)) =
+    cons_tuple
+      (@hashstate_put _ value ind hash) 
+      (Tuple (hash_vec_insert_length value (Tuple (cons_sizeP Hhashes)) (Tuple (cons_sizeP Hind)))).
+Proof.
+
+  move: (cons_sizeP _ ) => //= Hhashes'.
+  move: (cons_sizeP _ ) => //= Hinds'.
+  move: (hash_vec_insert_length _ _ _) => Hinsert'.
+
+  move: (Hinsert') => Hinsert; move: Hinsert'.
+  have:    (map (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
+                   let (hash,ind) := pair in @hashstate_put _ value ind hash)
+                (zip (Tuple Hhashes) (Tuple Hind))) = 
+           (hashstate_put n value ind hash) :: (map
+                                                  (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
+                                                       let (hash,ind) := pair in @hashstate_put _ value ind hash)
+                                                  (zip (Tuple Hhashes') (Tuple Hinds'))).
+      by [].
+  move=> ->; move: Hinsert =>  H1 H2.
+  rewrite (proof_irrelevance _ H1 H2); clear H1.
+  erewrite tuple_eta; case Heq: [tuple of _ :: _] => [[//=| x xs] Hxs].
+
+  move: Heq.
+  rewrite theadE.
+
+  Search _ behead_tuple.
+
+  have: behead_tuple
+                 (cons_tuple (hashstate_put n value ind hash)
+                    (Tuple (hash_vec_insert_length value (Tuple Hhashes') (Tuple Hinds')))) = (Tuple (hash_vec_insert_length value (Tuple Hhashes') (Tuple Hinds'))).
+
+      rewrite /behead_tuple //=; move:  (hash_vec_insert_length _ _ _) (behead_tupleP _ ) => //= H3 H4.
+      by rewrite (proof_irrelevance _ H3 H4).
+
+  move=>-> [Heqx Heqxs].
+
+  move: Hxs H2; rewrite Heqx Heqxs => //= Ha Hb.
+  by rewrite (proof_irrelevance _ Ha Hb).
+
+Qed.
+
+
+ Lemma hash_vecP n l (value: hash_keytype) (hashes: l.-tuple (HashState n))
+   (inds: l.-tuple 'I_Hash_size.+1) (Huns: all (fun hsh => FixedMap.fixmap_find value hsh == None) hashes) :
+   d[ hash_vec_int value hashes ] (Tuple (hash_vec_insert_length value hashes inds), inds) =
+     ((Rdefinitions.Rinv (Hash_size.+1)%:R) ^R^ l).
+ Proof.
+
+   elim: l value hashes inds Huns => [//=| l IHl].
+      - by move=> value [[|//=] Hlen] [[|//=] Hinds]; rewrite Dist1.dE //=.
+
+      - move=> //= value [[//=| x xs] Hxs] [[//=| y ys] Hys] Huns; rewrite DistBind.dE.   
+        erewrite <- (IHl value (FixedList.ntuple_tail (Tuple Hxs))).
+        rewrite /FixedList.ntuple_tail; move: (behead_tupleP _) => //= Hlen.
+
+        transitivity (
+            \rsum_(hshs in [finType of l.-tuple (HashState n)])
+             \rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+             \rsum_(hsh in hashstate_of_finType n)
+             \rsum_(ind in ordinal_finType Hash_size.+1)
+             ((d[ hash_vec_int value (Tuple Hlen)]) (hshs, inds) *R*
+              ((d[ hash n value (thead (Tuple Hxs))]) (hsh, ind) *R*
+([&& (hsh == hashstate_put n value y x ) &&
+       (hshs == Tuple (hash_vec_insert_length value (Tuple (cons_sizeP Hxs)) (Tuple (cons_sizeP Hys)))),
+       ind == y
+     & inds == Tuple (cons_sizeP Hys)] %R)
+               ))
+          ).
+                rewrite rsum_split.
+                apply eq_bigr => hshs _; apply eq_bigr => inds _ //=; rewrite DistBind.dE //=.
+                rewrite mulRC rsum_Rmul_distr_r rsum_split.
+                apply eq_bigr => hsh _; apply eq_bigr => ind _ //=.
+                apply f_equal; apply f_equal => //=; rewrite Dist1.dE.
+                rewrite xpair_eqE.
+                rewrite hash_vec_insert_length_consP.
+                rewrite !xcons_eqE.
+                have: (Tuple Hys = cons_tuple y (Tuple (cons_sizeP Hys))).
+                     rewrite (tuple_eta (cons_tuple _ _)) //= theadE; case Heq: [tuple of _] => [[//=| y' ys'] Hys'].
+                     move: Heq => [Heqy' Heqys'].
+                     move: Hys'; rewrite -Heqy' -Heqys'; move: Hys => H1 H2.
+                     by rewrite (proof_irrelevance _ H1 H2).
+                move=>->; rewrite xcons_eqE.
+
+                rewrite eq_sym; apply f_equal; apply f_equal.
+
+                case: (_ == _); rewrite ?Bool.andb_true_l ?Bool.andb_false_l//=.
+                rewrite eq_sym.
+                case: (_ == _); rewrite ?Bool.andb_true_l ?Bool.andb_false_l //=.
+                rewrite eq_sym.
+                by case: (_ == _); rewrite ?Bool.andb_true_l ?Bool.andb_false_l//=. 
+        have H x1 y1 z1 : (y1 = (0 %R)) -> x1 = z1 -> x1 +R+ y1 = z1. by move=> -> ->; rewrite addR0.
+        transitivity (
+           \rsum_(hshs in [finType of l.-tuple (HashState n)])
+            \rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+              ((d[ hash_vec_int value (Tuple Hlen)]) (hshs, inds) *R*
+               ((d[ hash n value (thead (Tuple Hxs))]) (hashstate_put n value y x, y) *R*
+                ([&& (hshs == Tuple (hash_vec_insert_length value (Tuple (cons_sizeP Hxs))
+                           (Tuple (cons_sizeP Hys))) ) & inds ==  Tuple (cons_sizeP Hys)] %R)))
+          ).                
+                - apply eq_bigr => hshs _; apply eq_bigr => inds _.
+                  rewrite (bigID (fun hsh => hsh == hashstate_put n value y x)) big_pred1_eq eq_refl //=.
+
+                  apply H.
+                     - apply prsumr_eq0P => y' /Bool.negb_true_iff ->; first by dispatch_Rgt.
+                       apply prsumr_eq0P => ind' Hind'; first by dispatch_Rgt.
+                       by rewrite //= !mulR0.
+
+                  rewrite (bigID (fun ind => ind == y)) big_pred1_eq eq_refl //=.
+
+                  apply H.
+                     - apply prsumr_eq0P => y' /Bool.negb_true_iff ->; first by dispatch_Rgt.
+                       by rewrite !Bool.andb_false_l Bool.andb_false_r //= !mulR0.
+                  by [].     
+
+        transitivity (
+            ((d[ hash_vec_int value (Tuple Hlen)]) (Tuple (hash_vec_insert_length value (Tuple (cons_sizeP Hxs)) (Tuple (cons_sizeP Hys))), Tuple (cons_sizeP Hys)) *R*
+             ((d[ hash n value (thead (Tuple Hxs))]) (hashstate_put n value y x, y)))
+         ).
+                  rewrite (bigID (fun hshs => hshs == Tuple (hash_vec_insert_length value (Tuple (cons_sizeP Hxs)) (Tuple (cons_sizeP Hys))))) big_pred1_eq eq_refl //=.
+
+                  apply H.
+                     - apply prsumr_eq0P => y' /Bool.negb_true_iff ->; first by dispatch_Rgt.
+                       apply prsumr_eq0P => ind' Hind'; first by dispatch_Rgt.
+                       by rewrite //= !mulR0.
+
+                  rewrite (bigID (fun inds => inds == Tuple (cons_sizeP Hys))) big_pred1_eq eq_refl //=.                  apply H.
+                     - apply prsumr_eq0P => y' /Bool.negb_true_iff ->; first by dispatch_Rgt.
+                       by rewrite //= !mulR0.
+                  by rewrite mulR1.
+
+        move: (cons_sizeP _) => Hlen'; rewrite (proof_irrelevance _ Hlen' Hlen); clear Hlen'.
+        apply Logic.eq_sym; rewrite mulRC.
+        apply f_equal.
+
+        move: Huns => /allP Huns.
+
+        have H1: (x \in Tuple Hxs). by rewrite in_cons eq_refl //=.
+        move /eqP: (Huns x H1) => Hx.
+        have: (thead (Tuple Hxs)) = x. by [].
+        move=>->; rewrite /hash/hashstate_find Hx //= DistBind.dE.
+        apply Logic.eq_sym.
+
+        transitivity (
+  \rsum_(a in [finType of 'I_Hash_size.+1])
+      (\rsum_(a0 in ordinal_finType Hash_size.+1)
+      ((Uniform.d (size_enum_equiv (size_enum_ord Hash_size.+1))) a0 *R* (Dist1.d a0) a) *R*
+       ((hashstate_put n value y x == hashstate_put n value a x) && (a == y) %R))
+          ).
+           apply eq_bigr => a _.
+           by rewrite DistBind.dE Dist1.dE xpair_eqE (eq_sym y).
+
+        rewrite (bigID (fun a => a == y)) big_pred1_eq eq_refl //=.   
+        apply H.
+
+            - apply prsumr_eq0P => i /Bool.negb_true_iff -> //=; first (dispatch_Rgt; move=>_; dispatch_Rgt).
+              by rewrite Bool.andb_false_r //= mulR0.
+
+       rewrite eq_refl //= mulR1. 
+
+       transitivity (
+           \rsum_(a0 in 'I_Hash_size.+1)
+            ((Uniform.d (size_enum_equiv (size_enum_ord Hash_size.+1))) a0 *R* (a0 == y %R))
+          ).
+           by apply eq_bigr => a' _; rewrite Dist1.dE eq_sym.
+
+      rewrite (bigID (fun a0 => a0 == y)) big_pred1_eq //= eq_refl mulR1 //=.
+      apply H.
+
+          - apply prsumr_eq0P => i /Bool.negb_true_iff -> //=; first by dispatch_Rgt.
+            by rewrite mulR0.
+     by rewrite Uniform.dE card_ord.
+
+     rewrite /FixedList.ntuple_tail //=.
+     by move: Huns => //= =>/andP [].
+ Qed.
+ 
 
 Section BloomFilter.
 
@@ -248,70 +587,6 @@ Section BloomFilter.
   Proof. by []. Qed.
 
   
-  Lemma evalDistBinv (p: Comp [finType of bool]) :
-    evalDist p true = (1 %R) <-> evalDist (x <-$ p; ret ~~ x) true = (0 %R).
-  Proof.
-    split=>//=.
-    case: (evalDist p).
-    move=> pmf Hpmf //= HpmfT.
-    rewrite /DistBind.d; unlock; rewrite/DistBind.f//= ffunE.
-    apply prsumr_eq0P.
-    move=> [] Hb.
-      - rewrite HpmfT; move: (RIneq.Rmult_ne ((Dist1.d (~~ true)) true)) => [H ->] //=.
-        by rewrite Dist1.dE//=; apply RIneq.pos_INR.
-      - have: (pmf false = (0 %R)).
-        move: Hpmf; rewrite unlock; rewrite/index_enum/[finType of bool]//=;
-        rewrite unlock; rewrite /index_enum//= HpmfT addR0 addRC.
-        by rewrite eq_sym; move=>/eqP; rewrite -subR_eq//= subRR => <- //=.
-      - by move=> ->; rewrite RIneq.Rmult_0_l; apply RIneq.Rle_refl.
-
-    move=> [] Hb //=.
-      - rewrite HpmfT; move: (RIneq.Rmult_ne ((Dist1.d false) true)) => [_ ->] //=.
-        by rewrite Dist1.dE//=.
-      - have: (pmf false = (0 %R)).  
-        move: Hpmf; rewrite unlock; rewrite/index_enum/[finType of bool]//=;
-        rewrite unlock; rewrite /index_enum//= HpmfT addR0 addRC.
-        by rewrite eq_sym; move=>/eqP; rewrite -subR_eq//= subRR => <- //=.
-      - by move=> ->; rewrite RIneq.Rmult_0_l. 
-
-    case: (evalDist p).
-    move=> pmf  //=.
-    rewrite /DistBind.d; unlock; rewrite/DistBind.f//= ffunE.
-
-    rewrite unlock; rewrite /index_enum/[finType of bool]//=;
-                            rewrite unlock; rewrite /index_enum//=.
-    rewrite  !Dist1.dE !addR0 mulR0 add0R mulR1 //= => H1 H2.
-    by move: H1; rewrite H2 addR0 =>/eqP ->.
-
-  Qed.
-
-  Lemma prsum_multeq0 (A B: finType) (pr1 :  A -> Rdefinitions.R) (pr2 : B -> Rdefinitions.R):
-    (forall (a : A) (b: B), (pr1 a) *R* (pr2 b) = Rdefinitions.IZR 0) ->
-    (\rsum_(a in A) (pr1 a) *R* \rsum_(b in B) (pr2 b)) = Rdefinitions.IZR 0.
-    move=> H1.
-    rewrite unlock; rewrite /index_enum/reducebig//=.
-    elim: (Finite.enum _) => //=; first by rewrite mul0R.
-    elim: (Finite.enum _) => [x xs Hxs |] //=; first by rewrite mulR0.
-    move=> y ys Hxs x xs Hys.
-    rewrite RIneq.Rmult_plus_distr_r Hys addR0 Raxioms.Rmult_plus_distr_l H1 add0R.
-    by move: (Hxs x [::]) => //=; rewrite mul0R addR0 => ->.
-  Qed.
-
-  (* There must be some lemma I'm missing for the following: *)
-  Lemma rsum_Rmul_distr_l (A: finType) (pr: A -> Rdefinitions.R) x :
-    x *R* \rsum_(a in A) (pr a) = \rsum_(a in A) (x *R* (pr a)).
-  Proof.
-    rewrite unlock => //=; elim: (index_enum _) x => [x|] //=; first by rewrite mulR0.
-    move=> y ys Hys x.
-    by rewrite Raxioms.Rmult_plus_distr_l; apply f_equal; rewrite Hys. 
-  Qed.
-
-  Lemma rsum_Rmul_distr_r (A: finType) (pr: A -> Rdefinitions.R) x :
-    \rsum_(a in A) (pr a) *R*  x  = \rsum_(a in A) (x *R* (pr a)).
-  Proof.
-    by rewrite mulRC rsum_Rmul_distr_l.
-  Qed.
-
   
 
   Lemma bloomfilter_set_get_eq hash_value bf :  bloomfilter_get_bit hash_value (bloomfilter_set_bit hash_value bf).
@@ -601,22 +876,6 @@ Section BloomFilter.
 
 
   
-    
-    Lemma rsum_split (A B: finType) p :
-      \rsum_(x in [finType of (A * B)]) (p x) = \rsum_(a in A) \rsum_(b in B) (let x := (a,b) in (p x)).
-      Proof.
-        unfold all => //=.
-        rewrite /index_enum/[finType of _]//= /prod_finMixin/prod_countMixin //=.
-        rewrite {1}Finite.EnumDef.enumDef/prod_enum //=.
-        rewrite !enumT.
-        elim: (Finite.enum A); elim: (Finite.enum B); try by rewrite unlock => //=.
-           rewrite unlock => //=; move=> _ xs //=.
-           have: (flatten [seq [::] | _ <- xs] = [::]).
-               by move=> T; elim: xs => //=.
-           by move=> -> //=; rewrite add0R.
-        move=> x xs IHx x' xs' IHx'.
-        by rewrite big_allpairs !big_cons.
-      Qed.
       
 
       Lemma bloomfilter_set_bitC bf ind ind':
@@ -693,67 +952,6 @@ Section BloomFilter.
             exact Hnotin.
           Qed.
           
-
-          Lemma prsumr_sans_one (A: finType) (f: A -> Rdefinitions.R) (a': A) c:
-            f a' = c ->
-            \rsum_(a in A) (f a) = (1 %R) ->
-            \rsum_(a | a != a') (f a) = (1 -R- c).
-            Proof.
-              have: ((Rdefinitions.IZR (BinNums.Zpos BinNums.xH)) == (1 %R)). by [].
-              move=> /eqP -> <- //=  <-.
-              rewrite [\rsum_(a in A) _](bigID (fun a => a == a')) => //=.
-              rewrite big_pred1_eq.
-              by rewrite addRC -subRBA subRR subR0.
-            Qed.
-
-Lemma rsum_tuple_split (A: finType) m (f: (m.+1).-tuple A -> Rdefinitions.R) :
-  \rsum_(a in [finType of (m.+1).-tuple A]) (f a) =
-  \rsum_(aas in [finType of (A * m.-tuple A)]) (let: (x, xs) := aas in f (cons_tuple x xs)).
-Proof.
-  rewrite (reindex (fun (aas: (A * m.-tuple A)) => let: (x,xs) := aas in cons_tuple x xs)) => //=.
-    by apply eq_bigr => [[x xs] _].
-  split with (fun xs => (thead xs, tbehead xs)).
-  - move=> [x xs] _ //=.
-    rewrite theadE.
-    apply f_equal.
-    (* Now just to deal with the annoying dependant type errors *)
-    rewrite /tbehead/cons_tuple //=.
-    rewrite /[tuple of _] //=.
-    move: (behead_tupleP _) => //=; move: xs => [xs Hxs] Hxs'.
-      by rewrite (proof_irrelevance _ Hxs' Hxs).
-
-  - move=> [[//=| x xs] Hxs] _ //=.
-    by erewrite (tuple_eta) => //=.
-Qed.
-
-
-
-(* unused last version for rcons inductions - however, rcons lacks an
- equivalent of tail*)
-Definition tlast (n : nat) (T : Type) tuple :=
-  (tnth (T:=T) tuple (Ordinal (ltnSn n))).
-
-(* Lemma rsum_tuple_trcons_split (A: finType) m (f: (m.+1).-tuple A -> Rdefinitions.R) : *)
-(*   \rsum_(a in [finType of (m.+1).-tuple A]) (f a) = *)
-(*   \rsum_(aas in [finType of (A * m.-tuple A)]) (let: (x, xs) := aas in f (rcons_tuple xs x)). *)
-(* Proof. *)
-(* Qed. *)
-
-
-
-
-Lemma xcons_eqE {A: eqType} {l: nat} (h  h': A) (t t': l.-tuple A): ((cons_tuple h t) == (cons_tuple h' t')) = (h == h') && (t == t').
-Proof.
-  by rewrite /cons_tuple//=.
-Qed.
-
-
-Lemma ntuple_tailE A l (x:A) (xs: l.-tuple A): FixedList.ntuple_tail [tuple of x :: xs] = xs.
-Proof.
-  rewrite /FixedList.ntuple_tail/[tuple of _]//=.
-  move: xs (behead_tupleP _) => [xs Hxs Hxs'].
-  by rewrite (proof_irrelevance _ Hxs Hxs').
-Qed.
 
 
   (* for a given index ind *)
