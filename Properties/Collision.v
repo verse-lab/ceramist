@@ -1964,32 +1964,61 @@ Section BloomFilter.
           - by rewrite //= !DistBind.dE; apply f_equal; apply/eq_bigr=>[[hs' bf']] _ //=.
       by rewrite (@bloomfilter_addn_insert_multiple _ l).       
     Qed.
-
-    Lemma bloomfilter_add_inde (pr : dist [finType of BloomFilter]) x xs :
-      uniq (x :: xs) ->      
+About bloomfilter_add_multiple .
+    Lemma bloomfilter_add_inde hashes l b x xs (bf: BloomFilter) (values: seq B):
+       b < k ->
+       length (x::xs) == b ->
+       length values == l ->
+       hashes_have_free_spaces hashes l ->
+       all (bloomfilter_value_unseen hashes) values ->
+       uniq (x::xs) ->
+       uniq values ->
+       all (fun ind => ~~ bloomfilter_get_bit ind bf) (x::xs) ->
       inde_events
-        pr
-        (finset.SetDef.finset (fun bf => bloomfilter_get_bit x bf))
-        (finset.SetDef.finset (fun bf => all (bloomfilter_get_bit^~ bf) xs)).
+        (d[ bloomfilter_add_multiple hashes bf values])
+        (finset.SetDef.finset (fun (pair: k.-tuple (HashState n) * BloomFilter) =>
+                                 let (_, bf) := pair in bloomfilter_get_bit x bf))
+        (finset.SetDef.finset (fun (pair: k.-tuple (HashState n) * BloomFilter)  =>
+                                 let (_, bf) := pair in all (bloomfilter_get_bit^~ bf) xs)).
     Proof.
-      move=> //=/andP [Hnin Hxs].
+      move=> Hb Hlen Hvalues Hfree Huns  //=/andP [Hnin Hxs]  Huniq Hunset.
       rewrite /inde_events/Pr//=.
 
-      Search _ (finset.SetDef.pred_of_set).
+      transitivity (\rsum_(pair | bloomfilter_get_bit x pair.2 && all (bloomfilter_get_bit^~ pair.2) xs) ((d[ bloomfilter_add_multiple hashes bf values]) pair)).
+          apply eq_big=> [[hshs' bf']] //=.
+          by rewrite finset.in_setI !finset.in_set.
 
-      About finset.SetDef.pred_of_set.
+      have: (    
+              \rsum_(a in finset.SetDef.pred_of_set
+                 (finset.SetDef.finset
+                    (fun pair : k.-tuple (HashState n) * BloomFilter =>
+                     let (_, bf0) := pair in bloomfilter_get_bit x bf0)))
+               (d[ bloomfilter_add_multiple hashes bf values]) a =
+                \rsum_(pair | bloomfilter_get_bit x pair.2) (d[bloomfilter_add_multiple hashes bf values]) pair
+            ).
+          by apply eq_big => [[hshs' bf']] //=; rewrite finset.in_set.
+      move=> ->.
 
-      Search _ fin_pred_sort.
-      apply Logic.eq_sym.
+      have: (
+              \rsum_(a in finset.SetDef.pred_of_set
+                 (finset.SetDef.finset
+                    (fun pair : k.-tuple (HashState n) * BloomFilter =>
+                     let (_, bf0) := pair in all (bloomfilter_get_bit^~ bf0) xs)))
+              (d[ bloomfilter_add_multiple hashes bf values]) a =
+              \rsum_(pair | all (bloomfilter_get_bit^~ pair.2) xs)
+              (d[ bloomfilter_add_multiple hashes bf values]) pair
+      ).
+         by apply eq_big => [[hshs' bf']] //=; rewrite finset.in_set.
+      move=> ->.
+      move: values b l bf Hkgt0 hashes x xs Hb Hlen Hvalues Hfree Huns Hnin Hxs  Huniq Hunset.
+      rewrite /hash_vec/hashes_have_free_spaces/bloomfilter_value_unseen/bloomfilter_add_multiple; elim: k; clear k Hkgt0; first by [].
 
-      Search _ (finset.SetDef.pred_of_set _).
+      move => k IHk values b l bf Hkgt0 hashes x xs Hb Hlen Hvalues Hfree Huns Hnin Hxs  Huniq Hunset //=.
 
-      Search _ (finset.setI).
+      
+      erewrite <-IHk.
+  Admitted.
 
-      rewrite finset.SetDef.pred_of_setE //=; 
-      rewrite big_distrlr //=.
-      rewrite /finset.finfun_of_set//=.
-      rewrite pair_big.
 
   Theorem bloomfilter_addn_multiple_bits
        hashes l b (inds: seq 'I_Hash_size.+1) (bf: BloomFilter) (values: seq B):
