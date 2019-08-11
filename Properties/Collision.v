@@ -328,9 +328,58 @@ Qed.
 
 
 
+Lemma rsum_indep (A : finType) (pr : dist A) (f g : pred A) :
+ (inde_events pr (finset.SetDef.finset f) (finset.SetDef.finset g)) ->
+  \rsum_(a in A) (pr a *R* (f a && g a %R)) =
+  (\rsum_(a in A) (pr a *R* (f a %R)) *R* \rsum_(a in A) (pr a *R* (g a %R))).
+Proof.
+  rewrite /inde_events/Pr//=.
+  rewrite [\rsum_(a in _ (_ f)) _ ](rsum_setT) [\rsum_(a in _ (_ g)) _ ](rsum_setT) //=.
+  have: (\rsum_(a in finset.SetDef.pred_of_set
+                       (finset.setI (finset.SetDef.finset f) (finset.SetDef.finset g))) 
+          pr a = \rsum_(a | f a && g a) (pr a)).
+      by apply eq_big => //=; move=> a //=; rewrite finset.in_setI !finset.in_set.
+  move=>->.
+
+  have: (\rsum_(i in finset.SetDef.pred_of_set (finset.setTfor (Phant A)) | finset.SetDef.pred_of_set
+                                                                        (finset.SetDef.finset f) i) (pr i) = \rsum_(i | f i) (pr i)).
+    by apply eq_big => //= a //=; rewrite !finset.in_set Bool.andb_true_l;
+                    apply Logic.eq_sym;  rewrite -finset.in_set //=.
+  move=>->.
+
+  have: (\rsum_(j in finset.SetDef.pred_of_set (finset.setTfor (Phant A)) | finset.SetDef.pred_of_set
+                                                                        (finset.SetDef.finset g) j) (pr j) = \rsum_(j | g j) (pr j)).
+    by apply eq_big => //= a //=; rewrite !finset.in_set Bool.andb_true_l;
+                    apply Logic.eq_sym;  rewrite -finset.in_set //=.
+  move=>-> Heq.
+  have H x y z: (y = (0%R)) -> x = z -> x +R+ y = z. by move => -> ->; rewrite addR0.
+  transitivity (\rsum_(a | f a && g a) (pr a)).
+       rewrite (bigID (fun a => f a && g a)) //=; apply H.
+           - apply prsumr_eq0P => a /Bool.negb_true_iff ->; first by dispatch_Rgt.
+             by rewrite //=mulR0.
+        by apply eq_bigr => a -> //=; rewrite mulR1.
+
+  have: (\rsum_(a in A) (pr a *R* (f a %R)) = \rsum_(a | f a) (pr a)).      
+       rewrite (bigID (fun a => f a)) //=; apply H.
+           - apply prsumr_eq0P => a /Bool.negb_true_iff ->; first by dispatch_Rgt.
+             by rewrite //= mulR0.
+       by apply eq_bigr => a -> //=; rewrite mulR1.
+  move=> ->.
+
+  have: (\rsum_(a in A) (pr a *R* (g a %R)) = \rsum_(a | g a) (pr a)).      
+       rewrite (bigID (fun a => g a)) //=; apply H.
+           - apply prsumr_eq0P => a /Bool.negb_true_iff ->; first by dispatch_Rgt.
+             by rewrite //= mulR0.
+       by apply eq_bigr => a -> //=; rewrite mulR1.
+  move=> ->.
+  by [].
+Qed.
 
 
 
+  
+
+  
 Section Hash.
 
   Lemma hash_uni n (hash_state: HashState n) value (hash_value: 'I_Hash_size.+1) :
@@ -1887,6 +1936,7 @@ Section BloomFilter.
       
   (* TODO: No False Negatives *)
 
+
   Lemma bloomfilter_addn_insert_multiple_inv hashes l (ind: 'I_Hash_size.+1) (bf: BloomFilter) (values: seq B):
        length values == l ->
        hashes_have_free_spaces hashes l ->
@@ -1914,7 +1964,32 @@ Section BloomFilter.
           - by rewrite //= !DistBind.dE; apply f_equal; apply/eq_bigr=>[[hs' bf']] _ //=.
       by rewrite (@bloomfilter_addn_insert_multiple _ l).       
     Qed.
-    
+
+    Lemma bloomfilter_add_inde (pr : dist [finType of BloomFilter]) x xs :
+      uniq (x :: xs) ->      
+      inde_events
+        pr
+        (finset.SetDef.finset (fun bf => bloomfilter_get_bit x bf))
+        (finset.SetDef.finset (fun bf => all (bloomfilter_get_bit^~ bf) xs)).
+    Proof.
+      move=> //=/andP [Hnin Hxs].
+      rewrite /inde_events/Pr//=.
+
+      Search _ (finset.SetDef.pred_of_set).
+
+      About finset.SetDef.pred_of_set.
+
+      Search _ fin_pred_sort.
+      apply Logic.eq_sym.
+
+      Search _ (finset.SetDef.pred_of_set _).
+
+      Search _ (finset.setI).
+
+      rewrite finset.SetDef.pred_of_setE //=; 
+      rewrite big_distrlr //=.
+      rewrite /finset.finfun_of_set//=.
+      rewrite pair_big.
 
   Theorem bloomfilter_addn_multiple_bits
        hashes l b (inds: seq 'I_Hash_size.+1) (bf: BloomFilter) (values: seq B):
@@ -1930,6 +2005,7 @@ Section BloomFilter.
              (let '(_, bf') := res in ret (all (bloomfilter_get_bit^~ bf') inds))]) true =
        ((1 -R- ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ (k * l))) ^R^ b).
     Proof.
+
       elim: b bf values inds hashes l => [//=| b IHb] bf values [//=|//= x xs] hashes l Hb Hlenb Hlenv Hfree Huns Huniqb Huniqv Hnset.
          - rewrite DistBind.dE //=.
            transitivity (
@@ -1953,6 +2029,8 @@ Section BloomFilter.
                         rewrite eq_sym eqb_id eq_sym eqb_id eq_sym eqb_id.
                           by case: (bloomfilter_get_bit _); case: (all _) => //=; rewrite ?mulR1 ?mulR0 //=.
                  by move=>->.
+
+
             erewrite <-(@IHb bf values xs hashes) => //=.
             rewrite //= DistBind.dE rsum_split.
             rewrite rsum_Rmul_distr_r; apply eq_bigr => hs1 _; rewrite mulRC rsum_Rmul_distr_r.
@@ -1961,6 +2039,7 @@ Section BloomFilter.
 
 
             rewrite !Dist1.dE //=.
+
             case Heq0: ((d[ bloomfilter_add_multiple hashes bf values]) (hs1, bf1) == (0 %R)).
                - by move/eqP: Heq0 ->; rewrite !mul0R !mulR0.
             move/Bool.negb_true_iff: Heq0 => Hneq0.
