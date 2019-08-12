@@ -2043,7 +2043,7 @@ About bloomfilter_add_multiple .
           move=> [hashes' bf'] //= Hngt; rewrite Dist1.dE; case Heq:(_==_)=>//=.
           by move/eqP:Heq Hngt Hnth=> [_ ->] ->.
 
-      move=> l IHl [//=| v vs] b bf hashes x xs Hlt Hlen Hvals Hfree Huns Hnin Hxuniq Hvaluniq /andP [Hnbit Hallnbit].
+      move=> l IHl [//=| v vs] [//=|b] bf hashes x xs Hlt Hlen Hvals Hfree Huns Hnin Hxuniq Hvaluniq /andP [Hnbit Hallnbit].
       move=>//=.
       transitivity (
           \rsum_(pair | bloomfilter_get_bit x pair.2 && all (bloomfilter_get_bit^~ pair.2) xs)
@@ -2061,21 +2061,31 @@ About bloomfilter_add_multiple .
                 \rsum_(bf' in bloomfilter_finType)
 
                 ((d[ bloomfilter_add_multiple hashes bf vs]) (hshs', bf') *R*
-                 (\rsum_(ind in [finType of k.-tuple 'I_Hash_size.+1]) (0 %R)))
+                 (\rsum_(inds in [finType of k.-tuple 'I_Hash_size.+1]) ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k) *R*
+   ((let (hshs, bf0) := pair in
+     (tval hshs, bf0) ==
+     ([seq (let (hash, ind) := (pair0 : [finType of (_ * _)]) in hashstate_put n v ind hash) | pair0 <- zip hshs' inds],
+     bloomfilter_add_internal inds bf')) %R))))
              ).
-
             apply eq_bigr => pair /andP [_ /andP [Hbit' Hrem']].
             rewrite rsum_split; apply eq_bigr => hshs' _; apply eq_bigr => bf' _ //=.
+            case Himp: ((d[ bloomfilter_add_multiple hashes bf vs]) (hshs', bf') == (0 %R));
+              first by move/eqP: Himp ->; rewrite !mul0R.
+            move/Bool.negb_true_iff: Himp => Himp.
+            have H1: uniq (v :: vs). by [].
+            have H2: length vs == l. by move: Hvals; rewrite  //= eqSS.
+            have H3: hashes_have_free_spaces hashes (l + 0).+1. by move: Hfree; rewrite addn0.
+            have H4: all (bloomfilter_value_unseen hashes) (v :: vs). by move: Huns.
+            move: (bloomfilter_add_multiple_preserve H1 H2 H3 H4 Himp) => /andP [Hfree' Huns'].
+            clear H1 H2 H3 H4.
             apply f_equal; rewrite DistBind.dE; rewrite rsum_split.
             rewrite exchange_big //=; apply eq_bigr => inds _.
-
             rewrite (bigID (fun (hsh: [finType of k.-tuple (HashState n)]) =>
                               (tval hsh) == 
                               ((map (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
                                        let (hash,ind) := pair in @hashstate_put _ v ind hash)
                                     (zip (tval hshs') (tval inds))))
                     )) => //=.
-
             have: ((\rsum_(i | (tval i) == ((map (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
                                        let (hash,ind) := pair in @hashstate_put _ v ind hash)
                                     (zip (tval hshs') (tval inds)))) ) ((d[ hash_vec_int v hshs']) (i, inds) *R* (Dist1.d (i, bloomfilter_add_internal inds bf')) pair)) = (
@@ -2092,11 +2102,15 @@ About bloomfilter_add_multiple .
                  rewrite /map_tuple //=.
                  move: (map_tupleP _ _) (hash_vec_insert_length _ _ _) =>//= H1 H2.
                  by rewrite (proof_irrelevance _ H1 H2).
-
-                 admit.
-
+                 by move: Huns'; rewrite /bloomfilter_value_unseen/hash_unseen.
             move=> -> //=.     
-            
+            apply H; first apply prsumr_eq0P => ind Hind; first by dispatch_Rgt.
+               rewrite Dist1.dE; case Heq: (_ == _); last by rewrite //= mulR0.
+               move/eqP:  Heq; move: pair Hbit' Hrem' => [hshs'' bf''] //= Hbit' Hrem' [Hshs Hbf'].
+               rewrite mulR1.
+               admit.
+
+            by [].    
   Admitted.
 
 
