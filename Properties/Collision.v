@@ -2060,14 +2060,42 @@ About bloomfilter_add_multiple .
                 \rsum_(hshs' in tuple_finType k (hashstate_of_finType n))
                 \rsum_(bf' in bloomfilter_finType)
 
-
-                ((d[ bloomfilter_add_multiple hashes bf vs]) (hshs', bf') *R* (0 %R))
+                ((d[ bloomfilter_add_multiple hashes bf vs]) (hshs', bf') *R*
+                 (\rsum_(ind in [finType of k.-tuple 'I_Hash_size.+1]) (0 %R)))
              ).
 
             apply eq_bigr => pair /andP [_ /andP [Hbit' Hrem']].
             rewrite rsum_split; apply eq_bigr => hshs' _; apply eq_bigr => bf' _ //=.
             apply f_equal; rewrite DistBind.dE; rewrite rsum_split.
+            rewrite exchange_big //=; apply eq_bigr => inds _.
 
+            rewrite (bigID (fun (hsh: [finType of k.-tuple (HashState n)]) =>
+                              (tval hsh) == 
+                              ((map (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
+                                       let (hash,ind) := pair in @hashstate_put _ v ind hash)
+                                    (zip (tval hshs') (tval inds))))
+                    )) => //=.
+
+            have: ((\rsum_(i | (tval i) == ((map (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
+                                       let (hash,ind) := pair in @hashstate_put _ v ind hash)
+                                    (zip (tval hshs') (tval inds)))) ) ((d[ hash_vec_int v hshs']) (i, inds) *R* (Dist1.d (i, bloomfilter_add_internal inds bf')) pair)) = (
+                     ((Rdefinitions.Rinv (Hash_size.+1)%:R) ^R^ k)  *R* (
+
+                       (let (hshs,bf) := pair in ((tval hshs, bf) == (((map (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
+                                       let (hash,ind) := pair in @hashstate_put _ v ind hash)
+                                    (zip (tval hshs') (tval inds)))), bloomfilter_add_internal inds bf')))
+                     %R)
+                   )).
+                 rewrite big_pred1_eq //= Dist1.dE; move: pair Hbit' Hrem' => [hsh1 bf1] Hbit' Hrem'//=.
+                 rewrite mulRC //=; apply Logic.eq_sym; rewrite mulRC; apply f_equal.
+                 rewrite -(@hash_vecP n k v hshs' inds).
+                 rewrite /map_tuple //=.
+                 move: (map_tupleP _ _) (hash_vec_insert_length _ _ _) =>//= H1 H2.
+                 by rewrite (proof_irrelevance _ H1 H2).
+
+                 admit.
+
+            move=> -> //=.     
             
   Admitted.
 
