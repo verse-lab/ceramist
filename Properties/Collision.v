@@ -2044,8 +2044,31 @@ About bloomfilter_add_multiple .
           by move/eqP:Heq Hngt Hnth=> [_ ->] ->.
 
       move=> l IHl [//=| v vs] b bf hashes x xs Hlt Hlen Hvals Hfree Huns Hnin Hxuniq Hvaluniq /andP [Hnbit Hallnbit].
-
       move=>//=.
+      transitivity (
+          \rsum_(pair | bloomfilter_get_bit x pair.2 && all (bloomfilter_get_bit^~ pair.2) xs)
+           \rsum_(pair' in [finType of k.-tuple (HashState n) * BloomFilter])
+           ((d[ bloomfilter_add_multiple hashes bf vs]) pair' *R* (d[ let (hsh, bf0) := pair' in bloomfilter_add v hsh bf0]) pair)
+        ).
+
+           apply eq_bigr => pair _ //=.
+           rewrite DistBind.dE.
+           by apply eq_bigr => pair' _ //=.
+
+      transitivity (
+               \rsum_(pair in [finType of k.-tuple (HashState n) * BloomFilter] | bloomfilter_get_bit x pair.2 && all (bloomfilter_get_bit^~ pair.2) xs)
+                \rsum_(hshs' in tuple_finType k (hashstate_of_finType n))
+                \rsum_(bf' in bloomfilter_finType)
+
+
+                ((d[ bloomfilter_add_multiple hashes bf vs]) (hshs', bf') *R* (0 %R))
+             ).
+
+            apply eq_bigr => pair /andP [_ /andP [Hbit' Hrem']].
+            rewrite rsum_split; apply eq_bigr => hshs' _; apply eq_bigr => bf' _ //=.
+            apply f_equal; rewrite DistBind.dE; rewrite rsum_split.
+
+            
   Admitted.
 
 
