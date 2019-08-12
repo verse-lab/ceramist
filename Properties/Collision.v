@@ -592,6 +592,18 @@ Qed.
      rewrite /FixedList.ntuple_tail //=.
      by move: Huns => //= =>/andP [].
  Qed.
+
+
+Lemma neg_hash_vecP n l (value: hash_keytype) (hashes hashes': l.-tuple (HashState n))
+      (inds: l.-tuple 'I_Hash_size.+1)
+      (Huns: all (fun hsh => FixedMap.fixmap_find value hsh == None) hashes)
+  : (tval hashes' != map (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
+                            let (hash,ind) := pair in
+                            @hashstate_put _ value ind hash) (zip (tval hashes) (tval inds))) ->
+   d[ hash_vec_int value hashes ] (hashes', inds) =
+     (0 %R).
+ Proof.
+Admitted.
  
 
 Section BloomFilter.
@@ -2108,8 +2120,7 @@ About bloomfilter_add_multiple .
                rewrite Dist1.dE; case Heq: (_ == _); last by rewrite //= mulR0.
                move/eqP:  Heq; move: pair Hbit' Hrem' => [hshs'' bf''] //= Hbit' Hrem' [Hshs Hbf'].
                rewrite mulR1.
-               admit.
-
+               by apply  neg_hash_vecP => //=.
             by [].    
   Admitted.
 
