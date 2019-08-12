@@ -2010,13 +2010,42 @@ About bloomfilter_add_multiple .
       ).
          by apply eq_big => [[hshs' bf']] //=; rewrite finset.in_set.
       move=> ->.
-      move: values b l bf Hkgt0 hashes x xs Hb Hlen Hvalues Hfree Huns Hnin Hxs  Huniq Hunset.
-      rewrite /hash_vec/hashes_have_free_spaces/bloomfilter_value_unseen/bloomfilter_add_multiple; elim: k; clear k Hkgt0; first by [].
-
-      move => k IHk values b l bf Hkgt0 hashes x xs Hb Hlen Hvalues Hfree Huns Hnin Hxs  Huniq Hunset //=.
+      have H x1 y1 z1: y1 = (0 %R) -> x1 = z1 -> x1 +R+ y1 = z1. by move=> -> ->; rewrite addR0.
 
       
-      erewrite <-IHk.
+      elim: l values b  bf hashes x xs Hb Hlen Hvalues Hfree Huns Hnin Hxs  Huniq Hunset => [//=|].
+          move=> [|//=] b bf hashes x xs Hb Hlen _ Hfree _ Hnin Hxs _ /andP [Hnth Hallp] //=.
+          transitivity (
+              \rsum_(pair in [finType of (_ * _)]) (
+                 (bloomfilter_get_bit x pair.2 && all (bloomfilter_get_bit^~ pair.2) xs %R)
+                 *R*
+                 ((Dist1.d (hashes, bf)) pair))
+            ).
+              apply Logic.eq_sym.
+              rewrite (bigID (fun pair =>
+                                bloomfilter_get_bit x pair.2 && all (bloomfilter_get_bit^~ pair.2) xs
+                      )) //=.
+              apply H.
+                 apply prsumr_eq0P => [[hashes' bf']] Heq; first by dispatch_Rgt.
+                 by move=> /Bool.negb_true_iff -> //=; rewrite mul0R.
+              by apply eq_bigr => [[hashes' bf']] /andP //= [ -> -> ] //=; rewrite mul1R.
+          transitivity ((0%R)).          
+          apply/prsumr_seq_eq0P => //=.
+              by rewrite /index_enum//= -enumT enum_uniq.
+              by move=> pair _; dispatch_Rgt.
+              move=>[hashes' pair'] _ //=.
+              rewrite Dist1.dE; case Heq:(_==_);last by rewrite //=mulR0.
+              move/eqP:Heq =>[_ ->]; move/Bool.negb_true_iff: (Hnth) -> => //=.
+              by rewrite mul0R.
+          apply Logic.eq_sym.
+          apply RIneq.Rmult_eq_0_compat_r.
+          apply prsumr_eq0P => [[hashes' bf']] ; first by move=>a; dispatch_Rgt.
+          move=> [hashes' bf'] //= Hngt; rewrite Dist1.dE; case Heq:(_==_)=>//=.
+          by move/eqP:Heq Hngt Hnth=> [_ ->] ->.
+
+      move=> l IHl [//=| v vs] b bf hashes x xs Hlt Hlen Hvals Hfree Huns Hnin Hxuniq Hvaluniq /andP [Hnbit Hallnbit].
+
+      move=>//=.
   Admitted.
 
 
