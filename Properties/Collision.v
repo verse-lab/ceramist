@@ -593,6 +593,17 @@ Qed.
      by move: Huns => //= =>/andP [].
  Qed.
 
+Lemma negb_consP (A: eqType) (x y: A) (xs ys: seq A) : x :: xs != y :: ys = ((x != y) || (xs != ys)). 
+Proof.
+  by rewrite eqseq_cons Bool.negb_andb.
+Qed.
+
+Lemma tuple_eq_inj (A: eqType) l (xs ys: seq A) (Hxs: size xs == l) (Hys: size ys == l) :
+  (Tuple Hxs == Tuple Hys) = (xs == ys).
+Proof.
+  by move=> //=.
+Qed.
+
 
 Lemma neg_hash_vecP n l (value: hash_keytype) (hashes hashes': l.-tuple (HashState n))
       (inds: l.-tuple 'I_Hash_size.+1)
@@ -603,7 +614,76 @@ Lemma neg_hash_vecP n l (value: hash_keytype) (hashes hashes': l.-tuple (HashSta
    d[ hash_vec_int value hashes ] (hashes', inds) =
      (0 %R).
  Proof.
-Admitted.
+
+
+   elim: l value hashes hashes' inds Huns => [//=| l IHl].
+      - move=> value hashes hashes' inds.
+        have: (hashes == [tuple]); last move=> /eqP ->; first by case: hashes => [[]] //=.
+        have: (hashes' == [tuple]); last move=> /eqP ->; first by case: hashes' => [[]] //=.
+        have: (inds == [tuple]); last move=> /eqP ->; first by case: inds => [[]] //=.
+        by clear hashes hashes' inds => //=.
+
+      - move=> //= value [[//=| x xs] Hxs] [[//=| y ys] Hys] [[//=| z zs] Hzs] /allP Huns; rewrite DistBind.dE //=.   
+
+        rewrite negb_consP =>/orP [Hyneq | Hysneq].
+
+        transitivity (  
+            \rsum_(hshs' in tuple_finType l (hashstate_of_finType n))
+             \rsum_(bf' in tuple_finType l (ordinal_finType Hash_size.+1))
+                         (
+(d[ hash_vec_int value (FixedList.ntuple_tail (Tuple Hxs))]) (hshs', bf') *R* 
+(
+  \rsum_(hshs'' in hashstate_of_finType n)
+     \rsum_(ind' in ordinal_finType Hash_size.+1)
+     \rsum_(ind'' in [finType of 'I_Hash_size.+1])
+     (0%R)
+)
+
+                     )).
+           - rewrite rsum_split; apply eq_bigr => hshs' _; apply eq_bigr => bf' _ //=.
+             have: (thead (Tuple Hxs)) = x; last move=> ->; first by [].
+             apply f_equal; rewrite DistBind.dE rsum_split.
+             apply eq_bigr => hshs'' _; apply eq_bigr => ind' _ //=.
+             rewrite /hash/hashstate_find Dist1.dE.
+             case Hteq: ((_,_) == _); last by rewrite bigsum_card_constE //= !mulR0.
+             move/eqP: Hteq => [<- _ <- _ ] //=; rewrite mulR1.
+             have Hin: (x \in Tuple Hxs); first by rewrite (tuple_eta (Tuple Hxs)) //= in_cons; apply/orP;left. 
+             move/eqP: (Huns x Hin) -> => //=; rewrite DistBind.dE.
+             apply eq_bigr => ind'' _; rewrite Dist1.dE xpair_eqE.
+             case Hz: (z == ind''); last by rewrite Bool.andb_false_r //= mulR0.
+             by move/eqP: Hz <-; move/Bool.negb_true_iff: Hyneq -> => //=; rewrite mulR0.  
+               by do ? [
+                       (apply prsumr_eq0P; intros; first by dispatch_Rgt; intros; dispatch_Rgt)|
+                       (apply RIneq.Rmult_eq_0_compat_l)
+                     ].
+
+             apply prsumr_eq0P => [[hshs' bf']] ; first by dispatch_Rgt; case; intros; dispatch_Rgt.  
+             move=> [hshs' bf'] _; case Heq: (tval hshs' == ys); last first.
+                 - apply RIneq.Rmult_eq_0_compat_l => //=; rewrite DistBind.dE.
+                   apply prsumr_eq0P => [[hshs'' ind']|[hshs'' ind']] _; first by dispatch_Rgt.
+                   rewrite //= Dist1.dE xpair_eqE //=; apply RIneq.Rmult_eq_0_compat_l => //=.
+                   suff: (Tuple Hys == [tuple of hshs'' :: hshs']) = false; first by move => -> //=.
+                   rewrite (tuple_eta (Tuple Hys)).
+                   have: (thead (Tuple Hys)) = y; last move=> -> //=; first by  [].
+                   move: Heq; clear=> Heq.
+                   rewrite !tupleE xcons_eqE //= /behead_tuple.
+                   move: (behead_tupleP _) => //= Hys' //=.
+                   move: hshs' Heq => [hshs' Hhshs'] //= Hneq.
+                   suff: (Tuple Hys' == Tuple Hhshs') = false; first by move=>->; rewrite Bool.andb_false_r.
+                   by rewrite tuple_eq_inj eq_sym Hneq.
+             case Hbfeq: (tval bf' == zs); last first.      
+                 - apply RIneq.Rmult_eq_0_compat_l => //=; rewrite DistBind.dE.
+                   apply prsumr_eq0P => [[hshs'' ind']|[hshs'' ind']] _; first by dispatch_Rgt.
+                   rewrite //= Dist1.dE xpair_eqE //=; apply RIneq.Rmult_eq_0_compat_l => //=.
+                   suff: (Tuple Hzs == [tuple of ind' :: bf']) = false; first by move => ->; rewrite Bool.andb_false_r //=.
+                   rewrite (tuple_eta (Tuple Hzs)).
+                   have: (thead (Tuple Hzs)) = z; last move=> -> //=; first by  [].
+                   by rewrite tuple_eq_inj eqseq_cons [zs == _]eq_sym Hbfeq Bool.andb_false_r.
+             apply RIneq.Rmult_eq_0_compat_r; apply IHl;move/eqP:Heq=>Heq;move/eqP:Hbfeq=>Hbfeq; rewrite ?Heq ?Hbfeq //=.
+                   clear IHl.
+                   by apply/allP => x' Hx'; apply Huns=> //=; rewrite in_cons;apply/orP;right.
+
+ Qed.
  
 
 Section BloomFilter.
