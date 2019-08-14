@@ -2371,13 +2371,13 @@ About bloomfilter_add_multiple .
       by rewrite eq_refl //= mulR1.
 
 
-      s
+
   Admitted.
 
 
   Theorem bloomfilter_addn_multiple_bits
        hashes l b (inds: seq 'I_Hash_size.+1) (bf: BloomFilter) (values: seq B):
-       b < k ->
+       b < Hash_size.+1 ->
        length inds == b ->
        length values == l ->
        hashes_have_free_spaces hashes l ->
@@ -2390,6 +2390,8 @@ About bloomfilter_add_multiple .
        ((1 -R- ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ (k * l))) ^R^ b).
     Proof.
 
+      have H x1 y1 z1: y1 = (0 %R) -> x1 = z1 -> x1 +R+ y1 = z1. by move=> -> ->; rewrite addR0.
+
       elim: b bf values inds hashes l => [//=| b IHb] bf values [//=|//= x xs] hashes l Hb Hlenb Hlenv Hfree Huns Huniqb Huniqv Hnset.
          - rewrite DistBind.dE //=.
            transitivity (
@@ -2398,41 +2400,346 @@ About bloomfilter_add_multiple .
                 by apply eq_bigr => [[hshs bf']] _ //=; rewrite Dist1.dE //= mulR1 .
              by apply epmf1.
          - rewrite mulRC DistBind.dE //= .
-            transitivity (
-                \rsum_(hs1 in [finType of (k.-tuple (HashState n))])
-                \rsum_(bf1 in [finType of BloomFilter])
-((d[ bloomfilter_add_multiple hashes bf values]) (hs1, bf1) *R*
-   ((d[ ret bloomfilter_get_bit x bf1]) true *R* (d[ ret all (bloomfilter_get_bit^~ bf1) xs]) true))
 
-              ).
-               - rewrite rsum_split //=; apply eq_bigr => hs1 _ ; apply eq_bigr=>bf1 _.
-                 have: ((d[ ret bloomfilter_get_bit x bf1 && all (bloomfilter_get_bit^~ bf1) xs]) true) =
-                       (((d[ ret bloomfilter_get_bit x bf1 ]) true) *R*
-                        ((d[ ret (all (bloomfilter_get_bit^~ bf1) xs)]) true)).
-                      - move=> //=; rewrite !Dist1.dE.
-                        rewrite eq_sym eqb_id eq_sym eqb_id eq_sym eqb_id.
-                          by case: (bloomfilter_get_bit _); case: (all _) => //=; rewrite ?mulR1 ?mulR0 //=.
-                 by move=>->.
+(*====================*)
 
 
-            erewrite <-(@IHb bf values xs hashes) => //=.
-            rewrite //= DistBind.dE rsum_split.
-            rewrite rsum_Rmul_distr_r; apply eq_bigr => hs1 _; rewrite mulRC rsum_Rmul_distr_r.
-            apply eq_bigr => bf1 _.
-            move: Hnset =>/andP [Hnth Hrest].
+           case: l values Huniqv Huns Hlenv Hfree  => [//=|l].
+            - move=> [|//=] _ _ _ Hfree; rewrite muln0 //= subRR mulR0.
+              apply prsumr_eq0P => [[hs' bf']|[hs' bf']] _; first by dispatch_Rgt.
+              rewrite//=!Dist1.dE;case Heq:(_==_);last by rewrite//=mul0R.
+              move/eqP:Heq => [_ ->]//=;rewrite mul1R eq_sym.
+              by case Heq:(_==_)=>//=; move/eqP: Heq Hnset=>/andP[->]//=.
+
+            - move=> [//=|v vs] Huniq Huns Hlen Hfree //=.
+              rewrite rsum_split //=.
+
+              transitivity(
+                  \rsum_(hs' in [finType of k.-tuple (HashState n)])
+                   \rsum_(bf' in [finType of BloomFilter])
+                   \rsum_(hs'' in [finType of k.-tuple (HashState n)])
+                   \rsum_(bf'' in [finType of BloomFilter])
+                   (((
+                        (\rsum_(a in [finType of k.-tuple (HashState n) * k.-tuple 'I_Hash_size.+1])
+                          (
+                            ((d[ bloomfilter_add_multiple hashes bf vs]) (hs'', bf'') *R*
+                             (((true == bloomfilter_get_bit x bf' && all (bloomfilter_get_bit^~ bf') xs) %R) *R*
+                              ((d[ hash_vec_int v hs'']) a *R*
+                               (d[ let (new_hashes, hash_vec0) := a in
+                                   ret (new_hashes, bloomfilter_add_internal hash_vec0 bf'')]) (hs', bf'))))
+                          )  
+                   ))))
+                ).
+                 - apply eq_bigr=>hs' _;apply eq_bigr=>bf' _.
+                   rewrite DistBind.dE Dist1.dE rsum_Rmul_distr_r rsum_split //=.
+                   apply eq_bigr=>hs'' _; apply eq_bigr=>bf'' _.
+                   rewrite DistBind.dE  mulRA mulRC mulRA mulRC; do?apply f_equal.
+                   by rewrite rsum_Rmul_distr_r rsum_Rmul_distr_l.
+
+              transitivity (
+                   \rsum_(bf' in [finType of BloomFilter])
+                   \rsum_(hs'' in [finType of k.-tuple (HashState n)])
+                   \rsum_(bf'' in [finType of BloomFilter])
+                   \rsum_(a in [finType of k.-tuple (HashState n) * k.-tuple 'I_Hash_size.+1])
+                   \rsum_(hs' in [finType of k.-tuple (HashState n)])
+                   ((d[ bloomfilter_add_multiple hashes bf vs]) (hs'', bf'') *R*
+                    (((true == bloomfilter_get_bit x bf' && all (bloomfilter_get_bit^~ bf') xs) %R) *R*
+                     ((d[ hash_vec_int v hs'']) a *R*
+                      (d[ let (new_hashes, hash_vec0) := a in
+                          ret (new_hashes, bloomfilter_add_internal hash_vec0 bf'')]) 
+                        (hs', bf')))) 
+              ).     
+              by do 4!(rewrite exchange_big;apply eq_bigr;intros).
+              transitivity (
+                   \rsum_(hs'' in [finType of k.-tuple (HashState n)])
+                   \rsum_(bf'' in [finType of BloomFilter])
+                   \rsum_(a in [finType of k.-tuple (HashState n) * k.-tuple 'I_Hash_size.+1])
+                   \rsum_(hs' in [finType of k.-tuple (HashState n)])
+                   \rsum_(bf' in [finType of BloomFilter])
+                   ((d[ bloomfilter_add_multiple hashes bf vs]) (hs'', bf'') *R*
+                    (((true == bloomfilter_get_bit x bf' && all (bloomfilter_get_bit^~ bf') xs) %R) *R*
+                     ((d[ hash_vec_int v hs'']) a *R*
+                      (d[ let (new_hashes, hash_vec0) := a in
+                          ret (new_hashes, bloomfilter_add_internal hash_vec0 bf'')]) 
+                        (hs', bf')))) 
+              ).     
+              by do 4!(rewrite exchange_big;apply eq_bigr;intros).
+              transitivity (
+                   \rsum_(hs'' in [finType of k.-tuple (HashState n)])
+                   \rsum_(bf'' in [finType of BloomFilter])
+                   \rsum_(hs''' in [finType of k.-tuple (HashState n)])
+                   \rsum_(inds in [finType of k.-tuple 'I_Hash_size.+1])
+                   \rsum_(hs' in [finType of k.-tuple (HashState n)])
+                   \rsum_(bf' in [finType of BloomFilter])
+                   ((d[ bloomfilter_add_multiple hashes bf vs]) (hs'', bf'') *R*
+                    (((true == bloomfilter_get_bit x bf' && all (bloomfilter_get_bit^~ bf') xs) %R) *R*
+                     ((d[ hash_vec_int v hs'']) (hs''', inds) *R*
+                      (((hs' == hs''') && (bf' == bloomfilter_add_internal inds bf'')) %R)
+                      ))) 
+              ).     
+                do?(apply eq_bigr; intros);rewrite rsum_split;do?(apply eq_bigr;intros)=>//=.
+                by rewrite Dist1.dE xpair_eqE; do?apply f_equal.
+
+              transitivity (
+                   \rsum_(hs'' in [finType of k.-tuple (HashState n)])
+                   \rsum_(bf'' in [finType of BloomFilter])
+                   \rsum_(hs''' in [finType of k.-tuple (HashState n)])
+                   \rsum_(inds in [finType of k.-tuple 'I_Hash_size.+1])
+                   ((d[ bloomfilter_add_multiple hashes bf vs]) (hs'', bf'') *R*
+                    (((true == bloomfilter_get_bit x (bloomfilter_add_internal inds bf'') && all (bloomfilter_get_bit^~ (bloomfilter_add_internal inds bf'')) xs) %R) *R*
+                     ((d[ hash_vec_int v hs'']) (hs''', inds)))) 
+              ).     
+
+                    apply eq_bigr => hs'' _;apply eq_bigr=>bf'' _;apply eq_bigr=>hs''' _;
+                    apply eq_bigr=>inds _.
+
+                    rewrite (bigID (fun hs' => hs'==hs''')) big_pred1_eq//=;apply H.
+
+                         rewrite prsumr_eq0P=> hs' /Bool.negb_true_iff ->;last by dispatch_Rgt.
+                         rewrite prsumr_eq0P=>bf' _ //=;last by dispatch_Rgt.
+
+                         by rewrite !mulR0.
+
+                    rewrite (bigID (fun bf' => bf' == bloomfilter_add_internal inds bf'')) big_pred1_eq.
+
+                    apply H.
+                        rewrite prsumr_eq0P=>bf' /Bool.negb_true_iff->//=;last by dispatch_Rgt.
+                        by rewrite Bool.andb_false_r//= !mulR0.
+                    by rewrite !eq_refl //= mulR1.
+
+              transitivity (
+                   \rsum_(hs'' in [finType of k.-tuple (HashState n)])
+                   \rsum_(bf'' in [finType of BloomFilter])
+                   ((d[ bloomfilter_add_multiple hashes bf vs]) (hs'', bf'') *R*
+                   \rsum_(inds in [finType of k.-tuple 'I_Hash_size.+1])
+                   \rsum_(hs''' in [finType of k.-tuple (HashState n)])
+                   (
+                    (((true == bloomfilter_get_bit x (bloomfilter_add_internal inds bf'') && all (bloomfilter_get_bit^~ (bloomfilter_add_internal inds bf'')) xs) %R) *R*
+                     ((d[ hash_vec_int v hs'']) (hs''', inds)))) )
+              ).     
+                    apply eq_bigr => hs'' _;apply eq_bigr=>bf'' _.
+                    rewrite rsum_Rmul_distr_l exchange_big; apply eq_bigr=>inds _.
+                    by rewrite rsum_Rmul_distr_l; apply eq_bigr => hs''' //=.
+
+              transitivity (
+                   \rsum_(hs'' in [finType of k.-tuple (HashState n)])
+                   \rsum_(bf'' in [finType of BloomFilter])
+                   ((d[ bloomfilter_add_multiple hashes bf vs]) (hs'', bf'') *R*
+                   \rsum_(inds in [finType of k.-tuple 'I_Hash_size.+1])
+                    (((true == bloomfilter_get_bit
+                                 x
+                                 (bloomfilter_add_internal inds bf'') &&
+                                 all (bloomfilter_get_bit^~ (bloomfilter_add_internal inds bf'')) xs)
+                        %R) *R*
+                     (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k)))
+              ).     
+                    apply eq_bigr => hs'' _;apply eq_bigr=>bf'' _.
+                    case Himp: ((d[ bloomfilter_add_multiple hashes bf vs]) (hs'', bf'') == (0 %R));
+                         first by move/eqP: Himp ->; rewrite !mul0R.
+                    apply f_equal.
+                    move/Bool.negb_true_iff: Himp => Himp.
+                    have H1: uniq (v :: vs). by [].
+                    have H2: length vs == l. by move: Hlen; rewrite  //= eqSS.
+                    have H3: hashes_have_free_spaces hashes (l + 0).+1. by move: Hfree; rewrite addn0.
+                    have H4: all (bloomfilter_value_unseen hashes) (v :: vs). by move: Huns.
+                    move: (bloomfilter_add_multiple_preserve H1 H2 H3 H4 Himp) => /andP [Hfree' Huns'].
+                    clear H1 H2 H3 H4.
+                    apply eq_bigr => inds _.
+                    rewrite (bigID (fun (hsh''': [finType of k.-tuple (HashState n)]) =>
+                              (tval hsh''') == 
+                              ((map (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
+                                       let (hash,ind) := pair in @hashstate_put _ v ind hash)
+                                    (zip (tval hs'') (tval inds))))
+                    )) big_pred1_eq => //=.
+                    apply H.
+                       rewrite prsumr_eq0P => hs''' Hneq; last by dispatch_Rgt.
+                       apply  RIneq.Rmult_eq_0_compat_l.
+                         by apply  neg_hash_vecP => //=.
+                    apply f_equal; rewrite -(@hash_vecP n k v hs'' inds).
+                    rewrite /map_tuple.
+                    move: (map_tupleP _ _) (hash_vec_insert_length _ _ _) =>//= H1 H2.
+                    by rewrite (proof_irrelevance _ H1 H2).
+                    by move: Huns'; rewrite/bloomfilter_value_unseen/hash_unseen.
+
+          have H1: b < Hash_size.+1; first by move: Hb; rewrite -addn1 => /addr_ltn.
+          have H2: length xs == b; first by move: Hlenb;rewrite //=eqSS.
+          have H3: length (v::vs) == l.+1; first by move: Hlen; rewrite //=eqSS.
+          have H4: hashes_have_free_spaces hashes l.+1; first by [].
+          have H5: all (bloomfilter_value_unseen hashes) (v::vs); first by [].
+          have H6: uniq xs; first by move/andP:Huniqb => [].
+          have H7: uniq (v::vs); first by [].
+          have H8: all (fun ind : 'I_Hash_size.+1 => ~~ bloomfilter_get_bit ind bf) xs; first by move:Hnset=>//=/andP[].
+                
+          move: (IHb bf (v::vs) xs hashes l.+1 H1 H2 H3 H4 H5 H6 H7 H8); clear H1 H2 H3 H4 H5 H6 H7 H8 IHb.
+          move=>//=;rewrite DistBind.dE rsum_split //=.
+
+          have: (  \rsum_(a in [finType of k.-tuple (HashState n)])
+                    \rsum_(b0 in [finType of BloomFilter])
+                    ((DistBind.d (d[ bloomfilter_add_multiple hashes bf vs])
+                                 (fun b1 : k.-tuple (HashState n) * BloomFilter =>
+                                    d[ let (hsh, bf0) := b1 in bloomfilter_add v hsh bf0])) (a, b0) *R*
+                     (Dist1.d (all (bloomfilter_get_bit^~ b0) xs)) true) =
+                   \rsum_(hs'' in [finType of k.-tuple (HashState n)])
+                    \rsum_(bf'' in [finType of BloomFilter])
+                    ((d[ bloomfilter_add_multiple hashes bf vs]) (hs'', bf'') *R*
+                     \rsum_(inds in [finType of k.-tuple 'I_Hash_size.+1])
+                      (((true == all (bloomfilter_get_bit^~ (bloomfilter_add_internal inds bf'')) xs) %R) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k)))
+           ).
 
 
-            rewrite !Dist1.dE //=.
 
-            case Heq0: ((d[ bloomfilter_add_multiple hashes bf values]) (hs1, bf1) == (0 %R)).
-               - by move/eqP: Heq0 ->; rewrite !mul0R !mulR0.
-            move/Bool.negb_true_iff: Heq0 => Hneq0.
-            apply Logic.eq_sym.
-            rewrite -mulRC -mulRA; apply f_equal.
-            rewrite Dist1.dE; apply Logic.eq_sym; rewrite mulRC; apply f_equal .
+             transitivity (\rsum_(hs'' in [finType of k.-tuple (HashState n)])
+                    \rsum_(bf' in [finType of BloomFilter])
+                 (\rsum_(hs' in [finType of k.-tuple (HashState n)])
+                   \rsum_(bf'' in [finType of BloomFilter])
+                   ((d[ bloomfilter_add_multiple hashes bf vs]) (hs', bf'') *R*
+                    (\rsum_(e_hs' in tuple_finType k (hashstate_of_finType n))
+                      \rsum_(inds' in tuple_finType k (ordinal_finType Hash_size.+1))
+                      ((d[ hash_vec_int v hs']) (e_hs', inds') *R*
+                       ((hs'' ==  e_hs') && (bf' == bloomfilter_add_internal inds' bf'') %R)) *R*
+                     ((true == all (bloomfilter_get_bit^~ bf') xs) %R))))
+               ).
+             apply eq_bigr=> hs'' _;apply eq_bigr=> bf' _;rewrite DistBind.dE rsum_split //=.
+             rewrite rsum_Rmul_distr_r; apply eq_bigr=> hs' _;rewrite Dist1.dE rsum_Rmul_distr_l.
+             apply eq_bigr => bf'' _; rewrite mulRC -mulRA; apply f_equal.
+             rewrite DistBind.dE !rsum_Rmul_distr_r rsum_split; apply eq_bigr=> e_hs' _.
+             by rewrite rsum_Rmul_distr_l; apply eq_bigr => inds' _ //=; rewrite Dist1.dE xpair_eqE eq_sym.
 
-            
-   Admitted.
+             transitivity (
+                    \rsum_(bf' in [finType of BloomFilter])
+                 (\rsum_(hs' in [finType of k.-tuple (HashState n)])
+                   \rsum_(bf'' in [finType of BloomFilter])
+                   ((d[ bloomfilter_add_multiple hashes bf vs]) (hs', bf'') *R*
+                      \rsum_(hs'' in [finType of k.-tuple (HashState n)])
+                   (\rsum_(e_hs' in tuple_finType k (hashstate_of_finType n))
+                      \rsum_(inds' in tuple_finType k (ordinal_finType Hash_size.+1))
+                      ((d[ hash_vec_int v hs']) (e_hs', inds') *R*
+                       ((hs'' ==  e_hs') && (bf' == bloomfilter_add_internal inds' bf'') %R)
+                       *R* ((true == all (bloomfilter_get_bit^~ bf') xs) %R)
+                 ) )))
+               ).
+
+
+             do ?(rewrite exchange_big; apply eq_bigr; intros; rewrite ?rsum_Rmul_distr_r ?rsum_Rmul_distr_l).
+
+             rewrite -!rsum_Rmul_distr_r mulRC; apply Logic.eq_sym.
+             rewrite mulRC; apply f_equal.
+             apply eq_bigr=> hs''' _; rewrite rsum_Rmul_distr_r; apply eq_bigr=> e_hs' _.
+             rewrite rsum_Rmul_distr_l; apply eq_bigr=> inds' _.
+             by rewrite mulRC; apply f_equal.
+
+             transitivity (
+                 
+                 (\rsum_(hs' in [finType of k.-tuple (HashState n)])
+                   \rsum_(bf'' in [finType of BloomFilter])
+                   ((d[ bloomfilter_add_multiple hashes bf vs]) (hs', bf'') *R*
+                    \rsum_(hs'' in [finType of k.-tuple (HashState n)])
+                    \rsum_(bf' in [finType of BloomFilter])
+                    (\rsum_(e_hs' in tuple_finType k (hashstate_of_finType n))
+                      \rsum_(inds' in tuple_finType k (ordinal_finType Hash_size.+1))
+                      ((d[ hash_vec_int v hs']) (e_hs', inds') *R*
+                       ((hs'' ==  e_hs') && (bf' == bloomfilter_add_internal inds' bf'') %R)
+                       *R* ((true == all (bloomfilter_get_bit^~ bf') xs) %R)
+                 ) )))
+               ).
+
+             do?(rewrite exchange_big; apply eq_bigr;intros; rewrite?rsum_Rmul_distr_r ?rsum_Rmul_distr_l).
+             rewrite -!rsum_Rmul_distr_r mulRC; apply Logic.eq_sym.
+             rewrite mulRC; apply f_equal.
+             by do?(rewrite exchange_big; apply eq_bigr;intros; rewrite?rsum_Rmul_distr_r ?rsum_Rmul_distr_l).
+             transitivity (
+                 (\rsum_(hs' in [finType of k.-tuple (HashState n)])
+                   \rsum_(bf'' in [finType of BloomFilter])
+                   ((d[ bloomfilter_add_multiple hashes bf vs]) (hs', bf'') *R*
+                     \rsum_(bf' in [finType of BloomFilter])
+                    (\rsum_(e_hs' in tuple_finType k (hashstate_of_finType n))
+                      \rsum_(inds' in tuple_finType k (ordinal_finType Hash_size.+1))
+                    \rsum_(hs'' in [finType of k.-tuple (HashState n)])
+                     ((d[ hash_vec_int v hs']) (e_hs', inds') *R*
+                       ((hs'' ==  e_hs') && (bf' == bloomfilter_add_internal inds' bf'') %R)
+                       *R* ((true == all (bloomfilter_get_bit^~ bf') xs) %R)
+                 ) )))
+               ).
+
+             do?(apply eq_bigr;intros).
+             apply f_equal.
+             by do?(rewrite exchange_big; apply eq_bigr;intros; rewrite?rsum_Rmul_distr_r ?rsum_Rmul_distr_l).
+             transitivity (
+                 (\rsum_(hs' in [finType of k.-tuple (HashState n)])
+                   \rsum_(bf'' in [finType of BloomFilter])
+                   ((d[ bloomfilter_add_multiple hashes bf vs]) (hs', bf'') *R*
+                    (\rsum_(e_hs' in tuple_finType k (hashstate_of_finType n))
+                      \rsum_(inds' in tuple_finType k (ordinal_finType Hash_size.+1))
+                    \rsum_(hs'' in [finType of k.-tuple (HashState n)])
+                     \rsum_(bf' in [finType of BloomFilter])
+                     ((d[ hash_vec_int v hs']) (e_hs', inds') *R*
+                       ((hs'' ==  e_hs') && (bf' == bloomfilter_add_internal inds' bf'') %R)
+                       *R* ((true == all (bloomfilter_get_bit^~ bf') xs) %R)
+                 ) )))
+               ).
+             do?(apply eq_bigr;intros).
+             apply f_equal.
+             by do?(rewrite exchange_big; apply eq_bigr;intros; rewrite?rsum_Rmul_distr_r ?rsum_Rmul_distr_l).
+             transitivity (
+                 (\rsum_(hs' in [finType of k.-tuple (HashState n)])
+                   \rsum_(bf'' in [finType of BloomFilter])
+                   ((d[ bloomfilter_add_multiple hashes bf vs]) (hs', bf'') *R*
+                    (\rsum_(e_hs' in tuple_finType k (hashstate_of_finType n))
+                      \rsum_(inds' in tuple_finType k (ordinal_finType Hash_size.+1))
+                      ((d[ hash_vec_int v hs']) (e_hs', inds') *R*
+                       ((true ==
+                             all (bloomfilter_get_bit^~ (bloomfilter_add_internal inds' bf'')) xs)
+                              %R)))))
+               ).
+                     apply eq_bigr=> hs' _; apply eq_bigr=> bf'' _; apply f_equal; apply eq_bigr=> e_hs' _;
+                     apply eq_bigr=> inds' _.
+
+                     rewrite (bigID (fun hs'' => hs'' == e_hs')) big_pred1_eq//=.
+                     apply H.
+                           apply prsumr_eq0P => i /Bool.negb_true_iff ->; first by dispatch_Rgt.
+                           apply prsumr_eq0P => bf' _; first by dispatch_Rgt.
+                           by rewrite //= mulR0 mul0R.
+
+                     rewrite (bigID (fun bf' => bf' == (bloomfilter_add_internal inds' bf''))) big_pred1_eq//=.
+                     apply H.
+                           apply prsumr_eq0P => i /Bool.negb_true_iff ->; first by dispatch_Rgt.
+                           by rewrite Bool.andb_false_r //=  mulR0 mul0R .
+                     by rewrite !eq_refl //= mulR1.
+             apply eq_bigr=> hs' _; apply eq_bigr=> bf'' _.        
+             case Himp: ((d[ bloomfilter_add_multiple hashes bf vs]) (hs', bf'') == (0 %R));
+               first by move/eqP: Himp ->; rewrite !mul0R.
+             move/Bool.negb_true_iff: Himp => Himp.
+             have H1: uniq (v :: vs). by [].
+             have H2: length vs == l. by move: Hlen; rewrite  //= eqSS.
+             have H3: hashes_have_free_spaces hashes (l + 0).+1. by move: Hfree; rewrite addn0.
+             have H4: all (bloomfilter_value_unseen hashes) (v :: vs). by move: Huns.
+             move: (bloomfilter_add_multiple_preserve H1 H2 H3 H4 Himp) => /andP [Hfree' Huns'].
+             clear H1 H2 H3 H4; apply f_equal; rewrite exchange_big; apply eq_bigr=> inds' _.
+
+             rewrite (bigID (fun (hsh''': [finType of k.-tuple (HashState n)]) =>
+                               (tval hsh''') == 
+                               ((map (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
+                                        let (hash,ind) := pair in @hashstate_put _ v ind hash)
+                                     (zip (tval hs') (tval inds'))))
+                     )) big_pred1_eq => //=.
+             apply H.
+                rewrite prsumr_eq0P => hs''' Hneq; last by dispatch_Rgt.
+                apply  RIneq.Rmult_eq_0_compat_r.
+                   by apply  neg_hash_vecP => //=.
+
+            rewrite mulRC; apply Logic.eq_sym.
+            apply f_equal; rewrite -(@hash_vecP n k v hs' inds').
+            rewrite /map_tuple.
+                    move: (map_tupleP _ _) (hash_vec_insert_length _ _ _) =>//= H1 H2.
+                    by rewrite (proof_irrelevance _ H1 H2).
+                    by move: Huns'; rewrite/bloomfilter_value_unseen/hash_unseen.
+          move=> ->.             
+
+          (* CRITICAL POINT *)
+
+          move=> <-.
+
+    Admitted.
             
   Theorem no_false_negative (bf : BloomFilter) (value_ins value_find : B) (hashes: hash_vec):
 
