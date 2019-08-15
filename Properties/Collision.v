@@ -1093,6 +1093,113 @@ Section BloomFilter.
             exact Hnotin.
           Qed.
           
+Lemma bloomfilter_add_internal_prob bf x l:
+  ~~ tnth (bloomfilter_state bf) x ->
+     \rsum_(b in [finType of l.-tuple 'I_Hash_size.+1])
+        ((tnth (bloomfilter_state (bloomfilter_add_internal b bf)) x %R) *R*
+         ((Rdefinitions.Rinv (Hash_size.+1)%:R) ^R^ l)) = 
+     (1 -R- ((1 -R- Rdefinitions.Rinv (Hash_size.+1)%:R) ^R^ l)).
+Proof.
+  elim: l x bf=> [|l IHl] x bf Hnth //=.
+  rewrite subRR.
+  rewrite unlock.
+  have: (index_enum [finType of 0.-tuple 'I_Hash_size.+1]) = [tuple]::[::]; last move=>->//=.     
+       rewrite /index_enum/[finType of _]//= /prod_finMixin/prod_countMixin //=.
+       rewrite -enumT //=; rewrite/(enum _)//=.
+       rewrite {1}Finite.EnumDef.enumDef/prod_enum //=.
+       move: (FinTuple.size_enum 0 (ordinal_finType Hash_size.+1))=> //=; rewrite expn0.
+       move: (FinTuple.enum _ _)=>[|[[|//=] Hz] []]//= _.
+       by move: (@tuple0  'I_Hash_size.+1 (Tuple Hz)) <- =>//=.
+  by move/Bool.negb_true_iff: Hnth ->; rewrite //= mul0R add0R.     
+
+  rewrite rsum_tuple_split rsum_split//=.
+  rewrite (bigID (fun a => a == x)) big_pred1_eq //=.
+
+  have: (\rsum_(b in [finType of l.-tuple 'I_Hash_size.+1])
+          ((tnth (bloomfilter_state (bloomfilter_add_internal b (bloomfilter_set_bit x bf))) x %R) *R*
+           (Rdefinitions.Rinv (Hash_size.+1 %R) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l))) =
+         \rsum_(b in [finType of l.-tuple 'I_Hash_size.+1])
+          ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ (l.+1)))).
+         apply eq_bigr=> b _.
+         rewrite bloomfilter_add_internal_preserve; first by rewrite mul1R//=.
+         rewrite /bloomfilter_set_bit/bloomfilter_state.
+         by rewrite FixedList.tnth_set_nth_eq.
+  move=>->; rewrite bigsum_card_constE//=.
+
+  have: (
+          \rsum_(i < Hash_size.+1 | i != x) \rsum_(b in [finType of l.-tuple 'I_Hash_size.+1])
+         ((tnth (bloomfilter_state (bloomfilter_add_internal b (bloomfilter_set_bit i bf))) x %R) *R*
+          (Rdefinitions.Rinv (Hash_size.+1 %R) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)))
+          = (\rsum_(i < Hash_size.+1 | i != x)
+              (Rdefinitions.Rinv (Hash_size.+1 %R) *R* (1 -R- ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ l))))); last move=>->.
+            apply eq_bigr=> i Hneq.
+
+            transitivity (
+                Rdefinitions.Rinv (Hash_size.+1 %R) *R* 
+                \rsum_(b in [finType of l.-tuple 'I_Hash_size.+1])
+                 ((tnth
+                     (bloomfilter_state
+                        (bloomfilter_add_internal b (bloomfilter_set_bit i bf))) x %R) *R*
+                  ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l))) 
+               ).
+                  rewrite rsum_Rmul_distr_l; apply eq_bigr=>b _.
+                  by rewrite mulRA mulRC mulRA mulRC; apply f_equal; rewrite mulRC; apply f_equal.
+            rewrite IHl; first by [].
+            rewrite (FixedList.tnth_set_nth_neq) //=.
+            by rewrite eq_sym.
+   rewrite bigsum_card_constE//=.
+   rewrite card_tuple.
+   rewrite cardC1 card_ord //=.
+
+
+   have: (((Hash_size.+1 ^ l %R) *R*
+           (Rdefinitions.Rinv (Hash_size.+1 %R) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l))) =
+          Rdefinitions.Rinv (Hash_size.+1 %R)
+         ); last move=>->.
+
+            rewrite -{3}(mulR1 (Rdefinitions.Rinv _)) mulRA mulRC mulRA mulRC ; apply f_equal.
+            rewrite -natRexp; clear; elim: l => [|l IHl] //=; rewrite ?mulR1//=.
+            transitivity (
+                (Rdefinitions.Rinv (Hash_size.+1 %R) *R* (Hash_size.+1 %R)) *R*
+                (((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)) *R* (((Hash_size.+1 %R) ^R^ l)))
+              ).
+            rewrite -mulRA -mulRA mulRC mulRA mulRC; apply f_equal.
+            rewrite  mulRC mulRA mulRC; apply f_equal.
+            by rewrite mulRC.
+            rewrite !Raxioms.Rinv_l ?mul1R ?IHl //=.
+            by apply RIneq.not_0_INR =>//=.
+
+   rewrite !RIneq.Rmult_minus_distr_l.
+
+   rewrite addRA //= mulR1.
+
+   rewrite -{1}(mul1R (Rdefinitions.Rinv _)) -RIneq.Rmult_plus_distr_r.
+
+   have: (Rdefinitions.IZR 1 = (1 %R)); last move=>->; first by [].
+   rewrite -natRD add1n RIneq.Rinv_r //= .
+   rewrite addR_opp mulRA.
+
+   have: (((Hash_size %R) *R* Rdefinitions.Rinv (Hash_size.+1 %R))) = ((1 %R) -R- Rdefinitions.Rinv (Hash_size.+1 %R)); last move=>->.
+
+           rewrite -{2}(mulR1 (Rdefinitions.Rinv _)) //=.
+
+           have: (1 %R) = Rdefinitions.IZR 1; last move=>->; first by [].
+           rewrite -{1}(RIneq.Rinv_r (Hash_size.+1 %R)).
+           rewrite [(_.+1 %R) *R* Rdefinitions.Rinv _]mulRC.
+           rewrite -(RIneq.Rmult_minus_distr_l).
+           have: (Rdefinitions.IZR 1 = (1 %R)); last move=>->; first by [].
+           by rewrite -natRB //= subn1 //= mulRC.
+                 by apply RIneq.not_0_INR =>//=.
+
+                 
+   have: (1 %R) = Rdefinitions.IZR 1; last move=>->; first by [].
+   by [].
+   by apply RIneq.not_0_INR =>//=.
+Qed.
+
+
+
+
 
 
   (* for a given index ind *)
@@ -2028,6 +2135,112 @@ Section BloomFilter.
       
   (* TODO: No False Negatives *)
 
+  Lemma bloomfilter_add_internal_indep l bf' x xs :
+    uniq (x :: xs) ->
+    length (x::xs) < Hash_size.+1 ->
+    \rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+     (((tnth (bloomfilter_state (bloomfilter_add_internal inds bf')) x &&
+        all [eta tnth (bloomfilter_state (bloomfilter_add_internal inds bf'))] xs) %R) *R*
+      (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)) =
+    ((\rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+     (((tnth (bloomfilter_state (bloomfilter_add_internal inds bf')) x) %R) *R*
+      (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l))) *R*
+    (\rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+      ((( all [eta tnth (bloomfilter_state (bloomfilter_add_internal inds bf'))] xs) %R) *R*
+      (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)))).
+    Proof.
+      have H x1 y1 z1: y1 = (0 %R) -> x1 = z1 -> x1 +R+ y1 = z1. by move=> -> ->; rewrite addR0.
+
+      elim: l bf' x xs=> [//=|l IHl] bf' x xs.
+           -  move=> /andP[Hnin Huniq] Hlen; rewrite unlock=>//=.
+              have: (index_enum [finType of 0.-tuple 'I_Hash_size.+1]) = [tuple]::[::].
+                     rewrite /index_enum/[finType of _]//= /prod_finMixin/prod_countMixin //=.
+                     rewrite -enumT //=; rewrite/(enum _)//=.
+                     rewrite {1}Finite.EnumDef.enumDef/prod_enum //=.
+                     move: (FinTuple.size_enum 0 (ordinal_finType Hash_size.+1))=> //=; rewrite expn0.
+                     move: (FinTuple.enum _ _)=>[|[[|//=] Hz] []]//= _.
+                     by move: (@tuple0  'I_Hash_size.+1 (Tuple Hz)) <- =>//=.
+              move=> -> //=.
+              rewrite !addR0.
+              by case: (tnth _ _) => //=;rewrite?mul1R?mul0R//=;case: (all _ _)=>//=;rewrite?mul1R.
+
+           - move=> Huniq Hlength.
+             rewrite rsum_tuple_split rsum_split=>//=.
+
+             transitivity (
+                 \rsum_(a in 'I_Hash_size.+1)
+                  (Rdefinitions.Rinv (Hash_size.+1 %R) *R*
+                   \rsum_(b in [finType of l.-tuple 'I_Hash_size.+1])
+                    ((tnth (bloomfilter_state
+                              (bloomfilter_add_internal b (bloomfilter_set_bit a bf'))) x &&
+                           all [eta tnth (bloomfilter_state
+                                            (bloomfilter_add_internal b (bloomfilter_set_bit a bf')))]
+                           xs %R) *R*
+                     ( (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l))))
+               ).
+                   apply eq_bigr => a _; rewrite rsum_Rmul_distr_l; apply eq_bigr => b _.
+                   rewrite mulRA mulRC mulRA mulRC; apply f_equal.
+                     by rewrite mulRC; apply f_equal.
+
+             transitivity (
+                 \rsum_(a in 'I_Hash_size.+1)
+                  (Rdefinitions.Rinv (Hash_size.+1 %R) *R*
+(\rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+      ((tnth (bloomfilter_state (bloomfilter_add_internal inds (bloomfilter_set_bit a bf'))) x %R) *R*
+       (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)) *R*
+   \rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+      ((all [eta tnth (bloomfilter_state (bloomfilter_add_internal inds (bloomfilter_set_bit a bf')))]
+          xs %R) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)))
+                  )
+               ).
+                  apply eq_bigr=> a _; apply f_equal.
+                  by rewrite IHl => //=; last first.
+             apply Logic.eq_sym.     
+
+             have: (\rsum_(inds in [finType of (l.+1).-tuple 'I_Hash_size.+1])
+                     ((tnth (bloomfilter_state (bloomfilter_add_internal inds bf')) x %R) *R*
+                      (Rdefinitions.Rinv (Hash_size.+1 %R) *R*
+                       (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l))))
+                   = (0%R).
+             rewrite rsum_tuple_split rsum_split //=.
+             transitivity (
+                 \rsum_(b in [finType of l.-tuple 'I_Hash_size.+1])
+                  ((Rdefinitions.Rinv (Hash_size.+1 %R) *R*
+                    (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)) *R* 
+                   \rsum_(a in [finType of 'I_Hash_size.+1])
+                    ((tnth (bloomfilter_state (bloomfilter_add_internal b (bloomfilter_set_bit a bf'))) x &&
+                           all [eta tnth (bloomfilter_state (bloomfilter_add_internal b (bloomfilter_set_bit a bf')))]
+                           xs %R)
+                  ))
+               ).
+                     rewrite exchange_big; apply eq_bigr=> b _ //=.
+                     rewrite rsum_Rmul_distr_l; apply eq_bigr=> a _ //=.
+                     by rewrite mulRC; apply f_equal.
+
+             rewrite (bigID (fun b))
+             transitivity (
+                 \rsum_(b in [finType of l.-tuple 'I_Hash_size.+1])
+                  ((Rdefinitions.Rinv (Hash_size.+1 %R) *R*
+                    (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)) *R* 
+                   \rsum_(a in [finType of 'I_Hash_size.+1] | a != x)
+                    ((tnth (bloomfilter_state (bloomfilter_add_internal b (bloomfilter_set_bit a bf'))) x &&
+                           all [eta tnth (bloomfilter_state (bloomfilter_add_internal b (bloomfilter_set_bit a bf')))]
+                           xs %R)
+                  ))
+               ).
+             apply eq_bigr=> b _; apply f_equal.
+             rewrite (bigID (fun a => a == x)) //=; apply H.
+             rewrite prsumr_eq0P => i Heq; last by dispatch_Rgt.
+             rewrite bloomfilter_add_internal_miss.
+      rewrite /index_enum/[finType of _]//= -enumT //=.
+      rewrite /index_enum -enumT //=/(enum _).
+      rewrite /mem//=.
+
+
+      n
+      move: (enum _).
+      Search _ (enum _).
+      Search _ (mem).
 
   Lemma bloomfilter_addn_insert_multiple_inv hashes l (ind: 'I_Hash_size.+1) (bf: BloomFilter) (values: seq B):
        length values == l ->
@@ -2404,7 +2617,7 @@ About bloomfilter_add_multiple .
 (*====================*)
 
 
-           case: l values Huniqv Huns Hlenv Hfree  => [//=|l].
+           elim: l values Huniqv Huns Hlenv Hfree  => [//=|l IHl].
             - move=> [|//=] _ _ _ Hfree; rewrite muln0 //= subRR mulR0.
               apply prsumr_eq0P => [[hs' bf']|[hs' bf']] _; first by dispatch_Rgt.
               rewrite//=!Dist1.dE;case Heq:(_==_);last by rewrite//=mul0R.
@@ -2738,6 +2951,17 @@ About bloomfilter_add_multiple .
           (* CRITICAL POINT *)
 
           move=> <-.
+          rewrite rsum_Rmul_distr_r; apply eq_bigr=> hs'' _.
+          rewrite rsum_Rmul_distr_l; apply eq_bigr=> bf' _.
+
+          case Heq0: ((d[ bloomfilter_add_multiple hashes bf vs]) (hs'', bf') == (0%R));
+          first by move/eqP: Heq0 ->; rewrite !mul0R mulR0.
+
+          apply Logic.eq_sym; rewrite  mulRA mulRC mulRA mulRC; apply f_equal; apply Logic.eq_sym.
+
+          rewrite /bloomfilter_get_bit/bloomfilter_set_bit.
+
+          
 
     Admitted.
             
