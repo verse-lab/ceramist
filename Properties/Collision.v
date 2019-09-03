@@ -2861,8 +2861,70 @@ Qed.
 
                    have: \rsum_(ind in 'I_Hash_size.+1) (Rdefinitions.Rinv (Hash_size.+1 %R) *R* ((ind \notin ps) %R)) = \rsum_(ind in 'I_Hash_size.+1) (Rdefinitions.Rinv (#|'I_Hash_size.+1| %R) *R* ((ind \notin ps) %R)); last move=>->; first by rewrite card_ord.
                    rewrite pr_in_vec.
-                     
-                     elim: ps => [//=| p ps Hps] Huniq.
+
+                   have: ((1 -R- ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ k.+1))) =
+                         (
+                           (1 -R- ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ k)) +R+
+                           (Rdefinitions.Rinv (Hash_size.+1 %R) *R* ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ k))
+                         ); last move=>->.
+                   move=> //=; rewrite -[1 -R- Rdefinitions.Rinv _]addR_opp.
+                   by rewrite RIneq.Rmult_plus_distr_r mul1R subRD mulNR subR_opp.
+
+                   Search _ (_ *R* (_ +R+ _)).
+
+                   rewrite Raxioms.Rmult_plus_distr_l.
+                   rewrite RIneq.Rmult_plus_distr_r.
+
+                   eapply leR_trans; last first.
+                   do ?apply RIneq.Rplus_le_compat_r.
+                   rewrite mulRA mulRC mulRA mulRC.
+                   apply RIneq.Rmult_le_compat_l.
+                   case Hps: (length ps == 0); first by move/eqP: Hps ->; rewrite mulR0 subR0 //=.
+                   apply subR_ge0.
+                   rewrite -(RIneq.Rinv_involutive (length ps %R)) //=.
+                   rewrite -RIneq.Rinv_mult_distr.
+                   rewrite invR_le1.
+                   apply (RIneq.Rmult_le_reg_r (length ps %R)); rewrite ?mul1R -1?mulRA ?mulRV.
+                   apply ltR0n; rewrite lt0n.
+                   by move/Bool.negb_true_iff: Hps.
+                   rewrite -RIneq.Rinv_l_sym ?mulR1.
+                   apply leR_nat.
+                   move: Heq => /eqP [] ->.
+                   rewrite card_ord.
+                   by move: Hltn=>/ltnW/ltnW.
+                   by apply RIneq.not_0_INR; apply/eqP; move/Bool.negb_true_iff: Hps.
+                   apply RIneq.Rmult_lt_0_compat.
+                   by apply ltR0n; rewrite card_ord //=.
+                   by apply invR_gt0; apply ltR0n; rewrite lt0n; move/Bool.negb_true_iff: Hps.
+                   by apply RIneq.not_0_INR; apply/eqP; rewrite card_ord //=.
+                   by apply invR_neq0; apply RIneq.not_0_INR; apply/eqP; move/Bool.negb_true_iff: Hps.
+                   by apply RIneq.not_0_INR; apply/eqP; move/Bool.negb_true_iff: Hps.
+                   rewrite mulRC.
+                   eapply (IHk (behead_tuple hashes)).
+                   rewrite/behead_tuple//=;apply/allP;move/allP: Hfree=>Hfree val Hval.
+                   by move: (mem_behead Hval)=> /(Hfree val).
+                   rewrite /behead_tuple//=;apply/allP;move/allP:Huns=>Huns val Hval.
+                   by move: (mem_behead Hval) =>/(Huns val).
+
+
+                   fail.
+
+                   
+                   dispatch_Rgt.
+                   apply RIneq.INR_not_0.
+                   Search _ (((Rdefinitions.Rinv _)*R* _)).
+
+                   Search _ ((_ *R* _) /R/ _).
+                   Search _ ((Rdefinitions.Rinv _)).
+
+                   rewrite -div1R.
+
+                   Search _ ((_ /R/ _)).
+
+                   Search _ (_ *R* (Rdefinitions.Rinv _)).
+                   apply RIneq.Rle_minus.
+                   move: (H)
+                   elim: ps => [//=| p ps Hps] Huniq.
                      rewrite mulR1 mulR0 subR0 bigsum_card_constE mulRV //=.
                      apply /eqP; apply RIneq.not_0_INR =>//=.
                      by apply/eqP; apply /lt0n_neq0.
