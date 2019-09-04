@@ -2862,6 +2862,19 @@ Qed.
                    have: \rsum_(ind in 'I_Hash_size.+1) (Rdefinitions.Rinv (Hash_size.+1 %R) *R* ((ind \notin ps) %R)) = \rsum_(ind in 'I_Hash_size.+1) (Rdefinitions.Rinv (#|'I_Hash_size.+1| %R) *R* ((ind \notin ps) %R)); last move=>->; first by rewrite card_ord.
                    rewrite pr_in_vec.
 
+
+                   (* Apply methods from Documents/bloomfilter_proof_doc.pdf here*) 
+                   have: (\rsum_(ind in 'I_Hash_size.+1 | ind \in ps)
+                          \rsum_(inds in [finType of k.-tuple 'I_Hash_size.+1])
+                             ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k.+1) *R*
+                              (all (bloomfilter_get_bit^~ (bloomfilter_add_internal inds (bloomfilter_set_bit ind bf)))
+                                   ps %R))) =
+                         (\rsum_(inds in [finType of k.-tuple 'I_Hash_size.+1])
+                             ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k) *R*
+                              (all (bloomfilter_get_bit^~ (bloomfilter_add_internal inds bf))
+                                 (behead ps) %R))).
+
+                   fail.
                    have: ((1 -R- ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ k.+1))) =
                          (
                            (1 -R- ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ k)) +R+
@@ -2907,6 +2920,9 @@ Qed.
                    by move: (mem_behead Hval) =>/(Huns val).
 
 
+                   Search "bayes".
+
+                   Print cproba.cPr.
                    fail.
 
                    
