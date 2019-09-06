@@ -424,6 +424,18 @@ Proof.
 Qed.
 
 
+Lemma prsumr_implb_ineq (A: finType) (p q : pred A) (f: A -> Rdefinitions.R):
+  (forall a, 0 -<=- f a) -> (forall a, p a ==> q a ) ->
+  \rsum_(a  in A) ((p a %R) *R* (f a)) -<=-
+   \rsum_(a  in A) ((q a %R) *R* (f a)).
+Proof.
+  move=> Hpr Himpl.
+  apply ler_rsum => a H.
+  apply RIneq.Rmult_le_compat_r; try by apply Hpr.
+  move: (Himpl a); case: (p a) => //=; first by move=> -> //=; apply leRR.
+  move=>_;case: (q a) => //=; by apply leRR.
+Qed.
+
 
 Lemma boolR_distr (a b : bool) : (a && b %R) = ((a %R) *R* (b %R)).
 Proof.
