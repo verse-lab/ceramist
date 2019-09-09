@@ -2616,7 +2616,6 @@ Proof.
   by rewrite /bloomfilter_get_bit/bloomfilter_state bloomfilter_add_internal_hit //=; move: (HinP p Hp).
 Qed.
 
-
 Lemma pr_in_vec (A : finType) (ps : seq A) :
   #|A| > 0 ->
        uniq ps ->
@@ -2644,7 +2643,84 @@ Lemma pr_in_vec (A : finType) (ps : seq A) :
 
 Qed.
 
+Lemma prsumr_vec_subset (A: finType) m p ps ind:
+  #|A| > 0 ->
+  uniq (p :: ps) ->
+  ind \in ps ->
+  length (p :: ps) < #|A| ->
+  \rsum_(inds in [finType of m.-tuple A])
+     (all (fun p => p \in ind :: inds) (p :: ps) %R) = 
+  \rsum_(inds in [finType of m.-tuple A])
+     (all (fun p => p \in inds) ps %R).
+Proof.
+  clear n k Hkgt0; elim: m p ps ind => [| m IHm] p ps ind.
 
+  move=>//=/andP[/memPn Hneq Hpuniq] Hind.
+  rewrite !rsum_empty //= mem_seq1 eq_sym.
+  move: (Hneq ind Hind)=>/Bool.negb_true_iff ->; do?apply f_equal.
+  rewrite Bool.andb_false_l //=; apply Logic.eq_sym; apply Bool.negb_true_iff.
+
+Lemma rsum_mem_inv (A: finType) m (x y : A) zs :
+  #|A| > 0 ->
+  x \notin zs ->
+  y \notin zs ->
+  uniq zs ->
+    \rsum_(xs in [finType of m.-tuple A] | x \in xs)
+     ((Rdefinitions.Rinv (#|A| %R) ^R^ m) *R*
+      (all ((in_mem (T:=A))^~ (mem xs)) zs %R)) =
+  \rsum_(xs in [finType of m.-tuple A] | y \in xs)
+     ((Rdefinitions.Rinv (#|A| %R) ^R^ m) *R*
+      (all ((in_mem (T:=A))^~ (mem xs)) zs %R)).
+Proof.
+  rewrite rsum_pred_demote rsum_pred_demote.
+  move=> Hlen; elim: zs m => [//=| z zs IHz] m Hx Hy Huniq.
+  by rewrite -rsum_pred_demote -rsum_pred_demote !mulR1 !rsum_mem_pred //= .
+  case: m => [|m]; first by rewrite !rsum_empty //=.
+  rewrite !rsum_tuple_split !rsum_split //=.
+  rewrite (bigID (fun a => a == x)) big_pred1_eq.
+  rewrite [\rsum_(a in A) _](bigID (fun a => a == y)) big_pred1_eq //=.
+
+  have: (\rsum_(b in [finType of m.-tuple A])
+      (((x \in cons_tuple x b) %R) *R*
+       ((Rdefinitions.Rinv (#|A| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ m)) *R*
+        ((z \in cons_tuple x b) && all ((in_mem (T:=A))^~ (mem (cons_tuple x b))) zs %R)))) =
+        (\rsum_(b in [finType of m.-tuple A])
+      (((Rdefinitions.Rinv (#|A| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ m)) *R*
+        ((z \in b) && all ((in_mem (T:=A))^~ (mem b)) zs %R)))); last move=>->.
+         apply eq_bigr=> b _; rewrite mulRC -mulRA -mulRA -mulRA; do? apply f_equal.
+         rewrite [x \in _]in_cons eq_refl Bool.orb_true_l //= mulR1; do? apply f_equal.
+         move: (Hx); rewrite !in_cons Bool.negb_orb eq_sym =>/andP [/Bool.negb_true_iff -> Hnin] //=.
+         do? apply f_equal; apply eq_in_all => p Hp; rewrite in_cons.
+         by move/memPn: Hnin =>/(_ p Hp)/Bool.negb_true_iff -> //=.
+  have: (\rsum_(b in [finType of m.-tuple A])
+      (((y \in cons_tuple y b) %R) *R*
+       ((Rdefinitions.Rinv (#|A| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ m)) *R*
+        ((z \in cons_tuple y b) && all ((in_mem (T:=A))^~ (mem (cons_tuple y b))) zs %R)))) =
+        (\rsum_(b in [finType of m.-tuple A])
+      (((Rdefinitions.Rinv (#|A| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ m)) *R*
+        ((z \in b) && all ((in_mem (T:=A))^~ (mem b)) zs %R)))); last move=>->.
+         apply eq_bigr=> b _; rewrite mulRC -mulRA -mulRA -mulRA; do? apply f_equal.
+         rewrite [y \in _]in_cons eq_refl Bool.orb_true_l //= mulR1; do? apply f_equal.
+         move: (Hy); rewrite !in_cons Bool.negb_orb eq_sym =>/andP [/Bool.negb_true_iff -> Hnin] //=.
+         do? apply f_equal; apply eq_in_all => p Hp; rewrite in_cons.
+         by move/memPn: Hnin =>/(_ p Hp)/Bool.negb_true_iff -> //=.
+  apply f_equal.
+
+  transitivity (
+  \rsum_(i | i != x)
+     \rsum_(b in [finType of m.-tuple A])
+        (((x \in b) %R) *R*
+         ((Rdefinitions.Rinv (#|A| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ m)) *R*
+          ((z \in cons_tuple i b) && all ((in_mem (T:=A))^~ (mem (cons_tuple i b))) zs %R)))
+    ).
+
+  apply eq_bigr=> i /Bool.negb_true_iff Hneq; apply eq_bigr=> b _.
+  by rewrite in_cons eq_sym Hneq //=.
+
+  rewrite (bigID (fun i => i == z))//=.
+
+  rewrite (big_pred1 z) //=.
+  move=>//=.
 
   Lemma bloomfilter_addn_insert_multiple_inv hashes l (ind: 'I_Hash_size.+1) (bf: BloomFilter) (values: seq B):
        length values == l ->
@@ -3036,22 +3112,23 @@ Qed.
                    apply Bool.negb_true_iff; apply bloomfilter_add_internal_miss.
                    by move/allP: Hall; rewrite/bloomfilter_get_bit=>Hall; apply Hall=>//=; rewrite in_cons;apply/orP;right.
                    by rewrite Hqq.
+
+
                    clear bf Hall; move: Heq => /eqP []; case: b Hltn => [//=|b] Hltn; move=>[Hlen].
+
                    move: Huniq => /andP []; rewrite -/uniq  => _ Hcons; clear p.
                    elim: b Hltn   p' ps Hlen Hinps Hcons => [|b Hb] Hltn p'.
-                       move=>[|//=] _; rewrite mem_seq1 => /eqP -> _; apply eq_bigr=> inds _ //=; rewrite mulR1.
-                       by rewrite in_cons eq_refl Bool.orb_true_l //= mulR1. 
-                   move=> [//=| p ps] [Hlen]; rewrite 2!in_cons=>/orP[/eqP Heqp' |/orP [/eqP Heqp | Hinds]].
-
-                   rewrite -Heqp'; clear Heqp' p'=> /andP [/memPn Hpnin Huniq].
-                   apply eq_bigr=> inds _; do ?apply f_equal.
-
-                   have:  ( all ((in_mem (T:=ordinal_finType Hash_size.+1))^~ (mem (ind :: inds))) [:: ind, p & ps]) = ( all ((in_mem (T:=ordinal_finType Hash_size.+1))^~ (mem (ind :: inds))) [:: p & ps]); last move=>->; first
+                       - move=>[|//=] _; rewrite mem_seq1 => /eqP -> _; apply eq_bigr=> inds _ //=; rewrite mulR1.
+                           by rewrite in_cons eq_refl Bool.orb_true_l //= mulR1. 
+                       - move=> [//=| p ps] [Hlen]; rewrite 2!in_cons=>/orP[/eqP Heqp' |/orP [/eqP Heqp | Hinds]].
+                            -  move: Hb; rewrite -Heqp'; clear Heqp' p'=> Hb /andP [/memPn Hpnin Huniq].
+                               apply eq_bigr=> inds _; do ?apply f_equal.
+                               have:  ( all ((in_mem (T:=ordinal_finType Hash_size.+1))^~ (mem (ind :: inds))) [:: ind, p & ps]) = ( all ((in_mem (T:=ordinal_finType Hash_size.+1))^~ (mem (ind :: inds))) [:: p & ps]); last move=>->; first
                      by move=>//=; rewrite in_cons eq_refl Bool.andb_true_l.
-                   by apply eq_in_all => p' Hin; rewrite in_cons; move: Hpnin =>/(_ p' Hin) /Bool.negb_true_iff ->//= .
-                   rewrite -Heqp; clear p Heqp => /andP [/memPn Hpnin /andP [ /memPn Hindnin]]; rewrite -/uniq => Hps.
+                                 by apply eq_in_all => p' Hin; rewrite in_cons; move: Hpnin =>/(_ p' Hin) /Bool.negb_true_iff ->//= .
 
-                   have: ( \rsum_(inds in [finType of k.-tuple 'I_Hash_size.+1])
+                            - move: Hb; rewrite -Heqp; clear p Heqp => Hb /andP [/memPn Hpnin /andP [ /memPn Hindnin]]; rewrite -/uniq => Hps.
+                              have: ( \rsum_(inds in [finType of k.-tuple 'I_Hash_size.+1])
      ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k) *R*
       (all ((in_mem (T:=ordinal_finType Hash_size.+1))^~ (mem (ind :: inds))) [:: p', ind & ps] %R))) = (
                             \rsum_(inds in [finType of k.-tuple 'I_Hash_size.+1])
@@ -3059,18 +3136,17 @@ Qed.
       (all ((in_mem (T:=ordinal_finType Hash_size.+1))^~ (mem (inds))) [:: p' & ps] %R))
                          ); last move=>->.
 
-                   apply eq_bigr=> inds _; do ?apply f_equal.
-                   have: ( all ((in_mem (T:=ordinal_finType Hash_size.+1))^~ (mem (ind :: inds))) [:: p', ind & ps]) = (
+                              apply eq_bigr=> inds _; do ?apply f_equal.
+                              have: ( all ((in_mem (T:=ordinal_finType Hash_size.+1))^~ (mem (ind :: inds))) [:: p', ind & ps]) = (
                            (p' \in (ind :: inds)) &&
                             all ((in_mem (T:=ordinal_finType Hash_size.+1))^~ (mem (ind :: inds))) [:: ind & ps]
                          ); last move=>->; first by move=>//=.
-                   rewrite in_cons.
-                   have H2: (ind \in ind :: ps); first by rewrite in_cons; apply/orP;left.
-                   move: (Hpnin ind H2); rewrite eq_sym=>/Bool.negb_true_iff ->; rewrite Bool.orb_false_l.
-                   move=>//=.
-
-                   rewrite in_cons eq_refl Bool.orb_true_l Bool.andb_true_l; apply f_equal; apply eq_in_all.
-                   by move=> q Hq; rewrite in_cons; move: (Hindnin q Hq)=>/Bool.negb_true_iff -> //=.
+                              rewrite in_cons.
+                              have H2: (ind \in ind :: ps); first by rewrite in_cons; apply/orP;left.
+                              move: (Hpnin ind H2); rewrite eq_sym=>/Bool.negb_true_iff ->; rewrite Bool.orb_false_l.
+                              move=>//=.
+                              rewrite in_cons eq_refl Bool.orb_true_l Bool.andb_true_l; apply f_equal; apply eq_in_all.
+                                by move=> q Hq; rewrite in_cons; move: (Hindnin q Hq)=>/Bool.negb_true_iff -> //=.
 
                    rewrite (bigID (fun inds => ind \in inds)); apply Logic.eq_sym;
                      rewrite (bigID (fun inds => p' \in inds)) => //=.
@@ -3092,6 +3168,7 @@ Qed.
                    apply H. apply prsumr_eq0P => inds /Bool.negb_true_iff ->; last rewrite //=mulR0//=;
                           first by dispatch_Rgt; intros; try (apply Rfunctions.pow_le; move:   prob_invn => []; rewrite -add1n).
 
+                   move=> //=.
 
                    have: (  \rsum_(i in [finType of k.-tuple _] | ind \in i)
      ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k) *R*
