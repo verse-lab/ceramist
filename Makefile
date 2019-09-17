@@ -2,7 +2,7 @@ all: default
 
 default: Makefile.coq infotheo/Makefile
 	$(MAKE) -f Makefile.coq
-	$(MAKE) -C infotheo -f Makefile
+#       $(MAKE) -C infotheo -f Makefile
 
 install: Makefile.coq infotheo/Makefile
 	$(MAKE) -f Makefile.coq install

@@ -39,6 +39,7 @@ Proof idea
 
 
 
+
 Ltac dispatch_Rgt :=  do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size).
 
 Lemma ntuple_tail_consP n A (ls: n.-tuple A) val : (FixedList.ntuple_tail (FixedList.ntuple_cons val ls)) = ls.
@@ -96,7 +97,7 @@ Notation "a '->=-' b " := (Rdefinitions.Rge a b) (at level 70).
 Reserved Notation "a '^R^' b"  (at level 70).
 Notation "a '%R' " := (Raxioms.INR a) (at level 70).
 Notation "d[ a ]" := (evalDist a) (at level 70).
-Definition Real := Rdefinitions.R.
+Definition Reals := Rdefinitions.R.
 
 
 
@@ -104,6 +105,8 @@ Definition Real := Rdefinitions.R.
    coq's Rpower doesn't support raising 0 to a power  *)
 Notation "a '^R^' b" := (Rpow_def.pow a b).
 
+Coercion BinInt.Z.of_nat : nat >-> BinNums.Z.
+Coercion Rdefinitions.IZR : BinNums.Z >-> Rdefinitions.R.
 
 
 
@@ -139,8 +142,10 @@ Proof.
   by move => /eqP/subR_eq0 //=; rewrite -subRBA subRR RIneq.Rminus_0_r.
 Qed.
 
+
+
 Lemma prsumr_neg1 (A:finType) (pr : Comp A) (f: A -> bool) :
-  (1 -R- (d[ res <-$ pr; ret ~~ (f res) ]) true) =
+  (1  -R- (d[ res <-$ pr; ret ~~ (f res) ]) true) =
   (d[ res <-$ pr; ret  (f res) ]) true.
 Proof.
   rewrite //= -(epmf1 ((d[ pr]) ) ) !DistBind.dE.
@@ -149,6 +154,7 @@ Proof.
   rewrite -{1}(mulR1 (_ a)); apply Logic.eq_sym; rewrite mulRC; apply f_equal.
   by case: (f a) => //=; rewrite ?addR0 ?add0R.
 Qed.
+
 
 Lemma prsum_nge0p {A: finType}  f : 
   (forall a : A, 0 -<=- f a) -> (forall a : A, ~ (f a  ->- (0 %R))) -> (forall a, f a = (0 %R)).
@@ -879,7 +885,7 @@ Lemma neg_hash_vecP n l (value: hash_keytype) (hashes hashes': l.-tuple (HashSta
                        (apply RIneq.Rmult_eq_0_compat_l)
                      ].
 
-             apply prsumr_eq0P => [[hshs' bf']] ; first by dispatch_Rgt; case; intros; dispatch_Rgt.  
+             apply prsumr_eq0P => [[hshs' bf']|] ; first by dispatch_Rgt; case; intros; dispatch_Rgt.  
              move=> [hshs' bf'] _; case Heq: (tval hshs' == ys); last first.
                  - apply RIneq.Rmult_eq_0_compat_l => //=; rewrite DistBind.dE.
                    apply prsumr_eq0P => [[hshs'' ind']|[hshs'' ind']] _; first by dispatch_Rgt.
@@ -958,80 +964,6 @@ Section BloomFilter.
     Qed.
 
 
-    
-  (* Lemma hashstate_find_put_eq l (hashstate: HashState l)  key value : *)
-  (*   FixedList.fixlist_length hashstate < l -> *)
-  (*    hashstate_find l key (hashstate_put l key value hashstate) = Some value. *)
-  (* Proof. *)
-  (*   clear =>  Hltn. *)
-  (*   case: l hashstate Hltn =>[//=|] l hashstate Hltn. *)
-  (*    rewrite /hashstate_find/hashstate_put. *)
-  (* Qed. *)
-
-
-
-
-  (* Lemma bloomfilter_add_incr *)
-  (*       (hash_states hash_states': tuple_finType k (hashstate_of_finType n)) *)
-  (*       (result_vec: (k).-tuple 'I_Hash_size.+1) *)
-  (*       new_hsh_fun (value: B) : *)
-  (*        d[ hash_vec_int *)
-  (*             value hash_states *)
-  (*         ] (hash_states', result_vec) = Rdefinitions.IZR 0 -> *)
-  (*        d[ hash_vec_int *)
-  (*             value *)
-  (*             (FixedList.set_tnth hash_states new_hsh_fun k.+1) *)
-  (*         ] (hash_states', result_vec) = Rdefinitions.IZR 0. *)
-  (*   Proof. *)
-  (*     clear. *)
-  (*     elim: p_k Hprf result_vec => //= [_ result_vec | ]. *)
-  (*     rewrite !DistBind.dE !prsumr_eq0P; last first ; first by move=> H H1; do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=. *)
-  (*          by move=> H H1; do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=. *)
-  (*     move=> H1 exp /(H1 exp); move: H1 exp => _ [exp_hash_state exp_result_vec]. *)
-
-
-  (*     Admitted. *)
-
-    (* Lemma bloomfilter_hash_internal_impl *)
-    (*    (value : B) (Hnfl : {in hashes, forall x : HashState n, hash_not_full x}) *)
-    (*    (hash_states hash_states' : tuple_finType k (hashstate_of_finType n)) *)
-    (*    (result_vec  result_vec' : tuple_finType k.+1 (ordinal_finType Hash_size.+1)) *)
-    (*    (new_hsh_fun new_hsh_fun' : hashstate_of_finType n) *)
-    (*    (result result' : ordinal_finType Hash_size.+1) : *)
-    (*         (d[ hash_vec_int  value hash_states]) (hash_states', result_vec') = Rdefinitions.IZR 0 -> *)
-    (*         (((d[ hash_vec_int  value (FixedList.set_tnth hash_states new_hsh_fun k.+1) ]) (hash_states', result_vec') *R* *)
-    (*           (d[ hash n value (tnth hash_states' (Ordinal hkprf))]) (new_hsh_fun', result')) *R* *)
-    (*          ((d[ hash_vec_int Hkgt0 value hashes Hprf]) (hash_states, result_vec) *R* *)
-    (*           (d[ hash n value (tnth hash_states (Ordinal hkprf))]) (new_hsh_fun, result))) = Rdefinitions.IZR 0. *)
-    (*   Proof. *)
-    (*     elim: p_k hkprf Hprf result_vec result_vec'=> //= [| p_k IHp_k] hkprf Hprf result_vec result_vec'. *)
-
-    (*     rewrite !DistBind.dE !prsumr_eq0P //=; last first; first by move=> H _; do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=. *)
-    (*     move=> IHn. *)
-    (*     rewrite !rsum_Rmul_distr_r prsumr_eq0P; last by  move=> H _; do ?apply  RIneq.Rmult_le_pos => //=; try apply rsumr_ge0; intros;  do ?apply  RIneq.Rmult_le_pos; try apply dist_ge0=>//=. *)
-    (*     move=> exp H. *)
-    (*     rewrite !rsum_Rmul_distr_r prsumr_eq0P; last by move=> H1 _;do ?apply  RIneq.Rmult_le_pos => //=; try apply rsumr_ge0; intros;  do ?apply  RIneq.Rmult_le_pos; try apply dist_ge0=>//=. *)
-    (*     move=> exp' H' //=. *)
-
-    (*     move: (IHn exp H) => Hexpa. *)
-    (*     move: (IHn exp' H') => Hexpb. *)
-
-    (*     clear IHn H H'; move: exp exp' Hexpa Hexpb => [exp_new_hsh_fun_a exp_result_a] [exp_new_hsh_fun_b exp_result_b] //=. *)
-    (*     rewrite !Dist1.dE !xpair_eqE. *)
-    (*     case Heq: (hash_states == _) => //=; last by rewrite !mulR0. *)
-    (*     move /eqP: Heq ->; clear hash_states. *)
-    (*     case: (result_vec == _) => //=; last by rewrite !mulR0; clear result_vec. *)
-    (*     case Heq: (hash_states' == FixedList.set_tnth (FixedList.set_tnth (FixedList.set_tnth hashes exp_new_hsh_fun_b 0) new_hsh_fun 1) exp_new_hsh_fun_a 0)  => //=; last by rewrite !mulR0 !mul0R. *)
-    (*     move /eqP: Heq ->; clear hash_states' => //=. *)
-    (*     case Heq: (result_vec' == _) => //=; last by rewrite !mulR0 !mul0R. *)
-    (*     move/eqP: Heq ->; clear result_vec' => //=. *)
-
-    (*     case: (_ == _) => //=; last first. *)
-
-    (*     rewrite !mulR0 . *)
-    (*     move=> _ _. *)
-
-    (*     Admitted. (* rewrite FixedList.tnth_set_nth_neq. *) *)
   
     
   Lemma bloomfilter_addq  (hashes: hash_vec) (bf: BloomFilter) (value: B):
@@ -1071,7 +1003,7 @@ Section BloomFilter.
         - move=> [] _; rewrite !ffunE //=.
              by rewrite Dist1.dE //= mulR0.
           rewrite Dist1.dE //= mulR1.
-          apply prsumr_eq0P => [[new_hashes new_bf] _].
+          apply prsumr_eq0P => [[new_hashes new_bf] _|].
              - apply RIneq.Rmult_le_pos; rewrite ?ffunE.
                apply rsumr_ge0 => [[new_hashes' hash_vec] _].
                by apply RIneq.Rmult_le_pos; apply dist_ge0.
@@ -1092,7 +1024,7 @@ Section BloomFilter.
      move=> [new_hashes' hash_vec] [new_hashes'' []] //=; first by rewrite !Dist1.dE //= !mulR0.
      rewrite !Dist1.dE //= mulR1 DistBind.dE.
      rewrite rsum_Rmul_distr_l.
-     apply prsumr_eq0P => [new_hashes''' hash_vec'].
+     apply prsumr_eq0P => [new_hashes''' hash_vec'|].
        - do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=.
          by case: (_ == _) => //=; apply leR0n.
      move=> [new_hashes''' hash_vec'] _ //=.
@@ -2207,22 +2139,22 @@ Qed.
           have H4: all (fun b : B => all (fun hsh : HashState n => FixedMap.fixmap_find b hsh == None) hshs) ys.    
               by apply/allP.
           move: (IHy x m.+1 hshs H1 H2 H3 H4); clear IHy H1 H2 H3 H4 => IHy.
-          move=>/eqP//=; rewrite DistBind.dE prsumr_ge0 => [[[hs1 bf1]]]; last by move=>a;dispatch_Rgt.
+          move=>/eqP//=; rewrite DistBind.dE prsumr_ge0 => [[[hs1 bf1]]|]; last by move=>a;dispatch_Rgt.
           move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg[/eqP/(IHy bf bf1 hs1) ].
           clear IHy all_cons bf Hfree Huns Hkgt0 Hfindys .
           move=>H1 H2; move: H2 H1; rewrite //=DistBind.dE.
-          rewrite prsumr_ge0 => [[[hs2 vec1]]]; last by move=>a;dispatch_Rgt.
+          rewrite prsumr_ge0 => [[[hs2 vec1]]|]; last by move=>a;dispatch_Rgt.
           move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg[ ] //=; rewrite Dist1.dE.
           case Heq: (_ == _)=>//=; move: Heq;rewrite xpair_eqE=>/andP[/eqP -> _] Hint _.
           clear hshs'; elim: k hs1 hs2 vec1 Hint; clear hshs Hfindy k.
                  - by move=> hs1 hs2 vec1 //=; rewrite Dist1.dE;case Heq:(_==_)=>//=;move:Heq;rewrite xpair_eqE=>/andP[/eqP ->] //=.          
                  - move=> k IHk hs1 hs2 vec1 //=.  
-                   rewrite DistBind.dE prsumr_ge0=>[[[hs3 vec2]]]; last by move=>a; dispatch_Rgt.
+                   rewrite DistBind.dE prsumr_ge0=>[[[hs3 vec2]]|]; last by move=>a; dispatch_Rgt.
                    move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg[ ].
                    rewrite (tuple_eta hs1) ntuple_tailE //=.
                    move=>/ (IHk _ _ _); clear IHk => IHk.
 
-                   rewrite DistBind.dE prsumr_ge0 => [[[state1 ind1]]]; last by move=>a;dispatch_Rgt.
+                   rewrite DistBind.dE prsumr_ge0 => [[[state1 ind1]]|]; last by move=>a;dispatch_Rgt.
                    move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg[ ]//=.
                    rewrite theadE Dist1.dE => Hhash;case Heq:(_==_)=>//=;move:Heq;rewrite xpair_eqE.
                    move=>/andP [/eqP -> /eqP _] _.
@@ -2234,9 +2166,9 @@ Qed.
                       - rewrite Dist1.dE //=; case Heq:(_==_)=>//=;move:Heq;rewrite xpair_eqE.
                         move=>/andP [/eqP -> _] _; apply/andP; split => //=.
                            by move:Hlen; rewrite addnS =>/ltnW.
-                      - move=> //=;rewrite DistBind.dE prsumr_ge0 => [[ind2]];last by move=>a;dispatch_Rgt.
+                      - move=> //=;rewrite DistBind.dE prsumr_ge0 => [[ind2]|];last by move=>a;dispatch_Rgt.
                         move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg[ ]//=.
-                        rewrite DistBind.dE prsumr_ge0 => [[ind3]];last by move=>a;dispatch_Rgt.
+                        rewrite DistBind.dE prsumr_ge0 => [[ind3]|];last by move=>a;dispatch_Rgt.
                         move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg[ ]//= _.
                         rewrite !Dist1.dE;case Heq:(_==_)=>//=;move/eqP:Heq => -> _; clear ind2.
                         case Heq: (_ == _)=>//=;move:Heq;rewrite xpair_eqE=>/andP[/eqP -> /eqP <-] _;clear ind3.
@@ -2347,7 +2279,8 @@ Qed.
         rewrite /hashes_have_free_spaces/bloomfilter_value_unseen => Hfree' Huns'.
         apply Logic.eq_sym; rewrite mulRA mulRC mulRA mulRC; apply f_equal; apply Logic.eq_sym.
         case Htnth': (~~ bloomfilter_get_bit ind bf').
-          - erewrite <-  (@bloomfilter_addn hshs' ind bf' x) => //=.
+          - have <-: (Rdefinitions.IZR 1) = (BinNums.Zpos BinNums.xH); first by [].
+            erewrite <-  (@bloomfilter_addn hshs' ind bf' x) => //=.
                 - by rewrite Dist1.dE //= mul1R !DistBind.dE //=; apply eq_bigr => [[hshs'' bf'']] _.
 
 
@@ -2644,17 +2577,85 @@ Lemma pr_in_vec (A : finType) (ps : seq A) :
 Qed.
 
 
-(* Lemma prsumr_vec_subset_length (A: finType) m (ps qs: seq A): *)
-(*   #|A| > 0 -> *)
-(*   m > 0 -> *)
-(*   length ps == length qs -> *)
-(*   uniq ps -> *)
-(*   uniq qs -> *)
-(*   \rsum_(inds in [finType of m.-tuple A]) *)
-(*      (all (fun p => p \in inds) ps %R) =  *)
-(*   \rsum_(inds in [finType of m.-tuple A]) *)
-(*      (all (fun p => p \in inds) qs %R). *)
+Fixpoint substitute_vec {A: finType} (m:nat) (ps qs: seq A) (q': A) (list: m.-tuple A) : m.-tuple A :=
+  match m as m' return (m = m' -> m'.-tuple A -> m'.-tuple A) with
+      | 0 => (fun (Hm: m = 0) (list: 0.-tuple A) => list)
+      | m'.+1 => (fun (Hm: m = m'.+1) (list: (m'.+1).-tuple A) =>
+                    let head := thead list in
+                    let tail := behead_tuple list in
+                    let new_head := (if (head \in ps) then
+                                       nth head qs (index head ps)  
+                                     else if (head \in qs) then q' else head) in
+                    [tuple of new_head :: (substitute_vec  ps qs q' tail)] )
+    end (erefl m) list.
+
+Lemma   beheadE (E: eqType) (m: nat) (x: E) (xs: (m.-tuple E)):
+  behead_tuple [tuple of x :: xs] = xs.
+Proof.
+  case: xs => xs Hxs; rewrite /behead_tuple; move: (behead_tupleP _) => //= Hxs'.
+  by rewrite (proof_irrelevance _ Hxs Hxs').
+Qed.  
+
+  
+Lemma substitute_vec_inv (A: finType) (m: nat) (ps qs: seq A) (q' : A) :
+  uniq ps -> uniq qs -> length ps = length qs -> (q' \notin ps) -> (q' \notin qs) ->
+  forall x : m.-tuple A, 
+    all (fun p => p \in x) ps -> all (fun p => p \in x) qs ->
+    substitute_vec qs ps q' (substitute_vec ps qs q' x) = x.
+Proof.
+  move=> Hinjp  Hinjq. rewrite -!length_sizeP=> Hlength /Bool.negb_true_iff Hninps /Bool.negb_true_iff Hninqs.
+
+  elim: m => [//= | m IHm x] Hallps Hallqs.
+  rewrite (tuple_eta x) //=.
+  rewrite !theadE !beheadE IHm.
+  case Hinp: (thead x \in ps).
+     - rewrite mem_nth; last by move: Hinp; rewrite -index_mem; rewrite -Hlength.
+       rewrite !index_uniq ?nth_index //=.
+         by move: Hinp; rewrite -index_mem; rewrite -Hlength.
+     - case Hinq: (thead x \in qs).
+
+       rewrite  Hninps.
+
+
+
+(*   tnthP *)
+(* mem_tnth *)
+
+(*   rewrite /substitute_vec-/substitute_vec. *)
+
+
+(*   unfold substitute_vec; fold substitute_vec. *)
+Admitted.
+
+(* Lemma substitute_vec_bijection (A: finType) (m: nat) (ps qs: seq A) : *)
+(*   uniq ps -> uniq qs -> length ps = length qs -> *)
+(*   {on [pred i in [finType of m.-tuple A]], bijective (substitute_vec ps qs)}. *)
 (* Proof. *)
+(*   split with (substitute_vec qs ps). *)
+
+(*   move=>x _; move: x. *)
+(*   elim: m=> [//=|m IHm x] . *)
+(*   move=>//=. *)
+(*   move=>x. *)
+
+  
+Lemma prsumr_vec_subset_length (A: finType) m (ps qs: seq A):
+  #|A| > 0 ->
+  m > 0 ->
+  length ps == length qs ->
+  uniq ps ->
+  uniq qs ->
+  \rsum_(inds in [finType of m.-tuple A])
+     (all (fun p => p \in inds) ps %R) =
+  \rsum_(inds in [finType of m.-tuple A])
+     (all (fun p => p \in inds) qs %R).
+Proof.
+
+  Print bijective.
+  Search "reindex".
+
+  erewrite reindex.
+Admitted.
 (*   clear k n Hkgt0; elim: ps qs m => [[|//=] m|p ps IHps [//=|q qs] m] Hcard Hm. *)
 (*   by move=> //=. *)
 (*   move=> Hlen Hunip Huniq. *)
@@ -3154,6 +3155,15 @@ Qed.
                          by rewrite -subRB; rewrite card_ord mulRC subRR subR0.
 
                    rewrite mul1R.
+
+
+                   clear Hltsum.
+
+                   rewrite rsum_tuple_split rsum_split//=.
+                   (* Stopped here *)
+
+                   fail.
+                   
                          rewrite card_seq_sub.
                    (* Apply methods from Documents/bloomfilter_proof_doc.pdf here*) 
                    have: (\rsum_(ind in 'I_Hash_size.+1 | ind \in ps)

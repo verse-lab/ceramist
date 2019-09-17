@@ -1227,7 +1227,7 @@ Definition fixlist n := n.-tuple (option A).
     move: xs x Hxxs Hxs => [xs Hxxslen] x Hxxs //= Hxs.
     rewrite (proof_irrelevance _ Hxs Hxxslen); clear Hxs.
     rewrite (proof_irrelevance _ Htmp Hlmn); clear Htmp => Hprf.
-    move: {1}(erefl _); case Htnth_eq: (tnth _) => [v] _.
+    move: {1}(erefl _); case Htnth_eq: (tnth _) => [v|] _.
       move: Htnth_eq => //= <-.
       rewrite (@tnth_tuple_cons _ _ _ _ _ Hxxs Hprf  Hxxslen Hlmn) //=.
       by move: (erefl _); case Htnth_eq: (tnth _).
@@ -1401,7 +1401,7 @@ Definition fixlist n := n.-tuple (option A).
     rewrite /fixlist_empty.
     rewrite /fixlist_get_nth//=.
     case: {2 3}(n < m) (erefl _) => //= Hltn.
-    case Htnth: (tnth _) (erefl _)=> [res]//=.
+    case Htnth: (tnth _) (erefl _)=> [res |]//=.
     elim: n Hltn Htnth => //= [ | n ].
       by case: m => //=.
     
