@@ -49,6 +49,14 @@ Proof.
   by rewrite (proof_irrelevance _ Hls Hls').
 Qed.
 
+Lemma   beheadE (E: eqType) (m: nat) (x: E) (xs: (m.-tuple E)):
+  behead_tuple [tuple of x :: xs] = xs.
+Proof.
+  case: xs => xs Hxs; rewrite /behead_tuple; move: (behead_tupleP _) => //= Hxs'.
+  by rewrite (proof_irrelevance _ Hxs Hxs').
+Qed.  
+
+
 Lemma ntuple_head_consP n A (ls: n.-tuple A) val : (thead (FixedList.ntuple_cons val ls)) = val.
 Proof.
   rewrite /FixedList.ntuple_tail/FixedList.ntuple_cons//=.
@@ -2576,8 +2584,19 @@ Lemma pr_in_vec (A : finType) (ps : seq A) :
 
 Qed.
 
+Lemma rsum_bijective_eqC {A: finType} (c: Rdefinitions.R) (P Q : pred A) (p:  A -> A) :
+   bijective p ->
+  (forall a, P (p a) = Q a) ->
+  \rsum_(a in A | P a) c = \rsum_(a in A | Q a) c.
+Proof.
+  move=> Hbij Himpl.
+  rewrite (@reindex _ _ _ _ _ p) //=.
+  by transitivity ( \rsum_(j | Q j) c); first by apply eq_bigl => a'; rewrite Himpl.
+  by apply onW_bij.
+Qed.
 
-Fixpoint substitute_vec {A: finType} (m:nat) (ps qs: seq A) (q': A) (list: m.-tuple A) : m.-tuple A :=
+(* Swaps all elements of a given vector by all elements of another*)
+Fixpoint swap_vec {A: finType} (m:nat) (ps qs: seq A) (list: m.-tuple A) : m.-tuple A :=
   match m as m' return (m = m' -> m'.-tuple A -> m'.-tuple A) with
       | 0 => (fun (Hm: m = 0) (list: 0.-tuple A) => list)
       | m'.+1 => (fun (Hm: m = m'.+1) (list: (m'.+1).-tuple A) =>
@@ -2585,35 +2604,44 @@ Fixpoint substitute_vec {A: finType} (m:nat) (ps qs: seq A) (q': A) (list: m.-tu
                     let tail := behead_tuple list in
                     let new_head := (if (head \in ps) then
                                        nth head qs (index head ps)  
-                                     else if (head \in qs) then q' else head) in
-                    [tuple of new_head :: (substitute_vec  ps qs q' tail)] )
+                                     else if (head \in qs) then
+                                       nth head ps (index head qs)  
+                                     else head) in
+                    [tuple of new_head :: (swap_vec  ps qs tail)] )
     end (erefl m) list.
 
-Lemma   beheadE (E: eqType) (m: nat) (x: E) (xs: (m.-tuple E)):
-  behead_tuple [tuple of x :: xs] = xs.
-Proof.
-  case: xs => xs Hxs; rewrite /behead_tuple; move: (behead_tupleP _) => //= Hxs'.
-  by rewrite (proof_irrelevance _ Hxs Hxs').
-Qed.  
 
   
-Lemma substitute_vec_inv (A: finType) (m: nat) (ps qs: seq A) (q' : A) :
-  uniq ps -> uniq qs -> length ps = length qs -> (q' \notin ps) -> (q' \notin qs) ->
+Lemma substitute_vec_inv (A: finType) (m: nat) (ps qs: seq A) :
+  uniq ps -> uniq qs -> length ps = length qs -> 
   forall x : m.-tuple A, 
     all (fun p => p \in x) ps -> all (fun p => p \in x) qs ->
-    substitute_vec qs ps q' (substitute_vec ps qs q' x) = x.
+    swap_vec  qs ps (swap_vec ps qs x) = x.
 Proof.
-  move=> Hinjp  Hinjq. rewrite -!length_sizeP=> Hlength /Bool.negb_true_iff Hninps /Bool.negb_true_iff Hninqs.
+  move=> Hinjp  Hinjq. rewrite -!length_sizeP=> Hlength.
 
   elim: m => [//= | m IHm x] Hallps Hallqs.
   rewrite (tuple_eta x) //=.
-  rewrite !theadE !beheadE IHm.
+  rewrite !theadE !beheadE !IHm.
   case Hinp: (thead x \in ps).
      - rewrite mem_nth; last by move: Hinp; rewrite -index_mem; rewrite -Hlength.
        rewrite !index_uniq ?nth_index //=.
          by move: Hinp; rewrite -index_mem; rewrite -Hlength.
      - case Hinq: (thead x \in qs).
+       rewrite ?mem_nth ?index_uniq ?mem_nth ?nth_index ?beheadE ?theadE.
 
+       Notation "a '[' b ']'" := (nth _ a b) (at level 10).
+       Notation "a ! b " := (index b a) (at level 10).
+       case Hnth: (nth (thead x) ps _ \in _); last by [].
+
+
+
+       move: (index (thead x) qs) => q_pos.
+       Search _ (index _ _) (nth _).
+       rewrite ?mem_nth ?index_uniq ?mem_nth ?nth_index.
+
+
+       rewrite ?nth_index.
        rewrite  Hninps.
 
 
