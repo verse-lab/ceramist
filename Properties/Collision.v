@@ -2623,12 +2623,11 @@ Fixpoint swap_vec {A: finType} (m:nat) (ps qs: seq A) (list: m.-tuple A) : m.-tu
 Lemma substitute_vec_inv (A: finType) (m: nat) (ps qs: seq A) :
   uniq ps -> uniq qs -> length ps = length qs -> 
   forall x : m.-tuple A, 
-    all (fun p => p \in x) ps -> all (fun p => p \in x) qs ->
     swap_vec  qs ps (swap_vec ps qs x) = x.
 Proof.
   move=> Hinjp  Hinjq. rewrite -!length_sizeP=> Hlength.
 
-  elim: m => [//= | m IHm x] Hallps Hallqs.
+  elim: m => [//= | m IHm x] .
   rewrite (tuple_eta x) //=.
   rewrite !theadE !beheadE !IHm.
 
@@ -2653,17 +2652,39 @@ Proof.
     rewrite in_cons Bool.negb_orb =>/andP [Hfnr /IHrs Hind]//=.
     by rewrite eq_sym; move/Bool.negb_true_iff: Hfnr ->; rewrite Hind.
   } 
-  have Hlen_eq (B: eqType) (fs gs: seq B): uniq fs -> uniq gs -> length fs = length gs -> length (filter (fun f =>  f \notin gs) fs) = length (filter (fun g => g \notin fs) gs). clear.
+  have Hfilter_leq_size (B: eqType) (fs: seq B) P: length (filter P fs) <= length fs. clear.
   {
-    
+    elim: fs => [//=| f fs IHf] //=.
+    case: (P f) => //=; by apply ltnW.
+  }
+  have Hfilter_size (B: eqType) (fs: seq B) P: length (filter P fs) = length fs - (length (filter (fun f => ~~ P f) fs)). clear - Hfilter_leq_size.
+  {
 
-    elim: fs gs => [//= []//= | f fs IHf] [|g gs] //=/andP [Hnin Hfuniq Hguniq].
-    case Hfin: (f \in g :: gs) => //=;
-    move=> [] Hlen.
+    elim: fs P => [//=| f  fs IHf] P //=.
+    case: (P f) => //=.
+    rewrite subSn; first rewrite IHf //=; last by apply Hfilter_leq_size.
+    by rewrite subSS IHf.
+  }
+  have Huniq_filter (B: eqType) (fs: seq B) P: uniq  fs -> uniq (filter P fs). clear.
+  {
+    elim: fs => [//= | f fs IHf] //= /andP [ Hnin Huniq].
+    case Hpf: (P f) => //=; last by apply IHf.
+    rewrite IHf //= Bool.andb_true_r.
+    by rewrite mem_filter Bool.negb_andb; apply/orP; right.
+  }
+  have Hlen_eq (B: eqType) (fs gs: seq B): uniq fs -> uniq gs -> length fs = length gs -> length (filter (fun f =>  f \notin gs) fs) = length (filter (fun g => g \notin fs) gs). clear - Hfilter_size Huniq_filter.
+  {
 
-    move: Hfin; rewrite in_cons =>/orP[/eqP ->|].
-
-    rewrite in_cons eq_refl Bool.negb_orb //=.
+    move=>Huniqfs Huniqgs Heqsize.
+    rewrite Hfilter_size [length (filter _ gs)]Hfilter_size Heqsize; apply f_equal.
+    transitivity  (length (filter (fun f => f \in gs) fs)).
+      by do ?apply f_equal; apply eq_in_filter => fs' Hin //=; rewrite Bool.negb_involutive.
+    apply Logic.eq_sym; transitivity (length (filter (fun g => g \in fs) gs)).
+      by do ?apply f_equal; apply eq_in_filter => fs' Hin //=; rewrite Bool.negb_involutive.       
+    rewrite -!length_sizeP.
+    apply perm_eq_size; rewrite/perm_eq.
+    apply uniq_perm_eq; try by apply Huniq_filter.
+    by move=> g; rewrite !mem_filter andbC //=.
   }
 
 
@@ -2673,39 +2694,32 @@ Proof.
        rewrite nth_default.
        rewrite Hinq //= Hinp Hmem_len.
        rewrite nth_default //=.
-       ?nth_index//=.
-       rewrite Hnth_mem_filter Hmem_len ?nth_default //=.
-       Search _ (index) (_ \in _).
+       by rewrite length_sizeP Hlen_eq.
+       by rewrite mem_filter Bool.negb_andb Hinp //=.
+       by rewrite length_sizeP Hlen_eq.
+       by rewrite mem_filter Bool.negb_andb Hinp //=.
 
-       suff: 
-       do ?apply f_equal => //=.
+     - rewrite Hmem_len.
+       rewrite nth_default.
+       rewrite Hinp Hinq //=.
+       rewrite Hmem_len.
+       rewrite nth_default //=.
+       by rewrite length_sizeP Hlen_eq.
+       by rewrite mem_filter Bool.negb_andb Hinp Bool.orb_true_r //=.
+       by rewrite length_sizeP Hlen_eq.       
+       by rewrite mem_filter Bool.negb_andb Hinp Bool.orb_true_r //=.
 
+     - rewrite Hinp Hinq //=.
+Qed.
 
-       rewrite mem_nth.
-     - rewrite mem_nth; last by move: Hinp; rewrite -index_mem; rewrite -Hlength.
-       rewrite !index_uniq ?nth_index //=.
-         by move: Hinp; rewrite -index_mem; rewrite -Hlength.
-     - case Hinq: (thead x \in qs).
-       rewrite ?mem_nth ?index_uniq ?mem_nth ?nth_index ?beheadE ?theadE.
+Lemma swap_vec_bij (A: finType) (m: nat) (ps qs: seq A) :
+  uniq ps -> uniq qs -> length ps = length qs -> 
+  bijective (@swap_vec _ m ps qs).
+Proof.
+  move=> Huniqps Huniqqs Hleneq.
+  split with (swap_vec qs ps); move=>x; by rewrite substitute_vec_inv.
+Qed.  
 
-       Notation "a '[' b ']'" := (nth _ a b) (at level 10).
-       Notation "a ! b " := (index b a) (at level 10).
-       case Hnth: (nth (thead x) ps _ \in _); last by [].
-
-
-
-       move: (index (thead x) qs) => q_pos.
-       Search _ (index _ _) (nth _).
-       rewrite ?mem_nth ?index_uniq ?mem_nth ?nth_index.
-
-
-       rewrite ?nth_index.
-       rewrite  Hninps.
-
-
-
-(*   tnthP *)
-(* mem_tnth *)
 
 (*   rewrite /substitute_vec-/substitute_vec. *)
 
