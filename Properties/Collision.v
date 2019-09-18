@@ -2720,25 +2720,16 @@ Proof.
   split with (swap_vec qs ps); move=>x; by rewrite substitute_vec_inv.
 Qed.  
 
+Lemma swap_vec_preserve (A: finType) m (ps qs: seq A) (a: m.-tuple A) : 
+(fun inds => (all (fun q => q \in inds) qs)) (swap_vec ps qs a) =
+(fun inds => (all (fun p => p \in inds) ps)) a.
+Proof.
+  move=> //=.
+  apply/allP.
+  case Halla: (all _).
+    - move/allP: Halla => Hallp => q Hinq.
+    - apply/allP; apply/allPn.
 
-(*   rewrite /substitute_vec-/substitute_vec. *)
-
-
-(*   unfold substitute_vec; fold substitute_vec. *)
-Admitted.
-
-(* Lemma substitute_vec_bijection (A: finType) (m: nat) (ps qs: seq A) : *)
-(*   uniq ps -> uniq qs -> length ps = length qs -> *)
-(*   {on [pred i in [finType of m.-tuple A]], bijective (substitute_vec ps qs)}. *)
-(* Proof. *)
-(*   split with (substitute_vec qs ps). *)
-
-(*   move=>x _; move: x. *)
-(*   elim: m=> [//=|m IHm x] . *)
-(*   move=>//=. *)
-(*   move=>x. *)
-
-  
 Lemma prsumr_vec_subset_length (A: finType) m (ps qs: seq A):
   #|A| > 0 ->
   m > 0 ->
