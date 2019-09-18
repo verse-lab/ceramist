@@ -2602,10 +2602,18 @@ Fixpoint swap_vec {A: finType} (m:nat) (ps qs: seq A) (list: m.-tuple A) : m.-tu
       | m'.+1 => (fun (Hm: m = m'.+1) (list: (m'.+1).-tuple A) =>
                     let head := thead list in
                     let tail := behead_tuple list in
-                    let new_head := (if (head \in ps) then
-                                       nth head qs (index head ps)  
+                    let new_head := (if (head \in ps) && (head \in qs) then
+                                       head
+                                     else if (head \in ps) then
+                                            nth
+                                              head
+                                              (filter (fun p => p \notin qs) ps)
+                                              (index head (filter (fun q => q \notin ps) qs))  
                                      else if (head \in qs) then
-                                       nth head ps (index head qs)  
+                                            nth
+                                              head
+                                              (filter (fun q => q \notin ps) qs)
+                                              (index head (filter (fun p => p \notin qs) ps))
                                      else head) in
                     [tuple of new_head :: (swap_vec  ps qs tail)] )
     end (erefl m) list.
@@ -2623,7 +2631,57 @@ Proof.
   elim: m => [//= | m IHm x] Hallps Hallqs.
   rewrite (tuple_eta x) //=.
   rewrite !theadE !beheadE !IHm.
-  case Hinp: (thead x \in ps).
+
+  have Hnthfilter (B: eqType) (f:B) (fs ys: seq B) ind: ind < length (filter (fun f => f \notin ys) fs) -> nth f (filter (fun f => f \notin ys) fs) ind \in ys = false. clear.
+  {
+    elim: fs ind => [//=| r rs IHrs //=] ind.
+    case Hinr: (r \in ys) => //=; first  by move=> /IHrs.
+    case: ind => [|ind] /ltn_SnnP Hlen; first by [].
+      by move=>//=; apply IHrs.
+  }
+  have Hnth_mem_filter (B: eqType) (f:B) (fs: seq B) P ind: ind < length (filter P fs) -> nth f (filter P fs) ind \in fs. clear.
+  {
+        elim: fs ind => [//= | r rs IHrs] ind //=; case: (P r) => //=.
+        case: ind => [//= _ | ind ]; rewrite ?in_cons ?eq_refl ?Bool.orb_true_l  //=.
+        by move=>/ltn_SnnP/IHrs ->; rewrite Bool.orb_true_r.
+        by rewrite in_cons =>/IHrs ->; rewrite Bool.orb_true_r.
+  }
+  have Hmem_len (B: eqType) (f:B) (fs: seq B): f \notin fs -> index f fs = length fs. clear.
+  {
+
+    elim: fs f => [//=| r rs IHrs] f.
+    rewrite in_cons Bool.negb_orb =>/andP [Hfnr /IHrs Hind]//=.
+    by rewrite eq_sym; move/Bool.negb_true_iff: Hfnr ->; rewrite Hind.
+  } 
+  have Hlen_eq (B: eqType) (fs gs: seq B): uniq fs -> uniq gs -> length fs = length gs -> length (filter (fun f =>  f \notin gs) fs) = length (filter (fun g => g \notin fs) gs). clear.
+  {
+    
+
+    elim: fs gs => [//= []//= | f fs IHf] [|g gs] //=/andP [Hnin Hfuniq Hguniq].
+    case Hfin: (f \in g :: gs) => //=;
+    move=> [] Hlen.
+
+    move: Hfin; rewrite in_cons =>/orP[/eqP ->|].
+
+    rewrite in_cons eq_refl Bool.negb_orb //=.
+  }
+
+
+  case Hinp: (thead x \in ps); case Hinq: (thead x \in qs) => //=.
+     - by rewrite Hinp Hinq //=.
+     - rewrite Hmem_len.
+       rewrite nth_default.
+       rewrite Hinq //= Hinp Hmem_len.
+       rewrite nth_default //=.
+       ?nth_index//=.
+       rewrite Hnth_mem_filter Hmem_len ?nth_default //=.
+       Search _ (index) (_ \in _).
+
+       suff: 
+       do ?apply f_equal => //=.
+
+
+       rewrite mem_nth.
      - rewrite mem_nth; last by move: Hinp; rewrite -index_mem; rewrite -Hlength.
        rewrite !index_uniq ?nth_index //=.
          by move: Hinp; rewrite -index_mem; rewrite -Hlength.
