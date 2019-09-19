@@ -2619,6 +2619,76 @@ Fixpoint swap_vec {A: finType} (m:nat) (ps qs: seq A) (list: m.-tuple A) : m.-tu
     end (erefl m) list.
 
 
+Lemma nth_filter (B: eqType) (f:B) (fs ys: seq B) ind: ind < length (filter (fun f => f \notin ys) fs) -> nth f (filter (fun f => f \notin ys) fs) ind \in ys = false.
+Proof.  {
+    elim: fs ind => [//=| r rs IHrs //=] ind.
+    case Hinr: (r \in ys) => //=; first  by move=> /IHrs.
+    case: ind => [|ind] /ltn_SnnP Hlen; first by [].
+      by move=>//=; apply IHrs.
+  }
+Qed.
+Lemma nth_mem_filter (B: eqType) (f:B) (fs: seq B) P ind: ind < length (filter P fs) -> nth f (filter P fs) ind \in fs. 
+Proof.  {
+        elim: fs ind => [//= | r rs IHrs] ind //=; case: (P r) => //=.
+        case: ind => [//= _ | ind ]; rewrite ?in_cons ?eq_refl ?Bool.orb_true_l  //=.
+        by move=>/ltn_SnnP/IHrs ->; rewrite Bool.orb_true_r.
+        by rewrite in_cons =>/IHrs ->; rewrite Bool.orb_true_r.
+  }
+Qed.
+
+Lemma mem_len (B: eqType) (f:B) (fs: seq B): f \notin fs -> index f fs = length fs. 
+Proof.  {
+
+    elim: fs f => [//=| r rs IHrs] f.
+    rewrite in_cons Bool.negb_orb =>/andP [Hfnr /IHrs Hind]//=.
+    by rewrite eq_sym; move/Bool.negb_true_iff: Hfnr ->; rewrite Hind.
+  }
+Qed.
+
+Lemma filter_leq_size (B: eqType) (fs: seq B) P: length (filter P fs) <= length fs. 
+Proof.  {
+    elim: fs => [//=| f fs IHf] //=.
+    case: (P f) => //=; by apply ltnW.
+  }
+Qed.
+
+Lemma filter_size (B: eqType) (fs: seq B) P: length (filter P fs) = length fs - (length (filter (fun f => ~~ P f) fs)). 
+Proof.  {
+
+    elim: fs P => [//=| f  fs IHf] P //=.
+    case: (P f) => //=.
+    rewrite subSn; first rewrite IHf //=; last by apply filter_leq_size.
+    by rewrite subSS IHf.
+                                                                                                                     }
+Qed.
+
+Lemma uniq_filter (B: eqType) (fs: seq B) P: uniq  fs -> uniq (filter P fs). 
+Proof.  {
+    elim: fs => [//= | f fs IHf] //= /andP [ Hnin Huniq].
+    case Hpf: (P f) => //=; last by apply IHf.
+    rewrite IHf //= Bool.andb_true_r.
+    by rewrite mem_filter Bool.negb_andb; apply/orP; right.
+  }
+Qed.
+
+Lemma len_eq (B: eqType) (fs gs: seq B): uniq fs -> uniq gs -> length fs = length gs -> length (filter (fun f =>  f \notin gs) fs) = length (filter (fun g => g \notin fs) gs).
+Proof.  {
+
+    move=>Huniqfs Huniqgs Heqsize.
+    rewrite filter_size [length (filter _ gs)]filter_size Heqsize; apply f_equal.
+    transitivity  (length (filter (fun f => f \in gs) fs)).
+      by do ?apply f_equal; apply eq_in_filter => fs' Hin //=; rewrite Bool.negb_involutive.
+    apply Logic.eq_sym; transitivity (length (filter (fun g => g \in fs) gs)).
+      by do ?apply f_equal; apply eq_in_filter => fs' Hin //=; rewrite Bool.negb_involutive.       
+    rewrite -!length_sizeP.
+    apply perm_eq_size; rewrite/perm_eq.
+    apply uniq_perm_eq; try by apply uniq_filter.
+    by move=> g; rewrite !mem_filter andbC //=.
+ }
+Qed.
+
+
+
   
 Lemma substitute_vec_inv (A: finType) (m: nat) (ps qs: seq A) :
   uniq ps -> uniq qs -> length ps = length qs -> 
@@ -2631,82 +2701,27 @@ Proof.
   rewrite (tuple_eta x) //=.
   rewrite !theadE !beheadE !IHm.
 
-  have Hnthfilter (B: eqType) (f:B) (fs ys: seq B) ind: ind < length (filter (fun f => f \notin ys) fs) -> nth f (filter (fun f => f \notin ys) fs) ind \in ys = false. clear.
-  {
-    elim: fs ind => [//=| r rs IHrs //=] ind.
-    case Hinr: (r \in ys) => //=; first  by move=> /IHrs.
-    case: ind => [|ind] /ltn_SnnP Hlen; first by [].
-      by move=>//=; apply IHrs.
-  }
-  have Hnth_mem_filter (B: eqType) (f:B) (fs: seq B) P ind: ind < length (filter P fs) -> nth f (filter P fs) ind \in fs. clear.
-  {
-        elim: fs ind => [//= | r rs IHrs] ind //=; case: (P r) => //=.
-        case: ind => [//= _ | ind ]; rewrite ?in_cons ?eq_refl ?Bool.orb_true_l  //=.
-        by move=>/ltn_SnnP/IHrs ->; rewrite Bool.orb_true_r.
-        by rewrite in_cons =>/IHrs ->; rewrite Bool.orb_true_r.
-  }
-  have Hmem_len (B: eqType) (f:B) (fs: seq B): f \notin fs -> index f fs = length fs. clear.
-  {
-
-    elim: fs f => [//=| r rs IHrs] f.
-    rewrite in_cons Bool.negb_orb =>/andP [Hfnr /IHrs Hind]//=.
-    by rewrite eq_sym; move/Bool.negb_true_iff: Hfnr ->; rewrite Hind.
-  } 
-  have Hfilter_leq_size (B: eqType) (fs: seq B) P: length (filter P fs) <= length fs. clear.
-  {
-    elim: fs => [//=| f fs IHf] //=.
-    case: (P f) => //=; by apply ltnW.
-  }
-  have Hfilter_size (B: eqType) (fs: seq B) P: length (filter P fs) = length fs - (length (filter (fun f => ~~ P f) fs)). clear - Hfilter_leq_size.
-  {
-
-    elim: fs P => [//=| f  fs IHf] P //=.
-    case: (P f) => //=.
-    rewrite subSn; first rewrite IHf //=; last by apply Hfilter_leq_size.
-    by rewrite subSS IHf.
-  }
-  have Huniq_filter (B: eqType) (fs: seq B) P: uniq  fs -> uniq (filter P fs). clear.
-  {
-    elim: fs => [//= | f fs IHf] //= /andP [ Hnin Huniq].
-    case Hpf: (P f) => //=; last by apply IHf.
-    rewrite IHf //= Bool.andb_true_r.
-    by rewrite mem_filter Bool.negb_andb; apply/orP; right.
-  }
-  have Hlen_eq (B: eqType) (fs gs: seq B): uniq fs -> uniq gs -> length fs = length gs -> length (filter (fun f =>  f \notin gs) fs) = length (filter (fun g => g \notin fs) gs). clear - Hfilter_size Huniq_filter.
-  {
-
-    move=>Huniqfs Huniqgs Heqsize.
-    rewrite Hfilter_size [length (filter _ gs)]Hfilter_size Heqsize; apply f_equal.
-    transitivity  (length (filter (fun f => f \in gs) fs)).
-      by do ?apply f_equal; apply eq_in_filter => fs' Hin //=; rewrite Bool.negb_involutive.
-    apply Logic.eq_sym; transitivity (length (filter (fun g => g \in fs) gs)).
-      by do ?apply f_equal; apply eq_in_filter => fs' Hin //=; rewrite Bool.negb_involutive.       
-    rewrite -!length_sizeP.
-    apply perm_eq_size; rewrite/perm_eq.
-    apply uniq_perm_eq; try by apply Huniq_filter.
-    by move=> g; rewrite !mem_filter andbC //=.
-  }
 
 
   case Hinp: (thead x \in ps); case Hinq: (thead x \in qs) => //=.
      - by rewrite Hinp Hinq //=.
-     - rewrite Hmem_len.
+     - rewrite mem_len.
        rewrite nth_default.
-       rewrite Hinq //= Hinp Hmem_len.
+       rewrite Hinq //= Hinp mem_len.
        rewrite nth_default //=.
-       by rewrite length_sizeP Hlen_eq.
+       by rewrite length_sizeP len_eq.
        by rewrite mem_filter Bool.negb_andb Hinp //=.
-       by rewrite length_sizeP Hlen_eq.
+       by rewrite length_sizeP len_eq.
        by rewrite mem_filter Bool.negb_andb Hinp //=.
 
-     - rewrite Hmem_len.
+     - rewrite mem_len.
        rewrite nth_default.
        rewrite Hinp Hinq //=.
-       rewrite Hmem_len.
+       rewrite mem_len.
        rewrite nth_default //=.
-       by rewrite length_sizeP Hlen_eq.
+       by rewrite length_sizeP len_eq.
        by rewrite mem_filter Bool.negb_andb Hinp Bool.orb_true_r //=.
-       by rewrite length_sizeP Hlen_eq.       
+       by rewrite length_sizeP len_eq.       
        by rewrite mem_filter Bool.negb_andb Hinp Bool.orb_true_r //=.
 
      - rewrite Hinp Hinq //=.
@@ -2721,14 +2736,30 @@ Proof.
 Qed.  
 
 Lemma swap_vec_preserve (A: finType) m (ps qs: seq A) (a: m.-tuple A) : 
+  length ps == length qs ->
+  uniq ps ->
+  uniq qs ->
 (fun inds => (all (fun q => q \in inds) qs)) (swap_vec ps qs a) =
 (fun inds => (all (fun p => p \in inds) ps)) a.
 Proof.
-  move=> //=.
-  apply/allP.
-  case Halla: (all _).
-    - move/allP: Halla => Hallp => q Hinq.
-    - apply/allP; apply/allPn.
+  move=> //= Heq Huniqps Huniqs.
+
+
+  move: Heq; move: {1}(length ps) (eq_refl (length ps)) => b.
+
+  elim: b ps qs Huniqps Huniqs => [[|//=][|//=]| b IHb [//=| p ps] [//=| q qs]] Huniqps Huniqs Hlenb Hleneq.
+  - {
+        by [].
+    }
+  - {
+      have H1: uniq ps; first by move: Huniqps =>/andP[].
+      have H2: uniq qs; first by move: Huniqs =>/andP[].
+      have H3: b == length ps; first by move/eqP: Hlenb => //=[] ->.
+      have H4: length ps == length qs; first by move/eqP: Hleneq =>//=[] ->; apply/eqP.
+      move: (IHb ps qs H1 H2 H3 H4); clear IHb H1 H2 H3 H4.
+
+      move=>//= .
+Admitted.
 
 Lemma prsumr_vec_subset_length (A: finType) m (ps qs: seq A):
   #|A| > 0 ->
@@ -2747,134 +2778,6 @@ Proof.
 
   erewrite reindex.
 Admitted.
-(*   clear k n Hkgt0; elim: ps qs m => [[|//=] m|p ps IHps [//=|q qs] m] Hcard Hm. *)
-(*   by move=> //=. *)
-(*   move=> Hlen Hunip Huniq. *)
-(*   rewrite (bigID (fun inds => p \in inds)) //=. *)
-
-(*   have: (\rsum_(i in [finType of m.-tuple A] | p \notin i) *)
-(*           ((p \in i) && all ((in_mem (T:=A))^~ (mem i)) ps %R)) = (0%R); last move=>->. *)
-(*        rewrite prsumr_eq0P; last (dispatch_Rgt; intros; case: (_ && _)=>//=; try apply leRR). *)
-(*        by move=> a /andP [_ /Bool.negb_true_iff ->] //=. *)
-(*   rewrite addR0. *)
-
-(*   transitivity ( \rsum_(i in [finType of m.-tuple A] | p \in i) *)
-(*                   (all ((in_mem (T:=A))^~ (mem i)) ps %R)). *)
-(*        by apply eq_bigr=> i /andP [_ ->]. *)
-
-(*   suff H1: (length ps == length qs). *)
-(*   suff H2: uniq ps. *)
-(*   suff H3: uniq qs. *)
-(*   move: (IHps qs m Hcard Hm H1 H2 H3).  *)
-(*   rewrite [\rsum_(i in _) _](bigID (fun inds => p \in inds)) //=. *)
-(*   move=>/eqP. *)
-(*   rewrite eq_sym -subR_eq' =>/eqP <-. *)
-
-(*   apply/eqP; rewrite subR_eq' //=;apply/eqP. *)
-(*   Search _ (_ +R+ _) (_ -R- _). *)
-
-(*   move=>/Logic.eq_sym. *)
-(*   have: (\rsum_(i in [finType of m.-tuple A] | p \notin i) *)
-(*           ((p \in i) && all ((in_mem (T:=A))^~ (mem i)) ps %R)) = (0%R); last move=>->. *)
-(*        rewrite prsumr_eq0P; last (dispatch_Rgt; intros; case: (_ && _)=>//=; try apply leRR). *)
-(*        by move=> a /andP [_ /Bool.negb_true_iff ->] //=. *)
-
-
-(* Lemma prsumr_vec_subset (A: finType) m p ps ind: *)
-(*   #|A| > 0 -> *)
-(*   m > 0 -> *)
-(*   uniq (p :: ps) -> *)
-(*   ind \in ps -> *)
-(*   length (p :: ps) < m -> *)
-(*   \rsum_(inds in [finType of m.-tuple A]) *)
-(*      (all (fun p => p \in ind :: inds) (p :: ps) %R) =  *)
-(*   \rsum_(inds in [finType of m.-tuple A]) *)
-(*      (all (fun p => p \in inds) ps %R). *)
-(* Proof. *)
-(*   clear n k Hkgt0; elim: m p ps ind => [//=| [//=|m] IHm] p [|q rs] ind Hcard Hm. *)
-(*   move=>//=/andP[/memPn Hpnin Hpsuniq] Hind Hlen. *)
-(*   move=>/andP[]; rewrite-/uniq in_cons Bool.negb_orb=>/andP[Hpneq /memPn Hpninrs]/andP[/memPn Hqneq Huniqrs]. *)
-(*   rewrite in_cons=>/orP[/eqP|] Hin; last first. *)
-(*   move=> Hlen. *)
-(*   have H1: (0 < m.+1); first by []. *)
-(*   have H2: (uniq (q :: rs)); first by move=>//=;apply/andP;split;[ apply/memPn | ]. *)
-(*   have H3: length (q :: rs) < m.+1; first by move: Hlen => //=. *)
-(*   move: (IHm q rs ind Hcard H1 H2 Hin H3). *)
-(*   rewrite rsum_tuple_split rsum_split rsum_tuple_split rsum_split //=. *)
-
-
-(*   transitivity (). *)
-(*   transitivity ( *)
-(*   \rsum_(a in A) *)
-(*         ((p \in [:: ind; a]) && all ((in_mem (T:=A))^~ (mem [:: ind ; a])) ps %R)       *)
-(*     ); first by apply eq_bigr=> a _; rewrite rsum_empty //=. *)
-(*   move=>//=/andP[/memPn Hneq Hpuniq] Hind. *)
-
-(*   rewrite !rsum_empty //= mem_seq1 eq_sym. *)
-(*   move: (Hneq ind Hind)=>/Bool.negb_true_iff ->; do?apply f_equal. *)
-(*   rewrite Bool.andb_false_l //=; apply Logic.eq_sym; apply Bool.negb_true_iff. *)
-
-(* Lemma rsum_mem_inv (A: finType) m (x y : A) zs : *)
-(*   #|A| > 0 -> *)
-(*   x \notin zs -> *)
-(*   y \notin zs -> *)
-(*   uniq zs -> *)
-(*     \rsum_(xs in [finType of m.-tuple A] | x \in xs) *)
-(*      ((Rdefinitions.Rinv (#|A| %R) ^R^ m) *R* *)
-(*       (all ((in_mem (T:=A))^~ (mem xs)) zs %R)) = *)
-(*   \rsum_(xs in [finType of m.-tuple A] | y \in xs) *)
-(*      ((Rdefinitions.Rinv (#|A| %R) ^R^ m) *R* *)
-(*       (all ((in_mem (T:=A))^~ (mem xs)) zs %R)). *)
-(* Proof. *)
-(*   rewrite rsum_pred_demote rsum_pred_demote. *)
-(*   move=> Hlen; elim: zs m => [//=| z zs IHz] m Hx Hy Huniq. *)
-(*   by rewrite -rsum_pred_demote -rsum_pred_demote !mulR1 !rsum_mem_pred //= . *)
-(*   case: m => [|m]; first by rewrite !rsum_empty //=. *)
-(*   rewrite !rsum_tuple_split !rsum_split //=. *)
-(*   rewrite (bigID (fun a => a == x)) big_pred1_eq. *)
-(*   rewrite [\rsum_(a in A) _](bigID (fun a => a == y)) big_pred1_eq //=. *)
-
-(*   have: (\rsum_(b in [finType of m.-tuple A]) *)
-(*       (((x \in cons_tuple x b) %R) *R* *)
-(*        ((Rdefinitions.Rinv (#|A| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ m)) *R* *)
-(*         ((z \in cons_tuple x b) && all ((in_mem (T:=A))^~ (mem (cons_tuple x b))) zs %R)))) = *)
-(*         (\rsum_(b in [finType of m.-tuple A]) *)
-(*       (((Rdefinitions.Rinv (#|A| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ m)) *R* *)
-(*         ((z \in b) && all ((in_mem (T:=A))^~ (mem b)) zs %R)))); last move=>->. *)
-(*          apply eq_bigr=> b _; rewrite mulRC -mulRA -mulRA -mulRA; do? apply f_equal. *)
-(*          rewrite [x \in _]in_cons eq_refl Bool.orb_true_l //= mulR1; do? apply f_equal. *)
-(*          move: (Hx); rewrite !in_cons Bool.negb_orb eq_sym =>/andP [/Bool.negb_true_iff -> Hnin] //=. *)
-(*          do? apply f_equal; apply eq_in_all => p Hp; rewrite in_cons. *)
-(*          by move/memPn: Hnin =>/(_ p Hp)/Bool.negb_true_iff -> //=. *)
-(*   have: (\rsum_(b in [finType of m.-tuple A]) *)
-(*       (((y \in cons_tuple y b) %R) *R* *)
-(*        ((Rdefinitions.Rinv (#|A| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ m)) *R* *)
-(*         ((z \in cons_tuple y b) && all ((in_mem (T:=A))^~ (mem (cons_tuple y b))) zs %R)))) = *)
-(*         (\rsum_(b in [finType of m.-tuple A]) *)
-(*       (((Rdefinitions.Rinv (#|A| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ m)) *R* *)
-(*         ((z \in b) && all ((in_mem (T:=A))^~ (mem b)) zs %R)))); last move=>->. *)
-(*          apply eq_bigr=> b _; rewrite mulRC -mulRA -mulRA -mulRA; do? apply f_equal. *)
-(*          rewrite [y \in _]in_cons eq_refl Bool.orb_true_l //= mulR1; do? apply f_equal. *)
-(*          move: (Hy); rewrite !in_cons Bool.negb_orb eq_sym =>/andP [/Bool.negb_true_iff -> Hnin] //=. *)
-(*          do? apply f_equal; apply eq_in_all => p Hp; rewrite in_cons. *)
-(*          by move/memPn: Hnin =>/(_ p Hp)/Bool.negb_true_iff -> //=. *)
-(*   apply f_equal. *)
-
-(*   transitivity ( *)
-(*   \rsum_(i | i != x) *)
-(*      \rsum_(b in [finType of m.-tuple A]) *)
-(*         (((x \in b) %R) *R* *)
-(*          ((Rdefinitions.Rinv (#|A| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ m)) *R* *)
-(*           ((z \in cons_tuple i b) && all ((in_mem (T:=A))^~ (mem (cons_tuple i b))) zs %R))) *)
-(*     ). *)
-
-(*   apply eq_bigr=> i /Bool.negb_true_iff Hneq; apply eq_bigr=> b _. *)
-(*   by rewrite in_cons eq_sym Hneq //=. *)
-
-(*   rewrite (bigID (fun i => i == z))//=. *)
-
-(*   rewrite (big_pred1 z) //=. *)
-(*   move=>//=. *)
 
   Lemma bloomfilter_addn_insert_multiple_inv hashes l (ind: 'I_Hash_size.+1) (bf: BloomFilter) (values: seq B):
        length values == l ->
