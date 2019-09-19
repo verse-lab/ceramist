@@ -930,6 +930,37 @@ Lemma neg_hash_vecP n l (value: hash_keytype) (hashes hashes': l.-tuple (HashSta
  Qed.
  
 
+
+Module uniform_vec.
+Section definitions.
+Variable n k : nat.
+
+Definition pmf: pos_ffun [finType of k.-tuple 'I_n.+1].
+split with (finfun (fun a => (Rdefinitions.Rinv (n.+1 %R)) ^R^ k)).
+apply /forallP_leRP=> a //=.
+by rewrite ffunE; apply expR_ge0; left; apply RIneq.Rinv_0_lt_compat; apply ltR0n.
+Defined.
+
+Lemma pmfE a : pmf a = ((Rdefinitions.Rinv (n.+1 %R)) ^R^ k).
+Proof. by move=> //=;rewrite ffunE. Qed.
+
+
+Definition dist: dist [finType of (k.-tuple 'I_n.+1)].
+split with pmf.
+apply/eqP=> //=.
+under big a _ rewrite pmfE.
+rewrite bigsum_card_constE card_tuple card_ord -natRexp.
+rewrite -Rfunctions.Rinv_pow ?mulRV //=.
+by apply expR_neq0; apply/eqP; apply RIneq.not_0_INR.
+by apply RIneq.not_0_INR.
+Defined.
+
+Lemma dE  a : dist a = ((Rdefinitions.Rinv (n.+1 %R)) ^R^ k).
+Proof. by move=> //=;rewrite ffunE. Qed.
+
+End definitions.
+End uniform_vec.
+
 Section BloomFilter.
 
   (*
@@ -2822,6 +2853,28 @@ Admitted.
 
 
 
+Notation "a \subseteq b" := (all (fun a' => a' \in b) a) (at level 70).
+
+
+
+(* Lemma subset_less_than_indep  b m p ps *)
+(*       (inds: seq 'I_Hash_size.+1): *)
+(*   b < Hash_size.+1 -> *)
+(*   length (p :: ps) == b -> *)
+(*   uniq (p :: ps) -> *)
+(*   (\rsum_(inds in [finType of m.-tuple 'I_Hash_size] | (p \in inds) && (ps \subseteq inds)) ((Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ k)) *)
+(*     -<=- *)
+(*     (\rsum_(inds in [finType of m.-tuple 'I_Hash_size] | (p \in inds)) *)
+(*       ((Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ k) *R* *)
+(*      \rsum_(inds in [finType of m.-tuple 'I_Hash_size] | (ps \subseteq inds)) *)
+(*       ((Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ k)). *)
+(* Proof. *)
+(*   case: b => [//=| b]. *)
+
+(*   Search _ (_ -<=- (_ *R* _)). *)
+  
+    
+
   Theorem bloomfilter_addn_bits
        hashes b (inds: seq 'I_Hash_size.+1) (bf: BloomFilter) (value: B):
        b < Hash_size.+1 ->
@@ -2876,6 +2929,78 @@ Admitted.
         by rewrite neg_hash_vecP //=; first rewrite !mulR0.
       }
       under big i _ rewrite hash_vecP //=.
+
+      have Hpred_eq i: (all (bloomfilter_get_bit^~ (bloomfilter_add_internal i bf)) inds = all (fun ind => ind \in i) inds).
+      {
+        apply eq_in_all => ind Hinds.
+        case HinI: (ind \in i); first by rewrite /bloomfilter_get_bit bloomfilter_add_internal_hit //=.
+
+        apply/Bool.negb_true_iff; rewrite /bloomfilter_get_bit bloomfilter_add_internal_miss //=;
+                                          first by move/allP: Hall => /(_ ind Hinds) .
+          by rewrite HinI.
+      }
+
+
+      under big i _ rewrite Hpred_eq //=.
+      clear Hall Hpred_eq Huns Hfree bf hashes value.
+      elim: b inds  Hb Hlen Huniq  k Hkgt0 => [//= [//=|//=]|b IHb inds] Hb Hlen Huniq;
+                                             clear k Hkgt0; move=> m Hmgt0.
+      - {
+          rewrite mul1R bigsum_card_constE card_tuple card_ord.
+          by rewrite -Rfunctions.Rinv_pow ?natRexp ?mulRV //=; [
+                    right |
+                    rewrite -natRexp; apply expR_neq0; apply/eqP; apply RIneq.not_0_INR |
+                    apply RIneq.not_0_INR
+                  ].
+        }
+
+        Notation "1" := (BinNums.Zpos BinNums.xH).
+
+
+        case: m Hmgt0 => [//=|m Hmgt0].
+        elim: m inds Hmgt0  Huniq Hlen  => [//=|m IHm] [//=| i inds] Hmgt0 Huniq Hlen.
+        rewrite rsum_tuple_split rsum_split.
+        under big a _ rewrite rsum_empty mulR1 //=.
+        under big a _  rewrite mem_seq1.
+
+        Search _ ((_ && _) %R).
+        rewrite -rsum_pred_demote.
+
+
+
+
+
+      have ->: (\rsum_(a in tuple_finType k (ordinal_finType Hash_size.+1) | (inds \subseteq a) == true)
+              (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k)) =
+            (Pr (@uniform_vec.dist Hash_size k)
+                (finset.SetDef.finset (fun (vec: k.-tuple 'I_Hash_size.+1) => inds \subseteq vec))).
+      {
+        rewrite/Pr //=. apply Logic.eq_sym; under big a _ rewrite ?uniform_vec.dE.
+        apply eq_bigl => a; rewrite ?finset.in_setI !finset.in_set; by case: (_ \subseteq _).
+      }
+
+      Search "bayes".
+
+
+      rewrite -/Pr.
+
+      Locate "Pr a b".
+
+      Print Pr.
+
+      Search _ (pred).
+
+      Check (Pr ).
+
+
+      Search CProba.
+markov
+   forall (U : finType) (P : dist_of (Phant U)) (X : RV_of P (Phant U) (Phant Rdefinitions.R)),
+   (forall u : U, BinNums.Z0 -<=- X u) ->
+   forall r : Rdefinitions.R, BinNums.Z0 -<- r -> pr_geq X r -<=- (Ex P X /R/ r)
+ProdDist
+
+      elim: b Hb inds Hlen Huniq.
 
       elim: b inds value hashes => [//=|b IHb]; last move=>inds value hashes Hltn Heq Hfree Huns Huniq Hall.
 
@@ -4477,3 +4602,8 @@ rewrite !rsum_tuple_split !rsum_split //=.
 Admitted.
 
     *)
+
+(* Local Variables: *)
+(* company-coq-local-symbols: (("\\subseteq" . ?⊆)) *)
+(* End: *)
+
