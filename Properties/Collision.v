@@ -18,7 +18,7 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 From BloomFilter
-     Require Import Parameters Hash Comp Notationv1 BitVector BloomFilter InvMisc.
+     Require Import Parameters Hash Comp Notationv1 BitVector BloomFilter InvMisc bigop_tactics.
 
 (*
 Proof idea
@@ -41,6 +41,7 @@ Proof idea
 
 
 Ltac dispatch_Rgt :=  do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size).
+
 
 Lemma ntuple_tail_consP n A (ls: n.-tuple A) val : (FixedList.ntuple_tail (FixedList.ntuple_cons val ls)) = ls.
 Proof.
@@ -115,6 +116,13 @@ Notation "a '^R^' b" := (Rpow_def.pow a b).
 
 Coercion BinInt.Z.of_nat : nat >-> BinNums.Z.
 Coercion Rdefinitions.IZR : BinNums.Z >-> Rdefinitions.R.
+
+
+
+
+
+
+
 
 
 
@@ -2558,7 +2566,7 @@ Proof.
 Qed.
 
 Lemma pr_in_vec (A : finType) (ps : seq A) :
-  #|A| > 0 ->
+   #|A| > 0 ->
        uniq ps ->
        \rsum_(ind in A) (Rdefinitions.Rinv (#|A| %R) *R* ((ind \notin ps) %R))
        = (1 -R- (Rdefinitions.Rinv (#|A| %R) *R* (length ps %R))).
@@ -2584,6 +2592,7 @@ Lemma pr_in_vec (A : finType) (ps : seq A) :
 
 Qed.
 
+
 Lemma rsum_bijective_eqC {A: finType} (c: Rdefinitions.R) (P Q : pred A) (p:  A -> A) :
    bijective p ->
   (forall a, P (p a) = Q a) ->
@@ -2596,6 +2605,7 @@ Proof.
 Qed.
 
 (* Swaps all elements of a given vector by all elements of another*)
+
 Fixpoint swap_vec {A: finType} (m:nat) (ps qs: seq A) (list: m.-tuple A) : m.-tuple A :=
   match m as m' return (m = m' -> m'.-tuple A -> m'.-tuple A) with
       | 0 => (fun (Hm: m = 0) (list: 0.-tuple A) => list)
@@ -2690,6 +2700,7 @@ Qed.
 
 
   
+
 Lemma substitute_vec_inv (A: finType) (m: nat) (ps qs: seq A) :
   uniq ps -> uniq qs -> length ps = length qs -> 
   forall x : m.-tuple A, 
@@ -2824,11 +2835,54 @@ Admitted.
        ((1 -R- ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ (k))) ^R^ b).
     Proof.
       have H x1 y1 z1: y1 = (0 %R) -> x1 = z1 -> x1 +R+ y1 = z1; first by move=> -> ->; rewrite addR0.
+      rewrite //= DistBind.dE => Hb Hlen Hfree Huns Huniq Hall.
+      under big a _ rewrite DistBind.dE //= !rsum_Rmul_distr_r //=.
+      under big a _ rewrite  !rsum_Rmul_distr_r //=.
+      rewrite rsum_split //=.
+      under big a _ under big b0 _  rewrite Dist1.dE eq_sym.
+      under big a _  rewrite exchange_big.
+      rewrite exchange_big rsum_split//=.
+      under big a _ under big b0 _ under big i _ under big i0 _ rewrite Dist1.dE xpair_eqE.
+      under big a _ under big b0 _ rewrite (bigID (fun i => i == a)) big_pred1_eq //=.
+      under big a _ rewrite addRA_rsum.
+      rewrite addRA_rsum.
+      erewrite H; last by []; last first.
+      {
+        do 2!(apply prsumr_eq0P; intros; first by intros; dispatch_Rgt).
+        apply prsumr_eq0P => i /Bool.negb_true_iff ->; first by intros; dispatch_Rgt.
+        apply prsumr_eq0P; intros; first by intros; dispatch_Rgt.
+        by rewrite //= !mulR0.
+      }
+
+      under big i _ under big i0 _ rewrite (bigID (fun j => j == (bloomfilter_add_internal i0 bf))) big_pred1_eq //=.
+      under big i _ rewrite addRA_rsum //=.
+      rewrite addRA_rsum.
+      erewrite H; last by []; last first.
+      {
+        do 2!(apply prsumr_eq0P; intros; first by intros; dispatch_Rgt).
+        apply prsumr_eq0P => i /Bool.negb_true_iff ->; first by intros; dispatch_Rgt.
+        by rewrite Bool.andb_false_r //= !mulR0.
+      }
+      under big i _ under big i0 _ rewrite !eq_refl //= mulR1.
+      under big i _ under big i0 _ rewrite mulR1.
+      rewrite exchange_big //=.
+
+      under big i0 _ rewrite (bigID (fun i => i == Tuple (hash_vec_insert_length value hashes i0))) big_pred1_eq //=.
+      rewrite addRA_rsum.
+      erewrite H; last by []; last first.
+      {
+        do 1!(apply prsumr_eq0P; intros; first by intros; dispatch_Rgt).
+        apply prsumr_eq0P => i Hneq; first by intros; dispatch_Rgt.
+        by rewrite neg_hash_vecP //=; first rewrite !mulR0.
+      }
+      under big i _ rewrite hash_vecP //=.
 
       elim: b inds value hashes => [//=|b IHb]; last move=>inds value hashes Hltn Heq Hfree Huns Huniq Hall.
 
          - move=>[|//=]value hashes //= _ _ Hfree Huns _ _ .
            rewrite DistBind.dE rsum_distbind_d0 exchange_big rsum_split exchange_big/=.
+
+
 
            have: (
                    \rsum_(j in [finType of k.-tuple 'I_Hash_size.+1])
@@ -3821,6 +3875,7 @@ rewrite !rsum_tuple_split !rsum_split //=.
 
 
            
+
   Theorem bloomfilter_addn_multiple_bits
        hashes l b (inds: seq 'I_Hash_size.+1) (bf: BloomFilter) (values: seq B):
        b < Hash_size.+1 ->
