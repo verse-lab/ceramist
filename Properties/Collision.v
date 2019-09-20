@@ -2872,19 +2872,44 @@ Notation "a \subseteq b" := (all (fun a' => a' \in b) a) (at level 70).
 (*   case: b => [//=| b]. *)
 
 (*   Search _ (_ -<=- (_ *R* _)). *)
-  
-    
+Lemma rem_in_neq (A: eqType) (q p: A) (inds: seq A) (Hneq:   q != p):
 
+  (q \in rem p inds) = (q \in inds).
+Proof.
+  elim: inds => //= ind inds IHind.
+  move: Hneq.
+  case Heqind: (ind == p).
+  - by move/eqP: Heqind ->;   rewrite in_cons eq_sym =>/Bool.negb_true_iff -> //=.
+  - by rewrite !in_cons IHind.
+Qed.
+
+Lemma subseteq_in_rem (A: eqType) (p : A) (ps: seq A) inds:
+  p \notin ps ->
+  (p \in inds) ->
+  (ps \subseteq (rem p inds)) = (ps \subseteq inds).
+Proof.
+  move=> Hnin IHind.
+  elim: ps Hnin  => //= q qs IHps.
+  rewrite //= in_cons Bool.negb_orb =>/andP[Hneq Hnin].
+  move: (IHps Hnin) => ->.
+  rewrite andbC [(q \in inds) && _]andbC; apply f_equal.
+  clear IHps Hnin qs IHind.
+  by apply rem_in_neq; rewrite eq_sym.
+Qed.
+
+    
   Theorem bloomfilter_addn_bits
        hashes b (inds: seq 'I_Hash_size.+1) (bf: BloomFilter) (value: B):
-       b < Hash_size.+1 ->
+       b < k ->
        length inds == b ->
        hashes_have_free_spaces hashes 1 ->
        (bloomfilter_value_unseen hashes value)  ->
        uniq inds ->
        all (fun ind => ~~ bloomfilter_get_bit ind bf) inds ->
        (d[ res <-$ bloomfilter_add value hashes bf;
-             (let '(_, bf') := res in ret (all (bloomfilter_get_bit^~ bf') inds))]) true -<=-
+             (let '(_, bf') := res in ret (all (bloomfilter_get_bit^~ bf') inds))]) true
+
+                                                                                    -<=-
        ((1 -R- ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ (k))) ^R^ b).
     Proof.
       have H x1 y1 z1: y1 = (0 %R) -> x1 = z1 -> x1 +R+ y1 = z1; first by move=> -> ->; rewrite addR0.
@@ -2943,8 +2968,8 @@ Notation "a \subseteq b" := (all (fun a' => a' \in b) a) (at level 70).
 
       under big i _ rewrite Hpred_eq //=.
       clear Hall Hpred_eq Huns Hfree bf hashes value.
-      elim: b inds  Hb Hlen Huniq  k Hkgt0 => [//= [//=|//=]|b IHb inds] Hb Hlen Huniq;
-                                             clear k Hkgt0; move=> m Hmgt0.
+      elim: b inds k Hb Hlen Huniq   Hkgt0 => [//= [//=|//=]|b IHb [//=|ind inds]];
+                                             clear k Hkgt0; move=> m Hb Hlen Huniq Hmgt0.
       - {
           rewrite mul1R bigsum_card_constE card_tuple card_ord.
           by rewrite -Rfunctions.Rinv_pow ?natRexp ?mulRV //=; [
@@ -2957,14 +2982,132 @@ Notation "a \subseteq b" := (all (fun a' => a' \in b) a) (at level 70).
         Notation "1" := (BinNums.Zpos BinNums.xH).
 
 
-        case: m Hmgt0 => [//=|m Hmgt0].
-        elim: m inds Hmgt0  Huniq Hlen  => [//=|m IHm] [//=| i inds] Hmgt0 Huniq Hlen.
-        rewrite rsum_tuple_split rsum_split.
-        under big a _ rewrite rsum_empty mulR1 //=.
-        under big a _  rewrite mem_seq1.
+      - {
+        
+        case: m Hmgt0 Hb => [//=|[|m] Hmgt0].
+      
+        - by case: b IHb Hlen => //= b.
 
-        Search _ ((_ && _) %R).
-        rewrite -rsum_pred_demote.
+        (* elim: m inds Hmgt0  Huniq Hlen  => [//=|m IHm] [//=| i inds] Hmgt0 Huniq Hlen. *)
+
+       set P_all_miss_one := ((1 -R- Rdefinitions.Rinv _) ^R^ m.+2).
+        - {
+
+            move=> Hbltn.
+            rewrite rsum_tuple_split rsum_split //=.
+
+            rewrite (bigID (fun a => a == ind)) big_pred1_eq //=.
+
+            under big b0 _ rewrite mem_head //=.
+
+            have Hltn b0: (inds \subseteq ind :: b0) = (inds \subseteq b0).
+              by apply eq_in_all => ind' Hinind; rewrite in_cons;
+                                   move: Huniq => //=/andP[/memPn /(_ ind' Hinind)/Bool.negb_true_iff -> B ]//=.
+
+              under big b0 _ rewrite Hltn mulRC -mulRA.  
+              rewrite -rsum_Rmul_distr_l.
+              eapply leR_trans.
+              {
+                - apply RIneq.Rplus_le_compat_r.
+                - apply RIneq.Rmult_le_compat_l; first by left; apply invR_gt0; apply ltR0n.
+                - {
+                    under big a _ rewrite mulRC. 
+                    apply IHb => //=.
+                    - by move: Huniq => //=/andP [].
+                  }
+              }
+
+              under big i _ under big b0 _ rewrite in_cons.
+              have Hneg i : (i != ind) -> (ind == i) = false;
+              first by move=>/Bool.negb_true_iff; rewrite eq_sym => ->.
+
+
+              have ->: (\rsum_(i < Hash_size.+1 | i != ind)
+                      \rsum_(b0 in [finType of (m.+1).-tuple 'I_Hash_size.+1])
+                      (((((ind == i) || (ind \in b0)) && (inds \subseteq i :: b0) == true) %R) *R*
+                       (Rdefinitions.Rinv (Hash_size.+1 %R) *R*
+                        (Rdefinitions.Rinv (Hash_size.+1 %R) *R*
+                         (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ m))))) =
+                    (\rsum_(i < Hash_size.+1 | i != ind)
+                      \rsum_(b0 in [finType of (m.+1).-tuple 'I_Hash_size.+1])
+                      (((((ind \in b0)) && (inds \subseteq (rem ind (i :: b0))) == true) %R) *R*
+                       ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ m.+2)))).
+              {
+                apply eq_bigr=> i /Bool.negb_true_iff Hneq; rewrite //= eq_sym Hneq.
+                apply eq_bigr=> b0 _; rewrite mulRC; apply Logic.eq_sym; rewrite mulRC; apply f_equal.
+                rewrite Bool.orb_false_l; do ?apply f_equal.
+                case Hinb0: (ind \in b0) => //=.
+                rewrite !eqb_id; apply eq_in_all => ind' Hind'.
+                rewrite !in_cons; apply f_equal; rewrite rem_in_neq //=.
+                  by move: Huniq => //=/andP[/memPn /(_ ind' Hind')].
+              }
+
+
+              under big i _ erewrite reindex_inj.
+
+              2: {
+
+                move=> x.
+              }
+              About injective.
+              rewrite subseteq_in_rem.
+              Search _ injective.
+
+              apply eq_bigr
+                    (0%R).
+
+              under big i _ under big b0 _ rewrite Hneg //=.
+
+              admit.
+          }
+          
+
+
+
+
+
+
+
+
+        }
+        
+        
+
+
+        move:  Huniq.
+
+        Search _ ()
+
+        have:  (\rsum_(b0 in m.-tuple 'I_Hash_size.+1)
+      ((((inds \subseteq ind :: b0) == true) %R) *R*
+       (Rdefinitions.Rinv (Hash_size.+1 %R) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ m)))) =
+               
+
+        have Handb r s:  (r && s %R) = ((r %R) *R* (s %R)); first
+          by case: r; case: s; rewrite //= ?mulR0 ?mul0R ?mulR1 ?mul1R.
+
+        have ->:  (  \rsum_(a in ordinal_finType Hash_size.+1)
+                      ((((i == a) && (inds \subseteq [:: a]) == true) %R) *R*
+                       Rdefinitions.Rinv (Hash_size.+1 %R))) = (
+          (  \rsum_(a in ordinal_finType Hash_size.+1)
+              ((i == a %R) *R* ((( (inds \subseteq [:: a]) == true) %R) *R*
+               Rdefinitions.Rinv (Hash_size.+1 %R))))          
+        );
+        first by apply eq_bigr=> a _;
+                                case: (i == a); case: (_ \subseteq _); rewrite //= ?mul1R ?mulR1 ?mulR0 ?mul0R.
+
+
+        (under big a _ rewrite eq_sym); rewrite -rsum_pred_demote big_pred1_eq //=.
+
+        have
+rewrite -(Handb (i == a) ((inds \subseteq [:: a]) == true)).
+
+        under big a _ rewrite //= Handb.
+        rewrite -rsum_pred_demote (big_pred1 i) //=; last first.
+
+        move=> j.
+        under big a _ rewrite (Handb (i == _) ((inds \subseteq [:: _]) == true)).
+
 
 
 
