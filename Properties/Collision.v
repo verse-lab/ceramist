@@ -2968,64 +2968,85 @@ Qed.
 
       by [].
 Qed.
+
+Lemma all_in_negP (A: eqType) (I J : seq A) :
+    all (fun j => j \notin I) J = all (fun i => i \notin J) I.
+Proof.
+  apply/allP.
+
+  case Hall: all;
+  first by move/allP: Hall => Hnin;  move=> j Hj; apply/memPn => i Hi;
+  move: (Hnin i Hi) =>/memPn/(_ j Hj); rewrite eq_sym.
+
+  by move/Bool.negb_true_iff: Hall => /allPn [i Hi];
+  rewrite Bool.negb_involutive => Hiinj;
+   apply/allP;apply/allPn; exists i => //=; rewrite Bool.negb_involutive.
+Qed.
+
+Lemma rsum_subseq_internal (m : nat) (I J: seq 'I_m) : m > 0 ->
+  uniq I -> 
+  all (fun j => j \notin I) J ->
+  \rsum_(i in 'I_m | i \notin J) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R)) =
+ (((length I %R) *R* Rdefinitions.Rinv (m %R))).
+Proof.
+  move=> Hm; elim: I J => [|i I IHI] J Huniq Hall; first
+  by rewrite //= ?mul0R bigsum_card_constE ?mulR0.
+  under big i0 _ rewrite in_cons.
+  rewrite rsum_pred_demote (bigID (fun i0 => i0 == i)) big_pred1_eq //= eq_refl //= mul1R.
+  move: (Hall); rewrite all_in_negP => //=/andP[-> Hall'] //=; rewrite mul1R.
+  rewrite -addn1 natRD RIneq.Rmult_plus_distr_r mul1R [(_ *R* _) +R+ _]addRC; apply f_equal.
+
+  transitivity (\rsum_(i0 < m | i0 \notin (i :: J)) ((((i0 \in I) %R) *R* Rdefinitions.Rinv (m %R)))).
+  - {
+      rewrite rsum_pred_demote [ \rsum_(i0 < _ | _) _]rsum_pred_demote; apply eq_bigr => i0 _ //=.
+        by rewrite in_cons Bool.negb_orb; case: (_ == _); case: (_ \in _) => //=;
+                                                                              rewrite ?mulR0 ?mul0R ?mul1R ?mulR1//=.      
+    }
+    apply IHI => //=.
+    - by move: Huniq => //=/andP[].
+    - apply/andP; split.
+    - by move: Huniq => //=/andP [].  
+
+    - move/allP: Hall => Hall; apply/allP => j Hj.   
+      by move: (Hall j Hj); rewrite in_cons Bool.negb_orb =>/andP[].
+Qed.
+
+
 Lemma rsum_subseq (m : nat) (I : seq 'I_m) : m > 0 ->
   uniq I -> 
   \rsum_(i in 'I_m) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R)) =
  (((length I %R) *R* Rdefinitions.Rinv (m %R))).
 Proof.
-  rewrite -{1  17}( size_enum_ord m) //=.
+  move=> Hm Huniq.
+  transitivity ( \rsum_(i in 'I_m | i \notin [::]) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R))); first
+  by apply eq_bigl => i //=.
+  by apply rsum_subseq_internal => //=.
+Qed.
 
-  have ->: (\rsum_(i in 'I_m) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R))) = (
-          \rsum_(i in 'I_m) (((i \in I) %R) *R* (Rdefinitions.Rinv ((size (enum 'I_m)) %R))));
-    first  by apply eq_bigr=> i _; do ?apply f_equal;  rewrite (size_enum_ord m).
-
-  have: (all (fun i => i \in (enum 'I_m)) I).
-  by apply /allP => i //=;  move=> Hin;
-   move: (@mem_index_enum (ordinal_finType m) i); rewrite /index_enum enumT.
-  move: (enum_uniq (ordinal_finType m)) =>//=.
-  rewrite unlock.
-  rewrite /index_enum enumT //=.
-  elim: (Finite.enum _) => [//=| v [//=|v' vs] IHvs].
-
-  - {
-      clear IHvs.
-      move=> _ /allP Hini _ Hiuniq; rewrite addR0.
-      rewrite !RIneq.Rinv_1 !mulR1.
-      case: I Hiuniq Hini=> [//=| i [| i' I]] .
-      move=> //= _ Hall; rewrite mem_seq1.
-      have Hi : (i \in [:: i]); first by rewrite mem_seq1 eq_refl.
-      by move: (Hall i Hi); rewrite mem_seq1 =>/eqP ->; rewrite eq_refl.
-
-      move=> //=/andP[]; rewrite in_cons Bool.negb_orb =>/andP [Hineq Hnin].
-      move=>/andP[Hnin' Huniq] Hall.
-
-      have Hi: (i \in [:: i, i' & I]); first by rewrite in_cons eq_refl.
-      have Hi': (i' \in [:: i, i' & I]); first by rewrite !in_cons eq_refl Bool.orb_true_r.
-      move: (Hall i Hi) Hineq; move: (Hall i' Hi'); rewrite !mem_seq1.
-      by move=>/eqP -> /eqP -> //= ; rewrite eq_refl.
-    }
-  - {
-      move=> //=.
-
-Admitted.
-    
 Lemma rsum_subseq_mult (m b: nat) (I: seq 'I_m):
   0 < m ->
-    uniq I -> length I < b ->
+    uniq I -> length I <= b ->
     \rsum_(ps in [finType of b.-tuple 'I_m] | ps \subseteq I)
      ((Rdefinitions.Rinv (m %R)) ^R^ b) = (((length I %R) *R* Rdefinitions.Rinv (m %R)) ^R^ b).
 Proof.           
 
-  case: b => [//=| b].
-
-  elim: b I => [//= [//=| //=]| b IHb I] Hm Huniq Hlen.
+  case: b => [//=| b];
+              first by case: I => [] //=;
+  move=> _ _ _; rewrite rsum_pred_demote rsum_empty //= mul1R.
+  elim: b I => [//= [//=| //= i [|//=]]| b IHb I] Hm Huniq Hlen.
   - {
       rewrite !mul0R mulR1 big_pred0 //= => xs.
       rewrite (tuple_eta xs); apply Bool.negb_true_iff; apply /allPn.
       exists (thead xs) => //=; first by rewrite in_cons eq_refl //=.
     }
   - {
-
+      move=> //=; rewrite !mulR1 mul1R.
+      rewrite rsum_pred_demote rsum_tuple_split rsum_split //=.
+      under big a _ rewrite rsum_empty //= mem_seq1.
+      under big a _ rewrite mem_seq1 Bool.andb_true_r.
+      by rewrite -rsum_pred_demote big_pred1_eq.
+    }
+  - {
       rewrite rsum_pred_demote rsum_tuple_split rsum_split //=.
       have Hbool A B: (A && B %R) = ((A %R) *R* (B %R));
         first by case: A; case: B; rewrite ?mulR0 ?mul0R ?mulR1 ?mul1R.
