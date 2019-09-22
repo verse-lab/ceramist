@@ -3023,49 +3023,36 @@ Proof.
   by apply rsum_subseq_internal => //=.
 Qed.
 
+
+  
 Lemma rsum_subseq_mult (m b: nat) (I: seq 'I_m):
   0 < m ->
-    uniq I -> length I <= b ->
+    uniq I ->
     \rsum_(ps in [finType of b.-tuple 'I_m] | ps \subseteq I)
      ((Rdefinitions.Rinv (m %R)) ^R^ b) = (((length I %R) *R* Rdefinitions.Rinv (m %R)) ^R^ b).
 Proof.           
+  elim: b I => [//=| b IHb I] Hm Huniq.
+  - by rewrite rsum_pred_demote rsum_empty //= mul1R.
+  - {
 
-  case: b => [//=| b];
-              first by case: I => [] //=;
-  move=> _ _ _; rewrite rsum_pred_demote rsum_empty //= mul1R.
-  elim: b I => [//= [//=| //= i [|//=]]| b IHb I] Hm Huniq Hlen.
-  - {
-      rewrite !mul0R mulR1 big_pred0 //= => xs.
-      rewrite (tuple_eta xs); apply Bool.negb_true_iff; apply /allPn.
-      exists (thead xs) => //=; first by rewrite in_cons eq_refl //=.
-    }
-  - {
-      move=> //=; rewrite !mulR1 mul1R.
-      rewrite rsum_pred_demote rsum_tuple_split rsum_split //=.
-      under big a _ rewrite rsum_empty //= mem_seq1.
-      under big a _ rewrite mem_seq1 Bool.andb_true_r.
-      by rewrite -rsum_pred_demote big_pred1_eq.
-    }
-  - {
       rewrite rsum_pred_demote rsum_tuple_split rsum_split //=.
       have Hbool A B: (A && B %R) = ((A %R) *R* (B %R));
         first by case: A; case: B; rewrite ?mulR0 ?mul0R ?mulR1 ?mul1R.
 
       have Hsusp a b0: (((a \in I) && (b0 \subseteq I) %R) *R*
-                        (Rdefinitions.Rinv (m %R) *R*
-                         (Rdefinitions.Rinv (m %R) *R*
+                        ((Rdefinitions.Rinv (m %R) *R*
                           (Rdefinitions.Rinv (m %R) ^R^ b)))) =
                        (((a \in I %R) *R*  Rdefinitions.Rinv (m %R)) *R*
                          (((b0 \subseteq I) %R) *R*
-                        (((Rdefinitions.Rinv (m %R) ^R^ b.+1)))));
+                        (((Rdefinitions.Rinv (m %R) ^R^ b)))));
       first by rewrite -mulRA Hbool -mulRA;apply f_equal;
         rewrite mulRC -mulRA; apply f_equal;
           rewrite mulRC; apply f_equal.
       under big a _ under big b0 _  rewrite Hsusp.
-      rewrite -big_distrlr //=.
-      rewrite rsum_subseq //=; try apply f_equal.
+      by rewrite -big_distrlr //= -!rsum_pred_demote IHb 1?rsum_pred_demote 1?rsum_subseq //=.
 
-      move: (IHb I Hm Huniq).
+      }
+Qed.
 
     
   
