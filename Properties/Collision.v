@@ -3066,6 +3066,7 @@ Proof.
   first by rewrite Hbool -mulRA -mulRA; apply f_equal;  rewrite mulRC -mulRA; apply f_equal; rewrite mulRC.
 
   under big a _ under big b0 _ rewrite Hsusp.
+
   rewrite -big_distrlr //= -!rsum_pred_demote IHb 2!rsum_pred_demote big_distrl.
   apply Logic.eq_sym; rewrite rsum_pred_demote rsum_tuple_split rsum_split //=.
   apply eq_bigr=> a _;  rewrite rsum_Rmul_distr_l; apply eq_bigr=> b0 _.
@@ -3106,9 +3107,255 @@ case: bs => [//=| b1 [//=| b2 bs]] Hlen; first by rewrite Bool.andb_true_r; appl
 rewrite Bool.negb_andb; apply/orP; left; apply bloomfilter_new_empty_bits.
 Qed.
 
+Lemma minn_mult m l: (minn m (l * m + m) = m). Proof. by rewrite minnE //= addnC subnDA subnn subn0. Qed.
+Lemma mult_subn m l: ((m * l) + l - l) = (m * l). Proof. by rewrite -addnBA //= subnn addn0. Qed.
+
+Definition tuple_split (A:finType) (m l: nat) (xs: (m * l + l).-tuple A) : (l.-tuple A * (m * l).-tuple A).
+  split.
+  move: (take_tuple l xs); rewrite minn_mult=>V; exact V. 
+  move: (drop_tuple l xs); rewrite mult_subn=>V; exact V.
+Defined.
+
+Definition tuple_split_mult (A:finType) (m l: nat) (xs: (m.+1 * l).-tuple A) : (l.-tuple A * (m * l).-tuple A).
+  have H: (m.+1 * l = m * l + l); first by rewrite mulSnr.
+  rewrite H in xs.
+  exact (tuple_split xs).
+Defined.
+
+Lemma tcast_tval_eq (A: finType) (n' m : nat) (Hm: m = n') (v: m.-tuple A) (w: seq A) :
+  w = tval v ->
+  tval (tcast Hm v) = w.
+Proof.
+  move=> -> //=.
+  rewrite <-Hm.
+  by rewrite tcast_id.
+Qed.
+
+Lemma tuple_split_valid (A: finType) (m l:nat) :  bijective (fun (x: [finType of (m.-tuple A * (l * m).-tuple A)]) => let (b,a) := x in cat_tuple b a).
+
+  split with (fun (xs : (m + l * m).-tuple A) =>  @tuple_split A l m (tcast (addnC m (l * m)) xs)) => [[p ps]| x].
+  apply/eqP; rewrite xpair_eqE; apply/andP; split=>//=; apply/eqP.
+
+  - {
+      rewrite/take_tuple; move: (take_tupleP  _ _); rewrite/cat_tuple.
+      erewrite (@tcast_tval_eq A (l * m + m) (m + l * m) (addnC m (muln l m))
+                               (Tuple (cat_tupleP p ps)) (cat p ps)).
+      rewrite take_cat //= size_tuple ltnn subnn take0 cats0 //=.
+      move: (minn_mult _ _) => //=; rewrite minn_mult /eq_rect_r //= => Hm'.
+      move: Hm' (Logic.eq_sym _ ) => _ H1.
+      rewrite -(@Eq_rect_eq.eq_rect_eq nat m (fun y :nat => y.-tuple A -> m.-tuple A) id H1) //=.
+      case: p => //= p' H4 H5; rewrite (proof_irrelevance _ H4 H5) //=.
+        by move=>//=.      
+    }
+  - {
+
+      rewrite /drop_tuple; move: (drop_tupleP _ _); rewrite/cat_tuple.
+      erewrite (@tcast_tval_eq A (l * m + m) (m + l * m) (addnC m (muln l m))
+                               (Tuple (cat_tupleP p ps)) (cat p ps)).
+
+      rewrite drop_cat //= size_tuple ltnn subnn drop0 //=.
+      move: (mult_subn _ _) => //=; rewrite mult_subn /eq_rect_r //= => Hm'.
+      move: Hm' (Logic.eq_sym _ ) => _ H1.
+      rewrite -(@Eq_rect_eq.eq_rect_eq nat (l * m) (fun y :nat => y.-tuple A -> (l*m).-tuple A) id H1) //=.
+      case: ps => //= p' H4 H5; rewrite (proof_irrelevance _ H4 H5) //=.
+        by move=>//=.      
+    }
+  - {
+      move=> //=; rewrite /take_tuple/drop_tuple //=.
+      rewrite/cat_tuple //=;      move: (cat_tupleP _ _).
+      move: (take_tupleP _ _) (drop_tupleP _ _) => //=.
+      move: (minn_mult _ _) (mult_subn _ _) => //=.
+      rewrite minn_mult mult_subn //= => H1 H2.
+      rewrite /eq_rect_r.
+
+      move: (Logic.eq_sym H1) => //=;clear H1=> H1.
+      move: (Logic.eq_sym H2) => //=;clear H2=> H2.
+      rewrite -(@Eq_rect_eq.eq_rect_eq nat m (fun y :nat => y.-tuple A -> m.-tuple A) id H1) //=.
+      rewrite -(@Eq_rect_eq.eq_rect_eq nat (l * m) (fun y :nat => y.-tuple A -> (l * m).-tuple A) id H2) //=.
+      rewrite cat_take_drop.
+
+      move=> _ _; move: x  (addnC _ _) . 
+      rewrite addnC => x Heq; rewrite tcast_id; case: x => //= x H3 H4 .
+      by rewrite (proof_irrelevance _ H3 H4).
+    }
+Qed.
 
 
 
+
+
+Lemma subseq_imd (A: finType) (m l: nat) (f: (m.+1 * l).-tuple A -> Rdefinitions.R):
+      \rsum_(bs in [finType of (m.+1 * l).-tuple A]) (f bs *R* (Rdefinitions.Rinv (#|A| %R) ^R^ (m.+1 * l))) = 
+      \rsum_(b in [finType of l.-tuple A])
+       ( (Rdefinitions.Rinv (#|A| %R) ^R^ l)      *R*
+      \rsum_(bs in [finType of (m * l).-tuple A]) (f (cat_tuple b bs) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ (m * l)))
+      ).
+Proof.
+under big b _ rewrite rsum_Rmul_distr_l.
+  apply Logic.eq_sym.
+  have Hoqv Q p q (vec : seq Q): (size vec == p.+1 * q) = (size vec == q + p * q); first by rewrite mulSnr addnC.
+
+  have H: (m * l + l) = (m.+1 * l); first by rewrite mulSnr.
+  transitivity (\rsum_(x in [finType of (l.-tuple A * (m * l).-tuple A)%type])
+        (let (b,a) := x in ((Rdefinitions.Rinv (#|A| %R) ^R^ l) *R*
+                            (f ((cat_tuple b a)) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ m * l)))) ).
+  by rewrite rsum_split //=; do ? (apply eq_bigr; intros); do ?apply f_equal => //=.
+
+  rewrite (@reindex Rdefinitions.R Rdefinitions.R0 _ ([finType of (l.-tuple A * (m * l).-tuple A)]) _ (@tuple_split A m l)) => //=.
+  rewrite rsum_pred_demote //=; under big a _ rewrite mul1R.
+
+
+  rewrite (big_tcast H) => //=; apply eq_bigr=> a Ha.
+
+
+  rewrite  mulRA mulRC mulRA.
+
+  have ->: (((Rdefinitions.Rinv (#|A| %R) ^R^ m * l) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ l))) =
+        ((Rdefinitions.Rinv (#|A| %R) ^R^ m.+1 * l)); first by rewrite -H Rfunctions.pow_add.
+  rewrite [f a *R* _]mulRC; apply f_equal.
+
+      move=> //=; rewrite /take_tuple/drop_tuple //=.
+      rewrite/cat_tuple //=;      move: (cat_tupleP _ _).
+      move: (take_tupleP _ _) (drop_tupleP _ _) => //=.
+      move: (esym H); clear H => H.
+      clear Ha; case: a => a Ha.
+      erewrite (@tcast_tval_eq A _ _ _ _ a).
+      move: (minn_mult _ _) (mult_subn _ _) Ha => //=.
+      rewrite minn_mult mult_subn //= => H1 H2; rewrite /eq_rect_r.
+      move: (Logic.eq_sym H1) => //=;clear H1=> H1.
+      move: (Logic.eq_sym H2) => //=;clear H2=> H2.
+      move: (esym H); clear H => H.
+      rewrite -(@Eq_rect_eq.eq_rect_eq nat l (fun y :nat => y.-tuple A -> l.-tuple A) id H1) //=.
+      rewrite -(@Eq_rect_eq.eq_rect_eq nat (m * l) (fun y :nat => y.-tuple A -> (m * l).-tuple A) id H2) //=.
+
+      move=> Hprf.
+      rewrite cat_take_drop => _ _.
+      rewrite addnC in H.
+      clear -Hoqv; move: a Hprf.
+      have: (l + m * l) = (m.+1 * l); first by rewrite mulSnr addnC.
+      move=> H //=; move: f => //= f a H1 H2; apply f_equal; apply f_equal; move: H1 H2. 
+      rewrite -(Hoqv A m l a) => H1 H2.
+      by rewrite (proof_irrelevance _ H1 H2).
+      by move=>//=.
+
+
+
+      exists ((fun x : [finType of l.-tuple A * (m * l).-tuple A] => let (b, a) := x in tcast (addnC l (m*l)) (cat_tuple b a))).
+
+
+      - {
+          move=> vec _ //=.
+          apply Logic.eq_sym.
+          eapply eq_tcast.
+          move=> //=; rewrite /take_tuple/drop_tuple //=.
+          move: (take_tupleP _ _) (drop_tupleP _ _) => //=.
+          move: (minn_mult _ _) (mult_subn _ _) => //=.
+          rewrite minn_mult mult_subn //= => H1 H2.
+          rewrite /eq_rect_r.
+
+          move: (Logic.eq_sym H1) => //=;clear H1=> H1.
+          move: (Logic.eq_sym H2) => //=;clear H2=> H2.
+          rewrite -(@Eq_rect_eq.eq_rect_eq nat l (fun y :nat => y.-tuple A -> l.-tuple A) id H1) //=.
+          rewrite -(@Eq_rect_eq.eq_rect_eq nat (m * l) (fun y :nat => y.-tuple A -> (m * l).-tuple A) id H2) //=.
+          by rewrite cat_take_drop.
+        }
+
+
+      - {
+
+
+          move => [p ps] _.
+          apply/eqP; rewrite xpair_eqE; apply/andP; split=>//=; apply/eqP.
+
+          - {
+              rewrite/take_tuple; move: (take_tupleP  _ _); rewrite/cat_tuple.
+
+              erewrite (@tcast_tval_eq A (m * l + l) (l + m * l) (addnC l (m * l)) (Tuple (cat_tupleP p ps)) (cat p ps)) => //=.
+              rewrite take_cat //= size_tuple ltnn subnn take0 cats0 //=.
+              move: (minn_mult _ _) => //=; rewrite minn_mult /eq_rect_r //= => Hm'.
+              move: Hm' (Logic.eq_sym _ ) => _ H1.
+              rewrite -(@Eq_rect_eq.eq_rect_eq nat l (fun y :nat => y.-tuple A -> l.-tuple A) id H1) //=.
+              case: p => //= p' H4 H5; rewrite (proof_irrelevance _ H4 H5) //=.
+            }
+          - {
+
+              rewrite /drop_tuple; move: (drop_tupleP _ _); rewrite/cat_tuple.
+              erewrite (@tcast_tval_eq A (m * l + l) (l + m * l) (addnC l (m * l)) (Tuple (cat_tupleP p ps)) (cat p ps)) => //=.
+              rewrite drop_cat //= size_tuple ltnn subnn drop0 //=.
+              move: (mult_subn _ _) => //=; rewrite mult_subn /eq_rect_r //= => Hm'.
+              move: Hm' (Logic.eq_sym _ ) => _ H1.
+              rewrite -(@Eq_rect_eq.eq_rect_eq nat (m * l) (fun y :nat => y.-tuple A -> (m*l).-tuple A) id H1) //=.
+              case: ps => //= p' H4 H5; rewrite (proof_irrelevance _ H4 H5) //=.
+            }
+
+        }
+Qed.
+
+
+  
+Lemma subseq_cons_cat (A: eqType) (ps qs: seq A) (q: A): (ps \subseteq (q::qs)) = (ps \subseteq qs ++ [:: q]).
+Proof.
+  elim: ps qs q => [|p ps IHps] qs q//=.
+  by rewrite mem_cat mem_seq1 in_cons IHps orbC.
+Qed.
+  
+Lemma subseq_consC (A: eqType) (ps qs rs: seq A) : (ps \subseteq (qs ++ rs)) = (ps \subseteq rs ++ qs).
+Proof.
+  elim: ps qs rs  => [|p ps IHps] qs rs//=.
+  by rewrite !mem_cat IHps orbC.
+Qed.
+
+Lemma subseq_consA (A: eqType) (ps qs rs ts: seq A) : (ps \subseteq ((qs ++ rs) ++ ts)) = (ps \subseteq qs ++ (rs ++ ts)).
+Proof.
+  elim: ps qs rs ts  => [|p ps IHps] qs rs ts//=.
+  by rewrite !mem_cat IHps orbA.
+Qed.
+
+
+
+Lemma bloomfilter_add_multiple_unwrap bf
+        hashes l value (values: seq B) inds others:
+       length values == l ->
+       hashes_have_free_spaces hashes (l.+1) ->
+       all (bloomfilter_value_unseen hashes) (value::values) ->
+       all (fun ind => bloomfilter_get_bit  ind bf) others ->
+  \rsum_(a in [finType of k.-tuple (HashState n) * BloomFilter])
+     ((d[ bloomfilter_add_multiple (Tuple (hash_vec_insert_length value hashes inds)) bf
+            values]) a *R*
+      (d[ let (hashes2, bf) := a in res' <-$ bloomfilter_query value hashes2 bf; ret res'.2]) true) =
+  \rsum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1])
+     ((inds \subseteq (hits ++ others)) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l * k)).
+Proof.      
+
+  elim: l values others bf  => [| l IHl] [|v vs] others bf Hlen Hfree; rewrite ?Bool.andb_true_r => Huns Hunset.
+  rewrite rsum_empty //= mulR1.
+  under big a _ rewrite Dist1.dE.
+  rewrite -rsum_pred_demote big_pred1_eq //=.
+  admit.
+
+  by [].
+  by [].
+ 
+
+  move: (@subseq_imd [finType of 'I_Hash_size.+1] l k); rewrite card_ord => -> //=.
+
+  have Hsusp b bs: (inds \subseteq (b ++ bs) ++ others) = (inds \subseteq bs ++ (others ++ b)).
+  by rewrite subseq_consA subseq_consC subseq_consA.
+
+  under big a _ rewrite DistBind.dE rsum_Rmul_distr_r //=.
+  rewrite rsum_split //=.
+  under big a _ under big b _ under big a0 _ rewrite DistBind.dE rsum_Rmul_distr_r.
+  under big a _ under big b _ under big a0 _ under big a1 _ rewrite DistBind.dE rsum_Rmul_distr_r rsum_Rmul_distr_l.
+
+  under big a _ under big b _ under big a0 _ rewrite exchange_big.
+  under big a _ under big b _  rewrite exchange_big.
+  under big a _  rewrite exchange_big.
+  rewrite exchange_big rsum_split exchange_big; apply eq_bigr => b _ //=.
+
+  under big bs _ rewrite Hsusp.
+  erewrite <-IHl;  clear IHl Hsusp.
+
+Admitted.
 
 Theorem bloomfilter_collission_rsum
         hashes l value (values: seq B):
@@ -3122,7 +3369,13 @@ Theorem bloomfilter_collission_rsum
             let (hashes2, bf) := res2 in
             res' <-$ bloomfilter_query value hashes2 bf;
             ret (res'.2)
-          ] true = \rsum_(inds in [finType of k.-tuple ('I_Hash_size.+1)]) ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k) *R* (\rsum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1]) ((( inds \subseteq hits) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ (l * k)))))).
+          ] true = \rsum_(inds in [finType of k.-tuple ('I_Hash_size.+1)]) ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k) *R*
+
+                                       (\rsum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1]) ((( inds \subseteq hits) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ (l * k)))))).
+          ] true = 
+    (\rsum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1])
+       (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k)
+       ((length undup hits) / (m))^R^ (l * k)).
 Proof.
   have H x y z: (y = (0%R)) -> x = z -> x +R+ y = z. by move => -> ->; rewrite addR0.
 
@@ -3177,7 +3430,8 @@ Proof.
   rewrite mulR1 mulRC; apply f_equal.
 
   rewrite DistBind.dE.
-  
+
+  fail.
   
    
 

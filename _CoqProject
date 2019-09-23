@@ -13,3 +13,4 @@ Probability/Comp.v
 Probability/Notationv1.v
 Properties/Parameters.v
 Properties/InvMisc.v
+Probability/bigop_tactics.v
