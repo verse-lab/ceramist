@@ -3739,44 +3739,78 @@ Proof.
   by rewrite -rsum_pred_demote big_pred1_eq.
 Qed.
 
-
-
-
-Lemma bloomfilter_add_multiple_unwrap bf
-        hashes l value (values: seq B) inds others:
+Lemma bloomfilter_add_multiple_unwrap_base 
+        hashes l (values: seq B) inds:
        length values == l ->
-       hashes_have_free_spaces hashes (l.+1) ->
+       hashes_have_free_spaces (hashes: k.-tuple (HashState n)) (l) ->
+       all (bloomfilter_value_unseen hashes) (values) ->
+  \rsum_(a in [finType of (k.-tuple (HashState n) * BloomFilter)]%type)
+   ((d[ bloomfilter_add_multiple hashes bloomfilter_new values]) a *R*
+    ((all (bloomfilter_get_bit^~ a.2) inds == true) %R)) =
+  \rsum_(hits in [finType of (k * l).-tuple 'I_Hash_size.+1])
+     ((inds \subseteq hits) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l * k)).
+Proof.
+
+  elim: inds => [//=|ind inds Hinds] Hlen Hfree Huns.
+
+  - {
+      under big a _ rewrite mulR1.
+      under big hits _ rewrite mul1R.
+      rewrite epmf1 //= bigsum_card_constE card_tuple card_ord.
+      rewrite !expRV  //= ?natRexp 1?mulnC.
+      rewrite RIneq.Rinv_r //=.
+      apply RIneq.not_0_INR=>//=; apply/eqP.
+      rewrite expn_eq0 Bool.negb_andb; apply/orP; left; apply/eqP => //=.
+      apply/eqP; apply RIneq.not_0_INR =>//=.
+    }
+  - {
+
+      move=>//=.
+
+      
+      have H (hits: (k * l).-tuple 'I_Hash_size.+1): (ind :: inds \subseteq hits) = (ind \in hits) && (inds \subseteq hits); first by [].
+
+      under big hits _ rewrite H //=.
+      under big hits _ rewrite  boolR_distr.
+      }
+Admitted.
+
+Lemma bloomfilter_add_multiple_unwrap 
+        hashes l value (values: seq B) inds:
+       length values == l ->
+       hashes_have_free_spaces (hashes: k.-tuple (HashState n)) (l.+1) ->
        all (bloomfilter_value_unseen hashes) (value::values) ->
-       (forall (ind: 'I_Hash_size.+1),
-           bloomfilter_get_bit ind bf = (ind \in others)
-       ) ->
   \rsum_(a in [finType of k.-tuple (HashState n) * BloomFilter])
-     ((d[ bloomfilter_add_multiple (Tuple (hash_vec_insert_length value hashes inds)) bf
+     ((d[ bloomfilter_add_multiple (Tuple (hash_vec_insert_length value hashes inds)) bloomfilter_new
             values]) a *R*
       (d[ let (hashes2, bf) := a in res' <-$ bloomfilter_query value hashes2 bf; ret res'.2]) true) =
-  \rsum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1])
-     ((inds \subseteq (hits ++ others)) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l * k)).
+  \rsum_(hits in [finType of (k * l).-tuple 'I_Hash_size.+1])
+     ((inds \subseteq hits) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l * k)).
 Proof.      
 
-  rewrite/bloomfilter_query //= => Hlen Hfree Hunseen Hfound.
-  rewrite (@bloomfilter_add_multiple_unwrap_internal _ _ l) => //=.
 
- 
-  elim: l values others bf Hlen Hfree Hunseen Hfound  => [| l IHl] [|v vs] others bf Hlen Hfree; rewrite ?Bool.andb_true_r => Huns Hunset.
+  rewrite/bloomfilter_query //= => Hlen Hfree Hunseen.
+  rewrite (@bloomfilter_add_multiple_unwrap_internal _ _ l) => //=.
+  rewrite //= /bloomfilter_query_internal.
+
+  erewrite bloomfilter_add_multiple_unwrap_base => //=.
+  move: hashes inds Hfree Hunseen;rewrite/hashes_have_free_spaces/bloomfilter_value_unseen/bloomfilter_add_multiple; move: k; clear k Hkgt0.
+
+
+  elim: l values  Hlen Hfree Hunseen  => [| l IHl] [|v vs] others Hlen Hfree.
   rewrite rsum_empty //= mulR1.
   under big a _ rewrite Dist1.dE.
   rewrite -rsum_pred_demote big_pred1_eq //=.
   rewrite/bloomfilter_query_internal RIneq.INR_IZR_INZ.
   rewrite eqb_id; do?apply f_equal.
-  by apply eq_in_all => ind Hind; rewrite Hunset.
-
+  by apply eq_in_all => ind Hind //=; move/Bool.negb_true_iff: (bloomfilter_new_empty_bits ind) ->=>//=.
   by [].
   by [].
- 
   move: (@subseq_imd [finType of 'I_Hash_size.+1] l k); rewrite card_ord => -> //=.
-  have Hsusp b bs: (inds \subseteq (b ++ bs) ++ others) = (inds \subseteq bs ++ (others ++ b)).
-  by rewrite subseq_consA subseq_consC subseq_consA.
-  under big a _ rewrite DistBind.dE rsum_Rmul_distr_r //=.
+
+  under big a _ rewrite DistBind.dE rsum_Rmul_distr_r rsum_split//=.
+  under big a _ under big a0 _ under big b _ rewrite mulRA mulRC DistBind.dE //=.
+
 
   apply Logic.eq_sym.
   under big b _ under big bs _ rewrite Hsusp.
