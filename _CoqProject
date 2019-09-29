@@ -12,5 +12,6 @@ Structures/Hash.v
 Probability/Comp.v
 Probability/Notationv1.v
 Properties/Parameters.v
+Properties/Collision.v
 Properties/InvMisc.v
 Probability/bigop_tactics.v
