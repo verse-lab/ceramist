@@ -79,3 +79,4 @@ cv/*.out
 .coq-native
 Makefile.coq
 *.aux
+.coqdeps.d
