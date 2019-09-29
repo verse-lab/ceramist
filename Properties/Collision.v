@@ -4158,7 +4158,10 @@ Proof.
   by rewrite  subseq_conv.
 Qed.
 
+End BloomFilter.
+
 (* Local Variables: *)
 (* company-coq-local-symbols: (("\\subseteq" . ?⊆)) *)
 (* End: *)
+
 
