@@ -2,11 +2,49 @@ From mathcomp.ssreflect
 Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun bigop seq path finfun tuple.
 
 
+Lemma ltn_Snn a b : a.+1 < b.+1 -> a < b.
+Proof.
+  by rewrite -{1}(addn1 a) -{1}(addn1 b) ltn_add2r.
+Qed.
+
+Lemma rem_in_neq (A: eqType) (q p: A) (inds: seq A) (Hneq:   q != p):
+
+  (q \in rem p inds) = (q \in inds).
+Proof.
+  elim: inds => //= ind inds IHind.
+  move: Hneq.
+  case Heqind: (ind == p).
+  - by move/eqP: Heqind ->;   rewrite in_cons eq_sym =>/Bool.negb_true_iff -> //=.
+  - by rewrite !in_cons IHind.
+Qed.
+
+
+
+
+
+Lemma all_in_negP (A: eqType) (I J : seq A) :
+  all (fun j => j \notin I) J = all (fun i => i \notin J) I.
+Proof.
+  apply/allP.
+
+  case Hall: all.
+
+  - by move/allP: Hall => Hnin; move=> j Hj; apply/memPn => i Hi; move: (Hnin i Hi) =>/memPn/(_ j Hj); rewrite eq_sym.
+  - by move/Bool.negb_true_iff: Hall => /allPn [i Hi];
+                                         rewrite Bool.negb_involutive => Hiinj;
+                                                                          apply/allP;apply/allPn; exists i => //=; rewrite Bool.negb_involutive.
+Qed.
+
+Lemma minn_mult m l: (minn m (l * m + m) = m). Proof. by rewrite minnE //= addnC subnDA subnn subn0. Qed.
+
+Lemma mult_subn m l: ((m * l) + l - l) = (m * l). Proof. by rewrite -addnBA //= subnn addn0. Qed.
 
 
 (* utility function for ranges of values form (inclusive) a to b (exclusive) *)
 Definition itoj (m n : nat) : seq.seq nat :=
   iota m (n - m).
+
+
 
 (* Couldn't find a remove_nth function in stdlib or ssreflect*)
 Fixpoint rem_nth {A:Type} (n : nat) (ls : list A) : list A := 
@@ -683,4 +721,5 @@ Proof.
     by move/eqP: Hr2eq0 => ->; rewrite (Rmult_0_r r1) .
   by move/eqP: Hr1eq0 => Hr1neq; move/eqP: Hr2eq0 => Hr2neq.
 Qed.
+
 

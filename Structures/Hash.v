@@ -6,7 +6,7 @@ From mathcomp.ssreflect
 Require Import tuple.
 
 From BloomFilter
-Require Import Parameters Comp Notationv1 FixedMap.
+Require Import Parameters Comp Notationv1 FixedMap FixedList seq_ext.
 
 
 (*
@@ -29,6 +29,24 @@ Definition HashState n := fixmap hash_keytype hash_valuetype n.
 Definition hashstate_find n k (m: HashState n) := fixmap_find k m.
 
 Definition hashstate_put n k v (m: HashState n) := fixmap_put k v m.
+
+Lemma hash_find_insert_involutive n' value x y : 
+  FixedList.fixlist_length y + 1 <= n' ->
+  hashstate_find n' value (hashstate_put n' value x y) = Some x.
+Proof.
+  rewrite /hashstate_find/hashstate_put//=.
+  rewrite addnS addn0.
+  elim: n' value x  y => [//=|n' IHn'] value x y .
+  rewrite (tuple_eta y) //=.
+  rewrite/FixedList.ntuple_head/FixedList.ntuple_tail -/behead_tuple  !theadE ?beheadE ?behead_tupleE //=.
+
+  case: (thead y) => [[k' v']|]//=; first case Hkeq: (k' == value) => //=; rewrite ?eq_refl//=.
+
+  rewrite !ntuple_cons_eq //=.
+  rewrite !behead_tupleE Hkeq //= => Hlen.
+  apply IHn' => //=.
+Qed.
+
 
 
 Canonical hashstate_of_eqType n := Eval hnf in [eqType of (HashState n)].
