@@ -21,7 +21,7 @@ From BloomFilter
      Require Import Parameters  InvMisc bigop_tactics  seq_ext seq_subset Comp Notationv1.
 
 
-Ltac dispatch_Rgt :=  do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply dist_ge0=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size).
+Ltac dispatch_Rgt :=  do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply fdist_ge0_le1=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size).
 
 Open Scope R_scope.
 
@@ -54,10 +54,10 @@ Qed.
 
 
 Lemma distbind_dist (A B C: finType) (a : dist A) (c : A -> B) (g: B -> dist C)  :
-  DistBind.d a (fun x => DistBind.d (@Dist1.d _ (c x)) g) = DistBind.d a (fun x =>  g (c x) ).
+  FDistBind.d a (fun x => FDistBind.d (@FDist1.d _ (c x)) g) = FDistBind.d a (fun x =>  g (c x) ).
 Proof.
-  rewrite (functional_extensionality (fun x : A => DistBind.d (Dist1.d (c x)) g) (fun x : A => g (c x))) => //= x.
-    by rewrite DistBind1f.
+  rewrite (functional_extensionality (fun x : A => FDistBind.d (FDist1.d (c x)) g) (fun x : A => g (c x))) => //= x.
+    by rewrite FDistBind1f.
 Qed.
 
 
@@ -85,12 +85,15 @@ Proof.
   rewrite {1}Finite.EnumDef.enumDef/prod_enum //=.
   rewrite !enumT.
   elim: (Finite.enum A); elim: (Finite.enum B); try by rewrite unlock => //=.
-  rewrite unlock => //=; move=> _ xs //=.
-  have: (flatten [seq [::] | _ <- xs] = [::]).
-    by move=> T; elim: xs => //=.
-      by move=> -> //=; rewrite add0R.
+  - {
+      rewrite unlock => //=; move=> _ xs //=.
+      have ->: (flatten [seq [::] | _ <- xs] = [::]); first by move=> T; elim: xs.
+        by rewrite add0R.      
+    }
+  - {
       move=> x xs IHx x' xs' IHx'.
-        by rewrite big_allpairs !big_cons.
+        by rewrite big_allpairs !big_cons.      
+    }
 Qed.
 
 Lemma rsum_pred_demote (A : finType) (b : pred A) (f: A -> Rdefinitions.R):
@@ -99,11 +102,12 @@ Proof.
 
   apply Logic.eq_sym; rewrite (bigID (fun a => b a)) //=.   
 
-  have: (\sum_(i | ~~ b i) ((b i %R) *R* f i)) = (Rdefinitions.IZR 0); last move=>->;rewrite ?addR0.
-  have: (\sum_(i | ~~ b i) (Rdefinitions.IZR 0)) = Rdefinitions.IZR 0; last move=><-.
-    by rewrite bigsum_card_constE mulR0.
-      by apply eq_bigr=> i /Bool.negb_true_iff ->; rewrite //= mul0R.
-        by apply eq_bigr=> i ->; rewrite //= mul1R.
+  have->: (\sum_(i | ~~ b i) ((b i %R) *R* f i)) = (Rdefinitions.IZR 0); rewrite ?addR0.
+  - {
+      have<-: (\sum_(i | ~~ b i) (Rdefinitions.IZR 0)) = Rdefinitions.IZR 0; first by rewrite bigsum_card_constE mulR0.    
+        by apply eq_bigr=> i /Bool.negb_true_iff ->; rewrite //= mul0R.
+    }
+      by apply eq_bigr=> i ->; rewrite //= mul1R.
 Qed.
 
 
@@ -112,28 +116,30 @@ Lemma rsum_tuple_split (A: finType) m (f: (m.+1).-tuple A -> Rdefinitions.R) :
   \sum_(a in [finType of (m.+1).-tuple A]) (f a) =
   \sum_(aas in [finType of (A * m.-tuple A)]) (let: (x, xs) := aas in f (cons_tuple x xs)).
 Proof.
-  rewrite (reindex (fun (aas: (A * m.-tuple A)) => let: (x,xs) := aas in cons_tuple x xs)) => //=.
-    by apply eq_bigr => [[x xs] _].
-    split with (fun xs => (thead xs, tbehead xs)).
-  - move=> [x xs] _ //=.
-    rewrite theadE.
-    apply f_equal.
-    (* Now just to deal with the annoying dependant type errors *)
-    rewrite /tbehead/cons_tuple //=.
-    rewrite /[tuple of _] //=.
-    move: (behead_tupleP _) => //=; move: xs => [xs Hxs] Hxs'.
-      by rewrite (proof_irrelevance _ Hxs' Hxs).
-
-  - move=> [[//=| x xs] Hxs] _ //=.
-      by erewrite (tuple_eta) => //=.
+  rewrite (reindex (fun (aas: (A * m.-tuple A)) => let: (x,xs) := aas in cons_tuple x xs)) //=.
+  - by apply eq_bigr => [[x xs] _].
+  - {
+      split with (fun xs => (thead xs, tbehead xs)).      
+      - {
+          move=> [x xs] _ //=.
+          rewrite theadE.
+          apply f_equal.
+          (* Now just to deal with the annoying dependant type errors *)
+          rewrite /tbehead/cons_tuple //=.
+          rewrite /[tuple of _] //=.
+          move: (behead_tupleP _) => //=; move: xs => [xs Hxs] Hxs'.
+            by rewrite (proof_irrelevance _ Hxs' Hxs).
+        }
+      - by move=> [[//=| x xs] Hxs] _; erewrite (tuple_eta) => //=.
+    }
 Qed.
 
 
 Lemma rsum_distbind_d0 (A B:finType) (d_a: dist A) (g: B -> Rdefinitions.R) (f: A -> dist B):
-  \sum_(b in B) ((DistBind.d d_a f) b  *R* (g) b ) = 
+  \sum_(b in B) ((FDistBind.d d_a f) b  *R* (g) b ) = 
   \sum_(b in B) \sum_(a in A) (d_a a *R*  ((f a) b *R* (g) b) ).
 Proof.
-  apply eq_bigr=> b _; rewrite DistBind.dE.
+  apply eq_bigr=> b _; rewrite FDistBind.dE.
   rewrite rsum_Rmul_distr_r; apply eq_bigr=> a _.
     by rewrite mulRC -mulRA.
 Qed.
@@ -141,21 +147,21 @@ Qed.
 Lemma rsum_distbind_d1 (A B C:finType) (d_c: dist C)
       (g: A -> B -> Rdefinitions.R) (f: A -> Rdefinitions.R)
       (df: C -> dist A) :
-  \sum_(b in B) \sum_(a in A) ((DistBind.d d_c df) a *R*  (g a b) ) = 
+  \sum_(b in B) \sum_(a in A) ((FDistBind.d d_c df) a *R*  (g a b) ) = 
   \sum_(b in B) \sum_(a in A) \sum_(c in C)
    ((d_c c) *R* (((df c) a) *R*  (g a b))).
 Proof.
-  apply eq_bigr=> b _;apply eq_bigr=> a _; rewrite DistBind.dE.
+  apply eq_bigr=> b _;apply eq_bigr=> a _; rewrite FDistBind.dE.
   rewrite rsum_Rmul_distr_r; apply eq_bigr=> c _.
     by rewrite mulRC -mulRA.
 Qed.
 
 
 Lemma rsum_dist1_d0 (A B:finType) (a : A) (g: B -> Rdefinitions.R) (f: B -> A):
-  \sum_(b in B) ((Dist1.d a) (f b) *R* (g) b ) = 
+  \sum_(b in B) ((FDist1.d a) (f b) *R* (g) b ) = 
   \sum_(b in B) ((f b == a %R) *R* (g) b ).  
 Proof.
-    by apply eq_bigr=> b _; rewrite Dist1.dE.
+    by apply eq_bigr=> b _; rewrite FDist1.dE.
 Qed.
 
 
@@ -252,7 +258,11 @@ Proof.
 Qed.
 
 
-Lemma rsum_mem_pred (A: finType) k x : #|A| > 0 -> \sum_(xs in [finType of k.-tuple A] | x \in xs) ((Rdefinitions.Rinv (#|A| %R) ^R^ k)) = (1 -R- ((1 -R- (Rdefinitions.Rinv (#|A| %R)))  ^R^ k)).
+Lemma rsum_mem_pred (A: finType) k x :
+  #|A| > 0 ->
+       \sum_(xs in [finType of k.-tuple A] | x \in xs)
+        ((Rdefinitions.Rinv (#|A| %R) ^R^ k)) =
+       (1 -R- ((1 -R- (Rdefinitions.Rinv (#|A| %R)))  ^R^ k)).
 Proof.
   rewrite rsum_pred_demote => Hord; elim: k x => [//=|k IHk] x;
                                                  first by rewrite rsum_empty //= mul0R subRR.
@@ -261,52 +271,43 @@ Proof.
 
   rewrite (bigID (fun a => a == x)) big_pred1_eq//=.
 
-  have: (
-          \sum_(b in [finType of k.-tuple A])
-           (((x \in cons_tuple x b) %R) *R*
-            (Rdefinitions.Rinv (#|A| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ k)))) = (
-          Rdefinitions.Rinv (#|A| %R) *R*
-          \sum_(b in [finType of k.-tuple A])
-           (( (Rdefinitions.Rinv (#|A| %R) ^R^ k)))
-        ); last move=>->.
-  rewrite rsum_Rmul_distr_l; apply eq_bigr=> inds _ //=.
-    by rewrite in_cons eq_refl Bool.orb_true_l //= mul1R.
-    rewrite bigsum_card_constE.
+  (under big b _ rewrite  mulRC -mulRA in_cons eq_refl); rewrite -rsum_Rmul_distr_l //=.
 
-    have: (((#|[finType of k.-tuple A]| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ k))) = (1 %R); last move=>->.
-    rewrite card_tuple; rewrite -Rfunctions.Rinv_pow.
-    rewrite natRexp;  rewrite mulRC mulVR //=; rewrite -natRexp; apply expR_neq0.
-      by apply/eqP; apply RIneq.not_0_INR; apply/eqP; apply lt0n_neq0.
-        by apply RIneq.not_0_INR; apply/eqP; apply lt0n_neq0.
-        rewrite mulR1.
+  under big b _ rewrite mulR1.
+  rewrite bigsum_card_constE.
 
-        have: (
-                \sum_(i | i != x)
-                 \sum_(b in [finType of k.-tuple A])
-                 (((x \in cons_tuple i b) %R) *R*
-                  (Rdefinitions.Rinv (#|A| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ k)))) = (
-                \sum_(i | i != x)
-                 (Rdefinitions.Rinv (#|A| %R) *R* \sum_(b in [finType of k.-tuple A])
-                                                   (((x \in b) %R) *R*
-                                                    ( (Rdefinitions.Rinv (#|A| %R) ^R^ k))) 
-              )); last move=>->; first by
-            apply eq_bigr=> ind /Bool.negb_true_iff Hneq;
-                              rewrite rsum_Rmul_distr_l; apply eq_bigr=> inds _; rewrite in_cons eq_sym Hneq;
-                                                                           rewrite Bool.orb_false_l mulRA mulRC mulRA mulRC; apply f_equal; rewrite mulRC.
+  have->: (((#|[finType of k.-tuple A]| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ k))) = (1 %R).
+  - {
+      rewrite card_tuple; rewrite -Rfunctions.Rinv_pow.
+      rewrite natRexp;  rewrite mulRC mulVR //=; rewrite -natRexp; apply expR_neq0.
+        by apply/eqP; apply RIneq.not_0_INR; apply/eqP; apply lt0n_neq0.
+          by apply RIneq.not_0_INR; apply/eqP; apply lt0n_neq0.      
+    }
 
-        rewrite rsum_sans_one_const //= IHk //=.
-        rewrite natRB. rewrite -addR_opp RIneq.Rmult_plus_distr_r mulRA.
-        rewrite mulRV //= ?mul1R.
-        rewrite addRA addRC addRA addRC; apply Logic.eq_sym.
+    rewrite mulR1 //=.
 
-        have: ((1 -R- ((1 -R- Rdefinitions.Rinv (#|A| %R)) *R* ((1 -R- Rdefinitions.Rinv (#|A| %R)) ^R^ k)))) =
-              ((1 -R- ((1 -R- Rdefinitions.Rinv (#|A| %R)) ^R^ k)) +R+  (Rdefinitions.Rinv (#|A| %R) *R* ((1 -R- Rdefinitions.Rinv (#|A| %R)) ^R^ k) )); last move=>->; try apply f_equal.
-        rewrite -[_ -R- (Rdefinitions.Rinv _)]addR_opp RIneq.Rmult_plus_distr_r mul1R.
-          by rewrite mulNR !addR_opp subRB.
-          rewrite addRC mulNR addR_opp mul1R.
-            by rewrite RIneq.Rmult_minus_distr_l subRB mulR1 subRR add0R.
-              by apply/eqP; apply RIneq.not_0_INR;apply/eqP; rewrite -lt0n.
-                by [].
+    under big i Hi under big b _ (move/Bool.negb_true_iff: Hi => Hi; rewrite in_cons eq_sym Hi mulRC -mulRA//=).
+
+    under big i _ rewrite -rsum_Rmul_distr_l; under big b _ rewrite mulRC.
+    rewrite rsum_sans_one_const //= IHk //=.
+    rewrite natRB.
+    rewrite -addR_opp RIneq.Rmult_plus_distr_r mulRA.
+    rewrite mulRV //= ?mul1R.
+    rewrite addRA addRC addRA addRC; apply Logic.eq_sym.
+    have->: ((1 -R- (
+                (1 -R- Rdefinitions.Rinv (#|A| %R)) *R*
+                ((1 -R- Rdefinitions.Rinv (#|A| %R)) ^R^ k)))) =
+    ((1 -R- ((1 -R- Rdefinitions.Rinv (#|A| %R)) ^R^ k)) +R+
+     (Rdefinitions.Rinv (#|A| %R) *R* ((1 -R- Rdefinitions.Rinv (#|A| %R)) ^R^ k) )).
+  - {
+      rewrite -[_ -R- (Rdefinitions.Rinv _)]addR_opp RIneq.Rmult_plus_distr_r mul1R.
+        by rewrite mulNR !addR_opp subRB.
+    }
+    apply f_equal.
+    rewrite addRC mulNR addR_opp mul1R.
+      by rewrite RIneq.Rmult_minus_distr_l subRB mulR1 subRR add0R.
+        by apply/eqP; apply RIneq.not_0_INR;apply/eqP; rewrite -lt0n.    
+          by [].
 Qed.
 
 
@@ -327,13 +328,13 @@ Proof.
     have: (\sum_(i in finset.SetDef.pred_of_set (finset.setTfor (Phant A)) | finset.SetDef.pred_of_set
                                                                                (finset.SetDef.finset f) i) (pr i) = \sum_(i | f i) (pr i)).
       by apply eq_big => //= a //=; rewrite !finset.in_set Bool.andb_true_l;
-                           apply Logic.eq_sym;  rewrite -finset.in_set //=.
+                          apply Logic.eq_sym;  rewrite -finset.in_set //=.
       move=>->.
 
       have: (\sum_(j in finset.SetDef.pred_of_set (finset.setTfor (Phant A)) | finset.SetDef.pred_of_set
                                                                                  (finset.SetDef.finset g) j) (pr j) = \sum_(j | g j) (pr j)).
         by apply eq_big => //= a //=; rewrite !finset.in_set Bool.andb_true_l;
-                             apply Logic.eq_sym;  rewrite -finset.in_set //=.
+                            apply Logic.eq_sym;  rewrite -finset.in_set //=.
         move=>-> Heq.
         have H x y z: (y = (0%R)) -> x = z -> x +R+ y = z. by move => -> ->; rewrite addR0.
         transitivity (\sum_(a | f a && g a) (pr a)).
@@ -369,45 +370,45 @@ Qed.
 
 
 
-  Lemma rsum_bijective_eqC {A: finType} (c: Rdefinitions.R) (P Q : pred A) (p:  A -> A) :
-    bijective p ->
-    (forall a, P (p a) = Q a) ->
-    \sum_(a in A | P a) c = \sum_(a in A | Q a) c.
-  Proof.
-    move=> Hbij Himpl.
-    rewrite (@reindex _ _ _ _ _ p) //=.
-      by transitivity ( \sum_(j | Q j) c); first by apply eq_bigl => a'; rewrite Himpl.
-        by apply onW_bij.
-  Qed.
+Lemma rsum_bijective_eqC {A: finType} (c: Rdefinitions.R) (P Q : pred A) (p:  A -> A) :
+  bijective p ->
+  (forall a, P (p a) = Q a) ->
+  \sum_(a in A | P a) c = \sum_(a in A | Q a) c.
+Proof.
+  move=> Hbij Himpl.
+  rewrite (@reindex _ _ _ _ _ p) //=.
+    by transitivity ( \sum_(j | Q j) c); first by apply eq_bigl => a'; rewrite Himpl.
+      by apply onW_bij.
+Qed.
 
 
 
-  Lemma pr_in_vec (A : finType) (ps : seq A) :
-    #|A| > 0 ->
-         uniq ps ->
-         \sum_(ind in A) (Rdefinitions.Rinv (#|A| %R) *R* ((ind \notin ps) %R))
-         = (1 -R- (Rdefinitions.Rinv (#|A| %R) *R* (length ps %R))).
-    have: (\sum_(ind in A) (Rdefinitions.Rinv (#|A| %R) *R* ((ind \notin ps) %R))) = ( \sum_(ind in A) (((ind \notin ps) %R)  *R* Rdefinitions.Rinv (#|A| %R) )
-                                                                                     ); last move=> ->; first by apply eq_bigr=> ind _; rewrite mulRC.
-    rewrite -rsum_pred_demote.
-    rewrite bigsum_card_constE.
+Lemma pr_in_vec (A : finType) (ps : seq A) :
+  #|A| > 0 ->
+       uniq ps ->
+       \sum_(ind in A) (Rdefinitions.Rinv (#|A| %R) *R* ((ind \notin ps) %R))
+       = (1 -R- (Rdefinitions.Rinv (#|A| %R) *R* (length ps %R))).
+  have: (\sum_(ind in A) (Rdefinitions.Rinv (#|A| %R) *R* ((ind \notin ps) %R))) = ( \sum_(ind in A) (((ind \notin ps) %R)  *R* Rdefinitions.Rinv (#|A| %R) )
+                                                                                   ); last move=> ->; first by apply eq_bigr=> ind _; rewrite mulRC.
+  rewrite -rsum_pred_demote.
+  rewrite bigsum_card_constE.
 
-    move=> HA; rewrite -(mulVR (#|A| %R)); last by apply /eqP; apply RIneq.not_0_INR =>//=; apply/eqP; apply/lt0n_neq0.
-    rewrite -RIneq.Rmult_minus_distr_l mulRC=>Huniq;apply f_equal.
+  move=> HA; rewrite -(mulVR (#|A| %R)); last by apply /eqP; apply RIneq.not_0_INR =>//=; apply/eqP; apply/lt0n_neq0.
+  rewrite -RIneq.Rmult_minus_distr_l mulRC=>Huniq;apply f_equal.
 
-    rewrite -(cardC (fun i => i \in ps)) //=.
-    rewrite/predC //=.
+  rewrite -(cardC (fun i => i \in ps)) //=.
+  rewrite/predC //=.
 
 
-    have: (@card A
-                 (@mem (Finite.sort A) (predPredType (Finite.sort A))
-                       (fun i : Finite.sort A =>
-                          @in_mem (Finite.sort A) i (@mem (Finite.sort A) (seq_predType (Finite.eqType A)) ps)))) = (#|{: seq_sub ps}|); last move=> ->; first by rewrite card_seq_sub //=; apply /card_uniqP.
-    rewrite card_seq_sub //= length_sizeP.
-    rewrite natRD.
-      by rewrite addRC -subRBA subRR subR0.
+  have: (@card A
+               (@mem (Finite.sort A) (predPredType (Finite.sort A))
+                     (fun i : Finite.sort A =>
+                        @in_mem (Finite.sort A) i (@mem (Finite.sort A) (seq_predType (Finite.eqType A)) ps)))) = (#|{: seq_sub ps}|); last move=> ->; first by rewrite card_seq_sub //=; apply /card_uniqP.
+  rewrite card_seq_sub //= length_sizeP.
+  rewrite natRD.
+    by rewrite addRC -subRBA subRR subR0.
 
-  Qed.
+Qed.
 
 
 Lemma prsumr_dep_ineq (A: finType) (f g : A -> Rdefinitions.R) :
@@ -462,9 +463,10 @@ Lemma prsumr_neg1 (A:finType) (pr : Comp A) (f: A -> bool) :
   (1  -R- (d[ res <-$ pr; ret ~~ (f res) ]) true) =
   (d[ res <-$ pr; ret  (f res) ]) true.
 Proof.
-  rewrite //= -(epmf1 ((d[ pr]) ) ) !DistBind.dE.
+  move: (fdist_is_fdist (d[ pr])) => [_ <-].
+  rewrite //= !FDistBind.dE.
   apply subR_eq;  rewrite -addRA_rsum; apply eq_bigr => a _.
-  rewrite mulRC [((d[ pr]) a *R* _)]mulRC -RIneq.Rmult_plus_distr_r !Dist1.dE.
+  rewrite mulRC [((d[ pr]) a *R* _)]mulRC -RIneq.Rmult_plus_distr_r !FDist1.dE.
   rewrite -{1}(mulR1 (_ a)); apply Logic.eq_sym; rewrite mulRC; apply f_equal.
     by case: (f a) => //=; rewrite ?addR0 ?add0R.
 Qed.
@@ -485,28 +487,37 @@ Proof.
   have HforallgtP : (forall x, 0 -<=- f x) -> (forall x, (fun _ => true) x -> 0 -<=- f x). by [].
   move=> Hgt0.
   split.
-  - move=>/eqP/negP Rsumr0.
-    case Heq0: (~~ [exists a, (gtRb (f a) (0 %R))]).
-    move/negP/negP:Heq0 => Heq0.
-    rewrite negb_exists in Heq0.
-    have Hforalleq: (forall x, ~~ (geRb (f x)  (0 %R))) -> (forall x, ~ (geRb (f x) 0)).
-      by move=> Hb x; move/negP: (Hb x) => Hbool //=.
-      move/forallP: Heq0 => Heq0.
-      have: (forall x:A, ~ (f x) ->- 0).
-        by move=> x; apply/gtRP.
-        move/(prsum_nge0p Hgt0) => H.
+  - {
+      move=>/eqP/negP Rsumr0. 
+      case Heq0: (~~ [exists a, (gtRb (f a) (0 %R))]).
 
-        have: False.  
-        apply Rsumr0; apply/eqP.
-        transitivity (\sum_(a in A) (0 %R)).
-          by apply eq_bigr=> a _; rewrite H.
-            by rewrite (bigsum_card_constE A) mulR0.
-              by [].
-                by move/negP/negP/existsP: Heq0 => [x Hx]; split with x;  move/gtRP: Hx.
-                move=>[a  Ha].
-                move=>/prsumr_eq0P H.
-                have: (forall a: A, a \in A -> 0 -<=- f a); first by move=> a' _; apply Hgt0.
-                  by move=>/H H'; move: Ha; rewrite H' //= => /RIneq.Rgt_irrefl.
+      - {
+          move/negP/negP:Heq0 => Heq0.
+          rewrite negb_exists in Heq0.
+          have Hforalleq: (forall x, ~~ (geRb (f x)  (0 %R))) -> (forall x, ~ (geRb (f x) 0)).
+           {
+               - by move=> Hb x; move/negP: (Hb x) => Hbool //=.
+           }
+           move/forallP: Heq0 => Heq0.
+           have: (forall x:A, ~ (f x) ->- 0).
+           { by move=> x; apply/gtRP. }
+           move/(prsum_nge0p Hgt0) => H.
+           have: False => //=.
+          - {
+           apply Rsumr0; apply/eqP.
+           transitivity (\sum_(a in A) (0 %R)).
+                by apply eq_bigr=> a _; rewrite H.
+                  by rewrite (bigsum_card_constE A) mulR0.              
+             }
+        }
+      - by move/negP/negP/existsP: Heq0 => [x Hx]; split with x;  move/gtRP: Hx.          
+    }
+  - {
+      move=>[a  Ha].
+      move=>/prsumr_eq0P H.
+      have: (forall a: A, a \in A -> 0 -<=- f a); first by move=> a' _; apply Hgt0.
+        by move=>/H H'; move: Ha; rewrite H' //= => /RIneq.Rgt_irrefl.
+    }
 Qed.
 
 
@@ -542,14 +553,13 @@ Qed.
 
 
 
-Lemma rsum_subseq_internal (m : nat) (I J: seq 'I_m) : m > 0 ->
-                                                     uniq I -> 
-                                                     all (fun j => j \notin I) J ->
-                                                     \sum_(i in 'I_m | i \notin J) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R)) =
-                                                     (((length I %R) *R* Rdefinitions.Rinv (m %R))).
+Lemma rsum_subseq_internal (m : nat) (I J: seq 'I_m) :
+  m > 0 -> uniq I -> all (fun j => j \notin I) J ->
+  \sum_(i in 'I_m | i \notin J) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R)) =
+  (((length I %R) *R* Rdefinitions.Rinv (m %R))).
 Proof.
   move=> Hm; elim: I J => [|i I IHI] J Huniq Hall; first
-                          by rewrite //= ?mul0R bigsum_card_constE ?mulR0.
+                            by rewrite //= ?mul0R bigsum_card_constE ?mulR0.
   under big i0 _ rewrite in_cons.
   rewrite rsum_pred_demote (bigID (fun i0 => i0 == i)) big_pred1_eq //= eq_refl //= mul1R.
   move: (Hall); rewrite all_in_negP => //=/andP[-> Hall'] //=; rewrite mul1R.
@@ -558,8 +568,10 @@ Proof.
   transitivity (\sum_(i0 < m | i0 \notin (i :: J)) ((((i0 \in I) %R) *R* Rdefinitions.Rinv (m %R)))).
   - {
       rewrite rsum_pred_demote [ \sum_(i0 < _ | _) _]rsum_pred_demote; apply eq_bigr => i0 _ //=.
-        by rewrite in_cons Bool.negb_orb; case: (_ == _); case: (_ \in _) => //=;
-                                                                              rewrite ?mulR0 ?mul0R ?mul1R ?mulR1//=.      
+        by rewrite in_cons Bool.negb_orb;
+          case: (_ == _);
+          case: (_ \in _);
+          rewrite ?mulR0 ?mul0R ?mul1R ?mulR1//=.      
     }
     apply IHI => //=.
   - by move: Huniq => //=/andP[].
@@ -572,10 +584,10 @@ Qed.
 
 
 
-Lemma rsum_subseq (m : nat) (I : seq 'I_m) : m > 0 ->
-                                           uniq I -> 
-                                           \sum_(i in 'I_m) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R)) =
-                                           (((length I %R) *R* Rdefinitions.Rinv (m %R))).
+Lemma rsum_subseq (m : nat) (I : seq 'I_m) :
+  m > 0 -> uniq I -> 
+  \sum_(i in 'I_m) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R)) =
+  (((length I %R) *R* Rdefinitions.Rinv (m %R))).
 Proof.
   move=> Hm Huniq.
   transitivity ( \sum_(i in 'I_m | i \notin [::]) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R))); first
@@ -654,16 +666,18 @@ Qed.
 
 
 Lemma subseq_imd (A: finType) (m l: nat) (f: (m.+1 * l).-tuple A -> Rdefinitions.R):
-  \sum_(bs in [finType of (m.+1 * l).-tuple A]) (f bs *R* (Rdefinitions.Rinv (#|A| %R) ^R^ (m.+1 * l))) = 
+  \sum_(bs in [finType of (m.+1 * l).-tuple A])
+   (f bs *R* (Rdefinitions.Rinv (#|A| %R) ^R^ (m.+1 * l))) = 
   \sum_(b in [finType of l.-tuple A])
-   ( (Rdefinitions.Rinv (#|A| %R) ^R^ l)      *R*
-     \sum_(bs in [finType of (m * l).-tuple A]) (f (cat_tuple b bs) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ (m * l)))
+   ((Rdefinitions.Rinv (#|A| %R) ^R^ l) *R*
+    \sum_(bs in [finType of (m * l).-tuple A])
+      (f (cat_tuple b bs) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ (m * l)))
    ).
 Proof.
   under big b _ rewrite rsum_Rmul_distr_l.
   apply Logic.eq_sym.
-  have Hoqv Q p q (vec : seq Q): (size vec == p.+1 * q) = (size vec == q + p * q); first by rewrite mulSnr addnC.
-
+  have Hoqv Q p q (vec : seq Q): (size vec == p.+1 * q) = (size vec == q + p * q);
+    first by rewrite mulSnr addnC.
   have H: (m * l + l) = (m.+1 * l); first by rewrite mulSnr.
   transitivity (\sum_(x in [finType of (l.-tuple A * (m * l).-tuple A)%type])
                  (let (b,a) := x in ((Rdefinitions.Rinv (#|A| %R) ^R^ l) *R*
@@ -706,9 +720,6 @@ Proof.
     rewrite -(Hoqv A m l a) => H1 H2.
       by rewrite (proof_irrelevance _ H1 H2).
         by move=>//=.
-
-
-
         exists ((fun x : [finType of l.-tuple A * (m * l).-tuple A] => let (b, a) := x in tcast (addnC l (m*l)) (cat_tuple b a))).
 
 
@@ -721,14 +732,12 @@ Proof.
       move: (minn_mult _ _) (mult_subn _ _) => //=.
       rewrite minn_mult mult_subn //= => H1 H2.
       rewrite /eq_rect_r.
-
       move: (Logic.eq_sym H1) => //=;clear H1=> H1.
       move: (Logic.eq_sym H2) => //=;clear H2=> H2.
       rewrite -(@Eq_rect_eq.eq_rect_eq nat l (fun y :nat => y.-tuple A -> l.-tuple A) id H1) //=.
       rewrite -(@Eq_rect_eq.eq_rect_eq nat (m * l) (fun y :nat => y.-tuple A -> (m * l).-tuple A) id H2) //=.
         by rewrite cat_take_drop.
     }
-
 
   - {
 

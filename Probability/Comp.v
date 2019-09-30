@@ -10,6 +10,8 @@ Require Import Nsatz.
 Require Import Bvector.
 Set Implicit Arguments.
 
+Definition dist A := fdist A.
+
 (* Computation definition - from FCF*)
 Section Comp.
 
@@ -65,8 +67,8 @@ Section Comp.
 
     Fixpoint evalDist(A : finType) (c : Comp A) : dist A :=
         match c with
-            | Ret _ a => Dist1.d a  (* Dist1 is a distribution of 1 or 0 if eq a*)
-            | Bind _ _ c f => DistBind.d (evalDist c) (fun b => evalDist (f b))
+            | Ret _ a => FDist1.d a  (* Dist1 is a distribution of 1 or 0 if eq a*)
+            | Bind _ _ c f => FDistBind.d (evalDist c) (fun b => evalDist (f b))
             | Rnd _ n n_valid => Uniform.d n_valid
             end.
 
