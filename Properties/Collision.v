@@ -93,7 +93,7 @@ Proof.
 Qed.
 
 
-
+Open Scope R_scope.
 Notation "a '/R/' b " := (Rdefinitions.Rdiv a b) (at level 70).
 Notation "a '+R+' b " := (Rdefinitions.Rplus a b) (at level 70).
 Notation "a '*R*' b " := (Rdefinitions.Rmult a b) (at level 70).
@@ -120,18 +120,19 @@ Coercion Rdefinitions.IZR : BinNums.Z >-> Rdefinitions.R.
 
 Definition stirling_no_2 (kn i: nat):=
   Rdefinitions.Rinv (Factorial.fact i) *R* (
-    \rsum_(j in 'I_i) (((Rdefinitions.Ropp 1) ^R^ j) *R*
+    \sum_(j in 'I_i) (((Rdefinitions.Ropp 1) ^R^ j) *R*
                        ('C (i, j) %R) *R*
                        ((j %R) ^R^ kn)
                       )
   ).
 
 
+
 Axiom second_stirling_number_sum: forall l k m (f: nat -> Rdefinitions.R),
-    \rsum_(inds in [finType of (l * k).-tuple 'I_m.+1])
+    (\sum_(inds in [finType of (l * k).-tuple 'I_m.+1])
      ((Rdefinitions.Rinv (m.+1 %R) ^R^ l * k) *R*
-      (f (length (undup inds)))) =
-    \rsum_(len in 'I_(l * k))
+      (f (length (undup inds)))) ) =
+    \sum_(len in [finType of 'I_(l * k)])
      (f(len) *R*
       ( ('C ((l * k), len) %R) *R*
         (Factorial.fact len %R) *R* (stirling_no_2 (l * k) len) *R*
@@ -196,7 +197,7 @@ Proof.
   by move=>/RIneq.Rle_antisym H /H.
 Qed.
 
-Lemma prsumr_ge0 (A : finType) (f: A -> Rdefinitions.R) : (forall a : A, (0 -<=- f a)) -> \rsum_(a in A) f a <> (0 %R) <-> (exists a,  f a ->- (0 %R)).
+Lemma prsumr_ge0 (A : finType) (f: A -> Rdefinitions.R) : (forall a : A, (0 -<=- f a)) -> \sum_(a in A) f a <> (0 %R) <-> (exists a,  f a ->- (0 %R)).
 Proof.
   have HforalleqP : (forall x, f x = (0 %R)) -> (forall x, (fun _ => true) x -> f x = (0 %R)). by [].
   have HforallgtP : (forall x, 0 -<=- f x) -> (forall x, (fun _ => true) x -> 0 -<=- f x). by [].
@@ -215,7 +216,7 @@ Proof.
 
       have: False.  
          apply Rsumr0; apply/eqP.
-         transitivity (\rsum_(a in A) (0 %R)).
+         transitivity (\sum_(a in A) (0 %R)).
            by apply eq_bigr=> a _; rewrite H.
          by rewrite (bigsum_card_constE A) mulR0.
       by [].
@@ -267,7 +268,7 @@ Qed.
 
 Lemma prsum_multeq0 (A B: finType) (pr1 :  A -> Rdefinitions.R) (pr2 : B -> Rdefinitions.R):
   (forall (a : A) (b: B), (pr1 a) *R* (pr2 b) = Rdefinitions.IZR 0) ->
-  (\rsum_(a in A) (pr1 a) *R* \rsum_(b in B) (pr2 b)) = Rdefinitions.IZR 0.
+  (\sum_(a in A) (pr1 a) *R* \sum_(b in B) (pr2 b)) = Rdefinitions.IZR 0.
   move=> H1.
   rewrite unlock; rewrite /index_enum/reducebig//=.
   elim: (Finite.enum _) => //=; first by rewrite mul0R.
@@ -279,7 +280,7 @@ Qed.
 
 (* There must be some lemma I'm missing for the following: *)
 Lemma rsum_Rmul_distr_l (A: finType) (pr: A -> Rdefinitions.R) x :
-  x *R* \rsum_(a in A) (pr a) = \rsum_(a in A) (x *R* (pr a)).
+  x *R* \sum_(a in A) (pr a) = \sum_(a in A) (x *R* (pr a)).
 Proof.
   rewrite unlock => //=; elim: (index_enum _) x => [x|] //=; first by rewrite mulR0.
   move=> y ys Hys x.
@@ -287,14 +288,14 @@ Proof.
 Qed.
 
 Lemma rsum_Rmul_distr_r (A: finType) (pr: A -> Rdefinitions.R) x :
-  \rsum_(a in A) (pr a) *R*  x  = \rsum_(a in A) (x *R* (pr a)).
+  \sum_(a in A) (pr a) *R*  x  = \sum_(a in A) (x *R* (pr a)).
 Proof.
     by rewrite mulRC rsum_Rmul_distr_l.
 Qed.
 
     
 Lemma rsum_split (A B: finType) p :
-  \rsum_(x in [finType of (A * B)]) (p x) = \rsum_(a in A) \rsum_(b in B) (let x := (a,b) in (p x)).
+  \sum_(x in [finType of (A * B)]) (p x) = \sum_(a in A) \sum_(b in B) (let x := (a,b) in (p x)).
 Proof.
   unfold all => //=.
   rewrite /index_enum/[finType of _]//= /prod_finMixin/prod_countMixin //=.
@@ -310,13 +311,13 @@ Proof.
 Qed.
 
 Lemma rsum_pred_demote (A : finType) (b : pred A) (f: A -> Rdefinitions.R):
-  \rsum_(a in A | b a) (f a) = \rsum_(a in A) ((b a %R) *R* (f a)).
+  \sum_(a in A | b a) (f a) = \sum_(a in A) ((b a %R) *R* (f a)).
 Proof.
 
      apply Logic.eq_sym; rewrite (bigID (fun a => b a)) //=.   
 
-     have: (\rsum_(i | ~~ b i) ((b i %R) *R* f i)) = (Rdefinitions.IZR 0); last move=>->;rewrite ?addR0.
-          have: (\rsum_(i | ~~ b i) (Rdefinitions.IZR 0)) = Rdefinitions.IZR 0; last move=><-.
+     have: (\sum_(i | ~~ b i) ((b i %R) *R* f i)) = (Rdefinitions.IZR 0); last move=>->;rewrite ?addR0.
+          have: (\sum_(i | ~~ b i) (Rdefinitions.IZR 0)) = Rdefinitions.IZR 0; last move=><-.
                 by rewrite bigsum_card_constE mulR0.
           by apply eq_bigr=> i /Bool.negb_true_iff ->; rewrite //= mul0R.
      by apply eq_bigr=> i ->; rewrite //= mul1R.
@@ -324,19 +325,19 @@ Qed.
      
 Lemma prsumr_sans_one (A: finType) (f: A -> Rdefinitions.R) (a': A) c:
   f a' = c ->
-  \rsum_(a in A) (f a) = (1 %R) ->
-  \rsum_(a | a != a') (f a) = (1 -R- c).
+  \sum_(a in A) (f a) = (1 %R) ->
+  \sum_(a | a != a') (f a) = (1 -R- c).
 Proof.
   have: ((Rdefinitions.IZR (BinNums.Zpos BinNums.xH)) == (1 %R)). by [].
   move=> /eqP -> <- //=  <-.
-  rewrite [\rsum_(a in A) _](bigID (fun a => a == a')) => //=.
+  rewrite [\sum_(a in A) _](bigID (fun a => a == a')) => //=.
   rewrite big_pred1_eq.
     by rewrite addRC -subRBA subRR subR0.
 Qed.
 
 Lemma rsum_tuple_split (A: finType) m (f: (m.+1).-tuple A -> Rdefinitions.R) :
-  \rsum_(a in [finType of (m.+1).-tuple A]) (f a) =
-  \rsum_(aas in [finType of (A * m.-tuple A)]) (let: (x, xs) := aas in f (cons_tuple x xs)).
+  \sum_(a in [finType of (m.+1).-tuple A]) (f a) =
+  \sum_(aas in [finType of (A * m.-tuple A)]) (let: (x, xs) := aas in f (cons_tuple x xs)).
 Proof.
   rewrite (reindex (fun (aas: (A * m.-tuple A)) => let: (x,xs) := aas in cons_tuple x xs)) => //=.
     by apply eq_bigr => [[x xs] _].
@@ -356,8 +357,8 @@ Qed.
 
 
 Lemma rsum_distbind_d0 (A B:finType) (d_a: dist A) (g: B -> Rdefinitions.R) (f: A -> dist B):
-  \rsum_(b in B) ((DistBind.d d_a f) b  *R* (g) b ) = 
-  \rsum_(b in B) \rsum_(a in A) (d_a a *R*  ((f a) b *R* (g) b) ).
+  \sum_(b in B) ((DistBind.d d_a f) b  *R* (g) b ) = 
+  \sum_(b in B) \sum_(a in A) (d_a a *R*  ((f a) b *R* (g) b) ).
 Proof.
   apply eq_bigr=> b _; rewrite DistBind.dE.
   rewrite rsum_Rmul_distr_r; apply eq_bigr=> a _.
@@ -367,8 +368,8 @@ Qed.
 Lemma rsum_distbind_d1 (A B C:finType) (d_c: dist C)
       (g: A -> B -> Rdefinitions.R) (f: A -> Rdefinitions.R)
       (df: C -> dist A) :
-  \rsum_(b in B) \rsum_(a in A) ((DistBind.d d_c df) a *R*  (g a b) ) = 
-  \rsum_(b in B) \rsum_(a in A) \rsum_(c in C)
+  \sum_(b in B) \sum_(a in A) ((DistBind.d d_c df) a *R*  (g a b) ) = 
+  \sum_(b in B) \sum_(a in A) \sum_(c in C)
    ((d_c c) *R* (((df c) a) *R*  (g a b))).
 Proof.
   apply eq_bigr=> b _;apply eq_bigr=> a _; rewrite DistBind.dE.
@@ -378,8 +379,8 @@ Qed.
 
 
 Lemma rsum_dist1_d0 (A B:finType) (a : A) (g: B -> Rdefinitions.R) (f: B -> A):
-  \rsum_(b in B) ((Dist1.d a) (f b) *R* (g) b ) = 
-  \rsum_(b in B) ((f b == a %R) *R* (g) b ).  
+  \sum_(b in B) ((Dist1.d a) (f b) *R* (g) b ) = 
+  \sum_(b in B) ((f b == a %R) *R* (g) b ).  
 Proof.
   by apply eq_bigr=> b _; rewrite Dist1.dE.
 Qed.
@@ -387,38 +388,38 @@ Qed.
 
 Lemma rsum_exchange_big1 (A B C: finType)
       (f: A -> B -> C -> Rdefinitions.R):
-  \rsum_(a in A) \rsum_(b in B) \rsum_(c in C) (f a b c) = 
-  \rsum_(c in C) \rsum_(b in B)  \rsum_(a in A) (f a b c).
+  \sum_(a in A) \sum_(b in B) \sum_(c in C) (f a b c) = 
+  \sum_(c in C) \sum_(b in B)  \sum_(a in A) (f a b c).
 Proof.
-  rewrite exchange_big [\rsum_(c in C) _]exchange_big;apply eq_bigr=> b _.
+  rewrite exchange_big [\sum_(c in C) _]exchange_big;apply eq_bigr=> b _.
   by rewrite exchange_big.
 Qed.
 
 Lemma rsum_exchange_big2 (A B C D: finType)
       (f: A -> B -> C -> D -> Rdefinitions.R):
-  \rsum_(a in A) \rsum_(b in B) \rsum_(c in C) \rsum_(d in D) (f a b c d) = 
-  \rsum_(d in D)  \rsum_(b in B)  \rsum_(c in C)  \rsum_(a in A) (f a b c d).
+  \sum_(a in A) \sum_(b in B) \sum_(c in C) \sum_(d in D) (f a b c d) = 
+  \sum_(d in D)  \sum_(b in B)  \sum_(c in C)  \sum_(a in A) (f a b c d).
 Proof.
-  rewrite exchange_big [\rsum_(d in D) _]exchange_big;apply eq_bigr=> b _.
-  rewrite exchange_big [\rsum_(i in D) _]exchange_big;apply eq_bigr=> c _.
+  rewrite exchange_big [\sum_(d in D) _]exchange_big;apply eq_bigr=> b _.
+  rewrite exchange_big [\sum_(i in D) _]exchange_big;apply eq_bigr=> c _.
   by rewrite exchange_big.
 Qed.
 
 Lemma rsum_exchange_big3 (A B C D E: finType)
       (f: A -> B -> C -> D -> E -> Rdefinitions.R):
-  \rsum_(a in A) \rsum_(b in B) \rsum_(c in C) \rsum_(d in D) \rsum_(e in E) (f a b c d e) = 
-  \rsum_(e in E)  \rsum_(b in B)  \rsum_(c in C) \rsum_(d in D)  \rsum_(a in A) (f a b c d e).
+  \sum_(a in A) \sum_(b in B) \sum_(c in C) \sum_(d in D) \sum_(e in E) (f a b c d e) = 
+  \sum_(e in E)  \sum_(b in B)  \sum_(c in C) \sum_(d in D)  \sum_(a in A) (f a b c d e).
 Proof.
-  rewrite exchange_big [\rsum_(e in E) _]exchange_big;apply eq_bigr=> b _.
-  rewrite exchange_big [\rsum_(i in E) _]exchange_big;apply eq_bigr=> c _.
-  rewrite exchange_big [\rsum_(i in E) _]exchange_big;apply eq_bigr=> d _.
+  rewrite exchange_big [\sum_(e in E) _]exchange_big;apply eq_bigr=> b _.
+  rewrite exchange_big [\sum_(i in E) _]exchange_big;apply eq_bigr=> c _.
+  rewrite exchange_big [\sum_(i in E) _]exchange_big;apply eq_bigr=> d _.
   by rewrite exchange_big.
 Qed.
 
 Lemma rsum_rmul_distr_l1 (A B: finType)
       (f: A -> B -> Rdefinitions.R) (g: A -> Rdefinitions.R):
-  \rsum_(a in A) (g a *R* \rsum_(b in B) (f a b)) = 
-    \rsum_(a in A) \rsum_(b in B) (g a *R* (f a b)).
+  \sum_(a in A) (g a *R* \sum_(b in B) (f a b)) = 
+    \sum_(a in A) \sum_(b in B) (g a *R* (f a b)).
 Proof.
   apply eq_bigr=> a _; rewrite rsum_Rmul_distr_l.
   by apply eq_bigr=> c _.
@@ -426,8 +427,8 @@ Qed.
 
 Lemma rsum_rmul_distr_r1 (A B: finType)
       (f: A -> B -> Rdefinitions.R) (g: A -> Rdefinitions.R):
-  \rsum_(a in A) ( \rsum_(b in B) (f a b) *R* g a) = 
-    \rsum_(a in A) \rsum_(b in B) (g a *R* (f a b)).
+  \sum_(a in A) ( \sum_(b in B) (f a b) *R* g a) = 
+    \sum_(a in A) \sum_(b in B) (g a *R* (f a b)).
 Proof.
   apply eq_bigr=> a _; rewrite rsum_Rmul_distr_r.
   by apply eq_bigr=> c _.
@@ -436,8 +437,8 @@ Qed.
 
 Lemma rsum_rmul_distr_l2 (A B C: finType)
       (f: A -> B -> C -> Rdefinitions.R) (g: A -> B -> Rdefinitions.R):
-  \rsum_(a in A) \rsum_(b in B) ((g a b) *R* \rsum_(c in C) (f a b c)) = 
-    \rsum_(a in A) \rsum_(b in B)   \rsum_(c in C) (g a b *R* (f a b c)).
+  \sum_(a in A) \sum_(b in B) ((g a b) *R* \sum_(c in C) (f a b c)) = 
+    \sum_(a in A) \sum_(b in B)   \sum_(c in C) (g a b *R* (f a b c)).
 Proof.
   apply eq_bigr=> a _; apply eq_bigr=> b _; rewrite rsum_Rmul_distr_l.
   by apply eq_bigr=> c _.
@@ -445,15 +446,15 @@ Qed.
 
 Lemma rsum_rmul_distr_r2 (A B C: finType)
       (f: A -> B -> C -> Rdefinitions.R) (g: A -> B -> Rdefinitions.R):
-  \rsum_(a in A) \rsum_(b in B) (\rsum_(c in C) (f a b c) *R* (g a b)) = 
-    \rsum_(a in A) \rsum_(b in B)   \rsum_(c in C) (g a b *R* (f a b c)).
+  \sum_(a in A) \sum_(b in B) (\sum_(c in C) (f a b c) *R* (g a b)) = 
+    \sum_(a in A) \sum_(b in B)   \sum_(c in C) (g a b *R* (f a b c)).
 Proof.
   apply eq_bigr=> a _; apply eq_bigr=> b _; rewrite rsum_Rmul_distr_r.
   by apply eq_bigr=> c _.
 Qed.
 
 Lemma rsum_empty (A : finType) (f: 0.-tuple A -> Rdefinitions.R) :
-  \rsum_(a in [finType of 0.-tuple A]) (f a) = (f [tuple]).
+  \sum_(a in [finType of 0.-tuple A]) (f a) = (f [tuple]).
 Proof.
   rewrite unlock => //=.
 
@@ -469,7 +470,7 @@ Qed.
 
 Lemma rsum_sans_one_const (A: finType) (c: Rdefinitions.R) (x : A) :
    #|A| > 0 ->
-     (\rsum_(a in A | a != x) c) = ((#|A| - 1 %R) *R* (c)).
+     (\sum_(a in A | a != x) c) = ((#|A| - 1 %R) *R* (c)).
 Proof.
   move=> Hlen; move: (bigsum_card_constE A c).
   rewrite natRB //= -addR_opp RIneq.Rmult_plus_distr_r mulNR mul1R addR_opp.
@@ -478,7 +479,7 @@ Proof.
 Qed.
 
 
-Lemma rsum_mem_pred (A: finType) k x : #|A| > 0 -> \rsum_(xs in [finType of k.-tuple A] | x \in xs) ((Rdefinitions.Rinv (#|A| %R) ^R^ k)) = (1 -R- ((1 -R- (Rdefinitions.Rinv (#|A| %R)))  ^R^ k)).
+Lemma rsum_mem_pred (A: finType) k x : #|A| > 0 -> \sum_(xs in [finType of k.-tuple A] | x \in xs) ((Rdefinitions.Rinv (#|A| %R) ^R^ k)) = (1 -R- ((1 -R- (Rdefinitions.Rinv (#|A| %R)))  ^R^ k)).
 Proof.
   rewrite rsum_pred_demote => Hord; elim: k x => [//=|k IHk] x;
   first by rewrite rsum_empty //= mul0R subRR.
@@ -488,11 +489,11 @@ Proof.
   rewrite (bigID (fun a => a == x)) big_pred1_eq//=.
 
   have: (
-\rsum_(b in [finType of k.-tuple A])
+\sum_(b in [finType of k.-tuple A])
       (((x \in cons_tuple x b) %R) *R*
        (Rdefinitions.Rinv (#|A| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ k)))) = (
 Rdefinitions.Rinv (#|A| %R) *R*
-\rsum_(b in [finType of k.-tuple A])
+\sum_(b in [finType of k.-tuple A])
       (( (Rdefinitions.Rinv (#|A| %R) ^R^ k)))
         ); last move=>->.
         rewrite rsum_Rmul_distr_l; apply eq_bigr=> inds _ //=.
@@ -507,12 +508,12 @@ Rdefinitions.Rinv (#|A| %R) *R*
     rewrite mulR1.
 
     have: (
-   \rsum_(i | i != x)
-      \rsum_(b in [finType of k.-tuple A])
+   \sum_(i | i != x)
+      \sum_(b in [finType of k.-tuple A])
          (((x \in cons_tuple i b) %R) *R*
           (Rdefinitions.Rinv (#|A| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ k)))) = (
-   \rsum_(i | i != x)
-      (Rdefinitions.Rinv (#|A| %R) *R* \rsum_(b in [finType of k.-tuple A])
+   \sum_(i | i != x)
+      (Rdefinitions.Rinv (#|A| %R) *R* \sum_(b in [finType of k.-tuple A])
          (((x \in b) %R) *R*
           ( (Rdefinitions.Rinv (#|A| %R) ^R^ k))) 
           )); last move=>->; first by
@@ -539,7 +540,7 @@ Qed.
 
 Lemma prsumr_dep_ineq (A: finType) (f g : A -> Rdefinitions.R) :
   (forall a, 0 -<=- f a) ->  (forall a, 0 -<=- g a) ->  
-    (\rsum_(a in A) ((f a) *R* (g a))) -<=- (\rsum_(a in A) (f a) *R* \rsum_(a in A) (g a)).
+    (\sum_(a in A) ((f a) *R* (g a))) -<=- (\sum_(a in A) (f a) *R* \sum_(a in A) (g a)).
 Proof.
   move=> H1 H2; rewrite big_distrlr //=; apply ler_rsum => a _ //=; rewrite -rsum_Rmul_distr_l.
   apply RIneq.Rmult_le_compat_l => //=; rewrite (bigID (fun a' => a' == a)) big_pred1_eq //=.
@@ -549,8 +550,8 @@ Qed.
 
 Lemma prsumr_implb_ineq (A: finType) (p q : pred A) (f: A -> Rdefinitions.R):
   (forall a, 0 -<=- f a) -> (forall a, p a ==> q a ) ->
-  \rsum_(a  in A) ((p a %R) *R* (f a)) -<=-
-   \rsum_(a  in A) ((q a %R) *R* (f a)).
+  \sum_(a  in A) ((p a %R) *R* (f a)) -<=-
+   \sum_(a  in A) ((q a %R) *R* (f a)).
 Proof.
   move=> Hpr Himpl.
   apply ler_rsum => a H.
@@ -590,43 +591,43 @@ Qed.
 
 Lemma rsum_indep (A : finType) (pr : dist A) (f g : pred A) :
  (inde_events pr (finset.SetDef.finset f) (finset.SetDef.finset g)) ->
-  \rsum_(a in A) (pr a *R* (f a && g a %R)) =
-  (\rsum_(a in A) (pr a *R* (f a %R)) *R* \rsum_(a in A) (pr a *R* (g a %R))).
+  \sum_(a in A) (pr a *R* (f a && g a %R)) =
+  (\sum_(a in A) (pr a *R* (f a %R)) *R* \sum_(a in A) (pr a *R* (g a %R))).
 Proof.
   rewrite /inde_events/Pr//=.
-  rewrite [\rsum_(a in _ (_ f)) _ ](rsum_setT) [\rsum_(a in _ (_ g)) _ ](rsum_setT) //=.
-  have: (\rsum_(a in finset.SetDef.pred_of_set
+  rewrite [\sum_(a in _ (_ f)) _ ](rsum_setT) [\sum_(a in _ (_ g)) _ ](rsum_setT) //=.
+  have: (\sum_(a in finset.SetDef.pred_of_set
                        (finset.setI (finset.SetDef.finset f) (finset.SetDef.finset g))) 
-          pr a = \rsum_(a | f a && g a) (pr a)).
+          pr a = \sum_(a | f a && g a) (pr a)).
       by apply eq_big => //=; move=> a //=; rewrite finset.in_setI !finset.in_set.
   move=>->.
 
-  have: (\rsum_(i in finset.SetDef.pred_of_set (finset.setTfor (Phant A)) | finset.SetDef.pred_of_set
-                                                                        (finset.SetDef.finset f) i) (pr i) = \rsum_(i | f i) (pr i)).
+  have: (\sum_(i in finset.SetDef.pred_of_set (finset.setTfor (Phant A)) | finset.SetDef.pred_of_set
+                                                                        (finset.SetDef.finset f) i) (pr i) = \sum_(i | f i) (pr i)).
     by apply eq_big => //= a //=; rewrite !finset.in_set Bool.andb_true_l;
                     apply Logic.eq_sym;  rewrite -finset.in_set //=.
   move=>->.
 
-  have: (\rsum_(j in finset.SetDef.pred_of_set (finset.setTfor (Phant A)) | finset.SetDef.pred_of_set
-                                                                        (finset.SetDef.finset g) j) (pr j) = \rsum_(j | g j) (pr j)).
+  have: (\sum_(j in finset.SetDef.pred_of_set (finset.setTfor (Phant A)) | finset.SetDef.pred_of_set
+                                                                        (finset.SetDef.finset g) j) (pr j) = \sum_(j | g j) (pr j)).
     by apply eq_big => //= a //=; rewrite !finset.in_set Bool.andb_true_l;
                     apply Logic.eq_sym;  rewrite -finset.in_set //=.
   move=>-> Heq.
   have H x y z: (y = (0%R)) -> x = z -> x +R+ y = z. by move => -> ->; rewrite addR0.
-  transitivity (\rsum_(a | f a && g a) (pr a)).
+  transitivity (\sum_(a | f a && g a) (pr a)).
        rewrite (bigID (fun a => f a && g a)) //=; apply H.
            - apply prsumr_eq0P => a /Bool.negb_true_iff ->; first by dispatch_Rgt.
              by rewrite //=mulR0.
         by apply eq_bigr => a -> //=; rewrite mulR1.
 
-  have: (\rsum_(a in A) (pr a *R* (f a %R)) = \rsum_(a | f a) (pr a)).      
+  have: (\sum_(a in A) (pr a *R* (f a %R)) = \sum_(a | f a) (pr a)).      
        rewrite (bigID (fun a => f a)) //=; apply H.
            - apply prsumr_eq0P => a /Bool.negb_true_iff ->; first by dispatch_Rgt.
              by rewrite //= mulR0.
        by apply eq_bigr => a -> //=; rewrite mulR1.
   move=> ->.
 
-  have: (\rsum_(a in A) (pr a *R* (g a %R)) = \rsum_(a | g a) (pr a)).      
+  have: (\sum_(a in A) (pr a *R* (g a %R)) = \sum_(a | g a) (pr a)).      
        rewrite (bigID (fun a => g a)) //=; apply H.
            - apply prsumr_eq0P => a /Bool.negb_true_iff ->; first by dispatch_Rgt.
              by rewrite //= mulR0.
@@ -867,10 +868,10 @@ Lemma hash_vecP n l (value: hash_keytype) (hashes: l.-tuple (HashState n))
         rewrite /FixedList.ntuple_tail; move: (behead_tupleP _) => //= Hlen.
 
         transitivity (
-            \rsum_(hshs in [finType of l.-tuple (HashState n)])
-             \rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
-             \rsum_(hsh in hashstate_of_finType n)
-             \rsum_(ind in ordinal_finType Hash_size.+1)
+            \sum_(hshs in [finType of l.-tuple (HashState n)])
+             \sum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+             \sum_(hsh in hashstate_of_finType n)
+             \sum_(ind in ordinal_finType Hash_size.+1)
              ((d[ hash_vec_int value (Tuple Hlen)]) (hshs, inds) *R*
               ((d[ hash n value (thead (Tuple Hxs))]) (hsh, ind) *R*
 ([&& (hsh == hashstate_put n value y x ) &&
@@ -903,8 +904,8 @@ Lemma hash_vecP n l (value: hash_keytype) (hashes: l.-tuple (HashState n))
                 by case: (_ == _); rewrite ?Bool.andb_true_l ?Bool.andb_false_l//=. 
         have H x1 y1 z1 : (y1 = (0 %R)) -> x1 = z1 -> x1 +R+ y1 = z1. by move=> -> ->; rewrite addR0.
         transitivity (
-           \rsum_(hshs in [finType of l.-tuple (HashState n)])
-            \rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+           \sum_(hshs in [finType of l.-tuple (HashState n)])
+            \sum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
               ((d[ hash_vec_int value (Tuple Hlen)]) (hshs, inds) *R*
                ((d[ hash n value (thead (Tuple Hxs))]) (hashstate_put n value y x, y) *R*
                 ([&& (hshs == Tuple (hash_vec_insert_length value (Tuple (cons_sizeP Hxs))
@@ -954,8 +955,8 @@ Lemma hash_vecP n l (value: hash_keytype) (hashes: l.-tuple (HashState n))
         apply Logic.eq_sym.
 
         transitivity (
-  \rsum_(a in [finType of 'I_Hash_size.+1])
-      (\rsum_(a0 in ordinal_finType Hash_size.+1)
+  \sum_(a in [finType of 'I_Hash_size.+1])
+      (\sum_(a0 in ordinal_finType Hash_size.+1)
       ((Uniform.d (size_enum_equiv (size_enum_ord Hash_size.+1))) a0 *R* (Dist1.d a0) a) *R*
        ((hashstate_put n value y x == hashstate_put n value a x) && (a == y) %R))
           ).
@@ -971,7 +972,7 @@ Lemma hash_vecP n l (value: hash_keytype) (hashes: l.-tuple (HashState n))
        rewrite eq_refl //= mulR1. 
 
        transitivity (
-           \rsum_(a0 in 'I_Hash_size.+1)
+           \sum_(a0 in 'I_Hash_size.+1)
             ((Uniform.d (size_enum_equiv (size_enum_ord Hash_size.+1))) a0 *R* (a0 == y %R))
           ).
            by apply eq_bigr => a' _; rewrite Dist1.dE eq_sym.
@@ -1023,14 +1024,14 @@ Lemma neg_hash_vecP n l (value: hash_keytype) (hashes hashes': l.-tuple (HashSta
         rewrite negb_consP =>/orP [Hyneq | Hysneq].
 
         transitivity (  
-            \rsum_(hshs' in tuple_finType l (hashstate_of_finType n))
-             \rsum_(bf' in tuple_finType l (ordinal_finType Hash_size.+1))
+            \sum_(hshs' in tuple_finType l (hashstate_of_finType n))
+             \sum_(bf' in tuple_finType l (ordinal_finType Hash_size.+1))
                          (
 (d[ hash_vec_int value (FixedList.ntuple_tail (Tuple Hxs))]) (hshs', bf') *R* 
 (
-  \rsum_(hshs'' in hashstate_of_finType n)
-     \rsum_(ind' in ordinal_finType Hash_size.+1)
-     \rsum_(ind'' in [finType of 'I_Hash_size.+1])
+  \sum_(hshs'' in hashstate_of_finType n)
+     \sum_(ind' in ordinal_finType Hash_size.+1)
+     \sum_(ind'' in [finType of 'I_Hash_size.+1])
      (0%R)
 )
 
@@ -1083,7 +1084,7 @@ Lemma neg_hash_vecP n l (value: hash_keytype) (hashes hashes': l.-tuple (HashSta
 
 Lemma hash_vec_simpl (n' k': nat) (hashes: k'.-tuple (HashState n')) value inds f :
   all (fun hsh : FixedMap.fixmap hash_keytype hash_valuetype n' => FixedMap.fixmap_find value hsh == None) hashes ->
-  (\rsum_(hshs' in [finType of k'.-tuple (HashState n')])
+  (\sum_(hshs' in [finType of k'.-tuple (HashState n')])
    ((d[ hash_vec_int value hashes]) (hshs', inds) *R* (f hshs'))) =
   ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k') *R* (f (Tuple (hash_vec_insert_length value hashes inds)))).
 Proof.
@@ -1479,7 +1480,7 @@ Lemma hash_vec_simpl_inv' (n' k': nat) (hashes: k'.-tuple (HashState n')) value 
   all
     (fun y : FixedList.fixlist [eqType of B * 'I_Hash_size.+1] n' =>
      FixedList.fixlist_length y + 1 <= n') hashes ->
-  (\rsum_(hshs' in [finType of k'.-tuple (HashState n')])
+  (\sum_(hshs' in [finType of k'.-tuple (HashState n')])
    ((d[ hash_vec_int  value (Tuple (hash_vec_insert_length value hashes inds))]) (hshs', inds) *R* (f hshs'))) =
   ((f (Tuple (hash_vec_insert_length value hashes inds)))).
 Proof.
@@ -1578,7 +1579,7 @@ Qed.
 
 Lemma bloomfilter_add_internal_prob bf x l:
   ~~ tnth (bloomfilter_state bf) x ->
-     \rsum_(b in [finType of l.-tuple 'I_Hash_size.+1])
+     \sum_(b in [finType of l.-tuple 'I_Hash_size.+1])
         ((tnth (bloomfilter_state (bloomfilter_add_internal b bf)) x %R) *R*
          ((Rdefinitions.Rinv (Hash_size.+1)%:R) ^R^ l)) = 
      (1 -R- ((1 -R- Rdefinitions.Rinv (Hash_size.+1)%:R) ^R^ l)).
@@ -1599,10 +1600,10 @@ Proof.
   rewrite rsum_tuple_split rsum_split//=.
   rewrite (bigID (fun a => a == x)) big_pred1_eq //=.
 
-  have: (\rsum_(b in [finType of l.-tuple 'I_Hash_size.+1])
+  have: (\sum_(b in [finType of l.-tuple 'I_Hash_size.+1])
           ((tnth (bloomfilter_state (bloomfilter_add_internal b (bloomfilter_set_bit x bf))) x %R) *R*
            (Rdefinitions.Rinv (Hash_size.+1 %R) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l))) =
-         \rsum_(b in [finType of l.-tuple 'I_Hash_size.+1])
+         \sum_(b in [finType of l.-tuple 'I_Hash_size.+1])
           ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ (l.+1)))).
          apply eq_bigr=> b _.
          rewrite bloomfilter_add_internal_preserve; first by rewrite mul1R//=.
@@ -1611,16 +1612,16 @@ Proof.
   move=>->; rewrite bigsum_card_constE//=.
 
   have: (
-          \rsum_(i < Hash_size.+1 | i != x) \rsum_(b in [finType of l.-tuple 'I_Hash_size.+1])
+          \sum_(i < Hash_size.+1 | i != x) \sum_(b in [finType of l.-tuple 'I_Hash_size.+1])
          ((tnth (bloomfilter_state (bloomfilter_add_internal b (bloomfilter_set_bit i bf))) x %R) *R*
           (Rdefinitions.Rinv (Hash_size.+1 %R) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)))
-          = (\rsum_(i < Hash_size.+1 | i != x)
+          = (\sum_(i < Hash_size.+1 | i != x)
               (Rdefinitions.Rinv (Hash_size.+1 %R) *R* (1 -R- ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ l))))); last move=>->.
             apply eq_bigr=> i Hneq.
 
             transitivity (
                 Rdefinitions.Rinv (Hash_size.+1 %R) *R* 
-                \rsum_(b in [finType of l.-tuple 'I_Hash_size.+1])
+                \sum_(b in [finType of l.-tuple 'I_Hash_size.+1])
                  ((tnth
                      (bloomfilter_state
                         (bloomfilter_add_internal b (bloomfilter_set_bit i bf))) x %R) *R*
@@ -1708,10 +1709,10 @@ Qed.
     rewrite !DistBind.dE //=.
 
     transitivity (
-        \rsum_(exp_hashes in [finType of k.-tuple (HashState n)])
-         \rsum_(exp_bf in [finType of BloomFilter])
-         \rsum_(exp_hashes' in [finType of k.-tuple (HashState n)])
-         \rsum_(exp_bf' in [finType of k.-tuple 'I_Hash_size.+1])
+        \sum_(exp_hashes in [finType of k.-tuple (HashState n)])
+         \sum_(exp_bf in [finType of BloomFilter])
+         \sum_(exp_hashes' in [finType of k.-tuple (HashState n)])
+         \sum_(exp_bf' in [finType of k.-tuple 'I_Hash_size.+1])
          (((true == ~~ tnth (bloomfilter_state exp_bf) ind) %R) *R*
           ((d[ hash_vec_int value hashes]) (exp_hashes', exp_bf') *R*
            ((exp_hashes == exp_hashes') && (exp_bf == bloomfilter_add_internal exp_bf' bf) %R)))).
@@ -1725,9 +1726,9 @@ Qed.
              by rewrite Dist1.dE//= xpair_eqE.
 
     transitivity (
-        \rsum_(exp_bf' in [finType of k.-tuple 'I_Hash_size.+1])
-         \rsum_(exp_hashes in [finType of k.-tuple (HashState n)])
-         \rsum_(exp_bf in [finType of BloomFilter])
+        \sum_(exp_bf' in [finType of k.-tuple 'I_Hash_size.+1])
+         \sum_(exp_hashes in [finType of k.-tuple (HashState n)])
+         \sum_(exp_bf in [finType of BloomFilter])
               (((true == ~~ tnth (bloomfilter_state exp_bf) ind) %R) *R*
                ((d[ hash_vec_int value hashes]) (exp_hashes, exp_bf') *R*
                 ((exp_bf == bloomfilter_add_internal exp_bf' bf) %R)))
@@ -1746,8 +1747,8 @@ Qed.
            
 
     transitivity (       
-        \rsum_(exp_bf in [finType of k.-tuple 'I_Hash_size.+1])
-         \rsum_(exp_hashes in [finType of k.-tuple (HashState n)])
+        \sum_(exp_bf in [finType of k.-tuple 'I_Hash_size.+1])
+         \sum_(exp_hashes in [finType of k.-tuple (HashState n)])
            (((true == ~~ tnth (bloomfilter_state (bloomfilter_add_internal exp_bf bf)) ind) %R) *R*
             ((d[ hash_vec_int value hashes]) (exp_hashes, exp_bf)))
       ).
@@ -1760,8 +1761,8 @@ Qed.
            by rewrite big_pred1_eq eq_refl //= mulR1.
       (*
         Sum has now been simplified to simplest form:
-         \rsum_(hs in k.-tuple (HashState n))
-            \rsum_(hashs in k.-tuple 'I_Hash_size.+1)
+         \sum_(hs in k.-tuple (HashState n))
+            \sum_(hashs in k.-tuple 'I_Hash_size.+1)
                ((d[ hash_vec_int Hkgt0 value hashes (Hpredkvld Hkgt0)]) (hs, hashs) *R*
                 (tnth (bloomfilter_state (bloomfilter_add_internal hashs bf)) ind %R)) =
          ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ (k %R))
@@ -1782,12 +1783,12 @@ Qed.
                         rewrite mulR1.
 
                         transitivity (
-                            \rsum_(exp_bf in [finType of 1.-tuple 'I_Hash_size.+1])
-                             \rsum_(exp_hashes in [finType of 1.-tuple (HashState n)])
-                             \rsum_(hashes' in [finType of 0.-tuple (HashState n)])
-                             \rsum_(values' in [finType of 0.-tuple 'I_Hash_size.+1])
-                             \rsum_(hashes'' in hashstate_of_finType n)
-                             \rsum_(values'' in ordinal_finType Hash_size.+1)
+                            \sum_(exp_bf in [finType of 1.-tuple 'I_Hash_size.+1])
+                             \sum_(exp_hashes in [finType of 1.-tuple (HashState n)])
+                             \sum_(hashes' in [finType of 0.-tuple (HashState n)])
+                             \sum_(values' in [finType of 0.-tuple 'I_Hash_size.+1])
+                             \sum_(hashes'' in hashstate_of_finType n)
+                             \sum_(values'' in ordinal_finType Hash_size.+1)
   ((((true == ~~ tnth (bloomfilter_state (bloomfilter_add_internal exp_bf bf)) ind) %R) *R*
     ((hashes' == [tuple]) && (values' == [tuple]) %R)) *R*
    ((d[ hash n value (thead hashes)]) (hashes'', values'') *R*
@@ -1808,11 +1809,11 @@ Qed.
                                  by rewrite Dist1.dE xpair_eqE//=.
 
                         transitivity (
-                            \rsum_(exp_hashes in [finType of 1.-tuple (HashState n)])
-                             \rsum_(hashes' in [finType of 0.-tuple (HashState n)])
-                             \rsum_(values' in [finType of 0.-tuple 'I_Hash_size.+1])
-                             \rsum_(hashes'' in hashstate_of_finType n)
-                             \rsum_(values'' in ordinal_finType Hash_size.+1)
+                            \sum_(exp_hashes in [finType of 1.-tuple (HashState n)])
+                             \sum_(hashes' in [finType of 0.-tuple (HashState n)])
+                             \sum_(values' in [finType of 0.-tuple 'I_Hash_size.+1])
+                             \sum_(hashes'' in hashstate_of_finType n)
+                             \sum_(values'' in ordinal_finType Hash_size.+1)
                              ((((true == ~~ tnth (bloomfilter_state (bloomfilter_add_internal [tuple of values'' :: values'] bf)) ind)
                        %R) *R* ((hashes' == [tuple]) && (values' == [tuple]) %R)) *R*
                               ((d[ hash n value (thead hashes)])
@@ -1836,8 +1837,8 @@ Qed.
                                  by rewrite big_pred1_eq eq_refl //= !Bool.andb_true_r.
 
                         transitivity (
-                             \rsum_(hashes'' in hashstate_of_finType n)
-                             \rsum_(values'' in ordinal_finType Hash_size.+1)
+                             \sum_(hashes'' in hashstate_of_finType n)
+                             \sum_(values'' in ordinal_finType Hash_size.+1)
                              ((((true == ~~ tnth (bloomfilter_state (
                                                       bloomfilter_add_internal [tuple of values'' :: [tuple]] bf)) ind) %R) *R*
                               ((d[ hash n value (thead hashes)])
@@ -1890,8 +1891,8 @@ Qed.
                                        by apply mem_head.
 
                         transitivity ( 
-                            \rsum_(i in 'I_Hash_size.+1 | i != ind)
-                             \rsum_(i0 in hashstate_of_finType n)
+                            \sum_(i in 'I_Hash_size.+1 | i != ind)
+                             \sum_(i0 in hashstate_of_finType n)
                              ((d[ rnd <-$ gen_random; ret (hashstate_put n value rnd (thead hashes), rnd)]) (i0, i))
                           ).
 
@@ -1905,10 +1906,10 @@ Qed.
                         move=> //=.               
 
                         transitivity (
-                            \rsum_(i < Hash_size.+1 | i != ind)
-                             \rsum_(hs in [finType of HashState n])
-                             \rsum_(hs' in [finType of 'I_Hash_size.+1])
-                             \rsum_(i' in ordinal_finType Hash_size.+1)
+                            \sum_(i < Hash_size.+1 | i != ind)
+                             \sum_(hs in [finType of HashState n])
+                             \sum_(hs' in [finType of 'I_Hash_size.+1])
+                             \sum_(i' in ordinal_finType Hash_size.+1)
                              (((hs == hashstate_put n value hs' (thead hashes)) && (i == hs') %R) *R*
                               (Rdefinitions.Rinv (#|ordinal_finType Hash_size.+1| %R) *R* ((hs' == i') %R)))
                           ).
@@ -1921,9 +1922,9 @@ Qed.
                                 by rewrite !Dist1.dE Uniform.dE xpair_eqE.
 
                         transitivity (        
-                            \rsum_(i < Hash_size.+1 | i != ind)
-                             \rsum_(hs in [finType of HashState n])
-                             \rsum_(i' in ordinal_finType Hash_size.+1)
+                            \sum_(i < Hash_size.+1 | i != ind)
+                             \sum_(hs in [finType of HashState n])
+                             \sum_(i' in ordinal_finType Hash_size.+1)
                              (((hs == hashstate_put n value i' (thead hashes)) && (i == i') %R) *R*
                               (Rdefinitions.Rinv (#|ordinal_finType Hash_size.+1| %R)))
                           ).
@@ -1938,7 +1939,7 @@ Qed.
 
                                 by rewrite big_pred1_eq eq_refl //= mulR1; do ?(apply f_equal).
                         transitivity (
-                            \rsum_(i < Hash_size.+1 | i != ind)
+                            \sum_(i < Hash_size.+1 | i != ind)
                              Rdefinitions.Rinv (#|ordinal_finType Hash_size.+1| %R)
                           ).
 
@@ -1977,12 +1978,12 @@ Qed.
                              - by apply ltn0Sn.
                              - rewrite mulRC !rsum_Rmul_distr_r.
                                transitivity (
-                                   \rsum_(inds in [finType of (k.+1).-tuple 'I_Hash_size.+1])
-                                    \rsum_(ind' in 'I_Hash_size.+1)
-                                    \rsum_(h in hashstate_of_finType n)
-                                    \rsum_(hs in tuple_finType k.+1 (hashstate_of_finType n))
-                                    \rsum_(exp_hashes in tuple_finType k.+1 (hashstate_of_finType n))
-                                    \rsum_(result in tuple_finType k.+1 (ordinal_finType Hash_size.+1))
+                                   \sum_(inds in [finType of (k.+1).-tuple 'I_Hash_size.+1])
+                                    \sum_(ind' in 'I_Hash_size.+1)
+                                    \sum_(h in hashstate_of_finType n)
+                                    \sum_(hs in tuple_finType k.+1 (hashstate_of_finType n))
+                                    \sum_(exp_hashes in tuple_finType k.+1 (hashstate_of_finType n))
+                                    \sum_(result in tuple_finType k.+1 (ordinal_finType Hash_size.+1))
                                     (((true == ~~ tnth (bloomfilter_state (bloomfilter_add_internal (cons_tuple ind' inds) bf)) ind) %R) *R*
                                      ((d[ hash_vec_int value (FixedList.ntuple_tail hashes)]) (exp_hashes, result) *R*
                                       (d[ hash_vl <-$ hash n value (thead hashes);
@@ -2002,12 +2003,12 @@ Qed.
                                     by apply eq_bigr => result _.
 
                                transitivity (
-                                  \rsum_(result in tuple_finType k.+1 (ordinal_finType Hash_size.+1))
-                                   \rsum_(inds in [finType of (k.+1).-tuple 'I_Hash_size.+1])
-                                    \rsum_(ind' in 'I_Hash_size.+1)
-                                    \rsum_(h in hashstate_of_finType n)
-                                    \rsum_(hs in tuple_finType k.+1 (hashstate_of_finType n))
-                                    \rsum_(exp_hashes in tuple_finType k.+1 (hashstate_of_finType n))
+                                  \sum_(result in tuple_finType k.+1 (ordinal_finType Hash_size.+1))
+                                   \sum_(inds in [finType of (k.+1).-tuple 'I_Hash_size.+1])
+                                    \sum_(ind' in 'I_Hash_size.+1)
+                                    \sum_(h in hashstate_of_finType n)
+                                    \sum_(hs in tuple_finType k.+1 (hashstate_of_finType n))
+                                    \sum_(exp_hashes in tuple_finType k.+1 (hashstate_of_finType n))
                                     (((true == ~~ tnth (bloomfilter_state (bloomfilter_add_internal (cons_tuple ind' inds) bf)) ind) %R) *R*
                                      ((d[ hash_vec_int value (FixedList.ntuple_tail hashes)]) (exp_hashes, result) *R*
                                       (d[ hash_vl <-$ hash n value (thead hashes);
@@ -2028,11 +2029,11 @@ Qed.
                                rewrite mulRC rsum_Rmul_distr_r.
 
                                transitivity (
-                                   \rsum_(exp_hashes in tuple_finType k.+1 (hashstate_of_finType n))
-                                   \rsum_(inds in [finType of (k.+1).-tuple 'I_Hash_size.+1])
-                                    \rsum_(ind' in 'I_Hash_size.+1)
-                                    \rsum_(h in hashstate_of_finType n)
-                                    \rsum_(hs in tuple_finType k.+1 (hashstate_of_finType n))
+                                   \sum_(exp_hashes in tuple_finType k.+1 (hashstate_of_finType n))
+                                   \sum_(inds in [finType of (k.+1).-tuple 'I_Hash_size.+1])
+                                    \sum_(ind' in 'I_Hash_size.+1)
+                                    \sum_(h in hashstate_of_finType n)
+                                    \sum_(hs in tuple_finType k.+1 (hashstate_of_finType n))
                                     (((true == ~~ tnth (bloomfilter_state (bloomfilter_add_internal (cons_tuple ind' inds) bf)) ind) %R) *R*
                                      ((d[ hash_vec_int value (FixedList.ntuple_tail hashes)]) (exp_hashes, result) *R*
                                       (d[ hash_vl <-$ hash n value (thead hashes);
@@ -2051,10 +2052,10 @@ Qed.
 
 
                                transitivity (
-                                   \rsum_(inds in [finType of (k.+1).-tuple 'I_Hash_size.+1])
-                                    \rsum_(ind' in 'I_Hash_size.+1)
-                                    \rsum_(h in hashstate_of_finType n)
-                                    \rsum_(hs in tuple_finType k.+1 (hashstate_of_finType n))
+                                   \sum_(inds in [finType of (k.+1).-tuple 'I_Hash_size.+1])
+                                    \sum_(ind' in 'I_Hash_size.+1)
+                                    \sum_(h in hashstate_of_finType n)
+                                    \sum_(hs in tuple_finType k.+1 (hashstate_of_finType n))
                                     ((d[ hash_vec_int value (FixedList.ntuple_tail hashes)]) (exp_hashes, result) *R*
                                      (((true ==
                                         ~~ tnth (bloomfilter_state (bloomfilter_add_internal (cons_tuple ind' inds) bf)) ind) %R) *R*
@@ -2074,10 +2075,10 @@ Qed.
 
                                transitivity (
                                    (d[ hash_vec_int value (FixedList.ntuple_tail hashes)]) (exp_hashes, result) *R*
-                                   \rsum_(inds in [finType of (k.+1).-tuple 'I_Hash_size.+1])
-                                    \rsum_(ind' in 'I_Hash_size.+1)
-                                    \rsum_(h in hashstate_of_finType n)
-                                    \rsum_(hs in tuple_finType k.+1 (hashstate_of_finType n))
+                                   \sum_(inds in [finType of (k.+1).-tuple 'I_Hash_size.+1])
+                                    \sum_(ind' in 'I_Hash_size.+1)
+                                    \sum_(h in hashstate_of_finType n)
+                                    \sum_(hs in tuple_finType k.+1 (hashstate_of_finType n))
                                     ((((true ==
                                         ~~ tnth (bloomfilter_state (bloomfilter_add_internal (cons_tuple ind' inds) bf)) ind) %R) *R*
                                       (d[ hash_vl <-$ hash n value (thead hashes);
@@ -2097,14 +2098,14 @@ Qed.
 
 
                               transitivity (
-                                  \rsum_(inds in [finType of (k.+1).-tuple 'I_Hash_size.+1])
-                                   \rsum_(ind' in 'I_Hash_size.+1)
-                                   \rsum_(h in [finType of HashState n])
-                                   \rsum_(hs in [finType of (k.+1).-tuple (HashState n)])
-                                   \rsum_(hs_fun' in hashstate_of_finType n)
-                                   \rsum_(result' in ordinal_finType Hash_size.+1)
-                                   \rsum_(hshs in [finType of 'I_Hash_size.+1])
-                                   \rsum_(hshs' in ordinal_finType Hash_size.+1)
+                                  \sum_(inds in [finType of (k.+1).-tuple 'I_Hash_size.+1])
+                                   \sum_(ind' in 'I_Hash_size.+1)
+                                   \sum_(h in [finType of HashState n])
+                                   \sum_(hs in [finType of (k.+1).-tuple (HashState n)])
+                                   \sum_(hs_fun' in hashstate_of_finType n)
+                                   \sum_(result' in ordinal_finType Hash_size.+1)
+                                   \sum_(hshs in [finType of 'I_Hash_size.+1])
+                                   \sum_(hshs' in ordinal_finType Hash_size.+1)
   ((((true ==
       ~~ tnth (bloomfilter_state (bloomfilter_add_internal inds (bloomfilter_set_bit ind' bf))) ind)
      %R) *R* ([&& (h == hs_fun') && (hs == exp_hashes), ind' == result' & inds == result] %R)) *R*
@@ -2148,13 +2149,13 @@ Qed.
                               rewrite big_pred1_eq.        
 
                               transitivity (
-                                  \rsum_(result' in 'I_Hash_size.+1)
-                                   \rsum_(ind' in 'I_Hash_size.+1)
-                                   \rsum_(h in [finType of HashState n])
-                                   \rsum_(hs in [finType of (k.+1).-tuple (HashState n)])
-                                   \rsum_(hs_fun' in [finType of HashState n])
-                                   \rsum_(hshs in 'I_Hash_size.+1)
-                                   \rsum_(hshs' in 'I_Hash_size.+1)
+                                  \sum_(result' in 'I_Hash_size.+1)
+                                   \sum_(ind' in 'I_Hash_size.+1)
+                                   \sum_(h in [finType of HashState n])
+                                   \sum_(hs in [finType of (k.+1).-tuple (HashState n)])
+                                   \sum_(hs_fun' in [finType of HashState n])
+                                   \sum_(hshs in 'I_Hash_size.+1)
+                                   \sum_(hshs' in 'I_Hash_size.+1)
                                    ((((true == ~~ tnth
                                                   (bloomfilter_state
                                                      (bloomfilter_add_internal result (bloomfilter_set_bit ind' bf))) ind) %R) *R*
@@ -2171,12 +2172,12 @@ Qed.
                                    by rewrite exchange_big; apply eq_bigr => hs_fun' _.
 
                               transitivity (     
-                                  \rsum_(result' in 'I_Hash_size.+1)
-                                   \rsum_(h in [finType of HashState n])
-                                   \rsum_(hs in [finType of (k.+1).-tuple (HashState n)])
-                                   \rsum_(hs_fun' in [finType of HashState n])
-                                   \rsum_(hshs in 'I_Hash_size.+1)
-                                   \rsum_(hshs' in 'I_Hash_size.+1)
+                                  \sum_(result' in 'I_Hash_size.+1)
+                                   \sum_(h in [finType of HashState n])
+                                   \sum_(hs in [finType of (k.+1).-tuple (HashState n)])
+                                   \sum_(hs_fun' in [finType of HashState n])
+                                   \sum_(hshs in 'I_Hash_size.+1)
+                                   \sum_(hshs' in 'I_Hash_size.+1)
                                    ((((true == ~~ tnth
                                                   (bloomfilter_state
                                                      (bloomfilter_add_internal result (bloomfilter_set_bit result' bf))) ind) %R) *R*
@@ -2206,12 +2207,12 @@ Qed.
                                     by rewrite !eq_refl !Bool.andb_true_r.
 
                               transitivity (   
-                                 \rsum_(hshs' in 'I_Hash_size.+1)
-                                  \rsum_(result' in 'I_Hash_size.+1)
-                                   \rsum_(h in [finType of HashState n])
-                                   \rsum_(hs in [finType of (k.+1).-tuple (HashState n)])
-                                   \rsum_(hs_fun' in [finType of HashState n])
-                                   \rsum_(hshs in 'I_Hash_size.+1)
+                                 \sum_(hshs' in 'I_Hash_size.+1)
+                                  \sum_(result' in 'I_Hash_size.+1)
+                                   \sum_(h in [finType of HashState n])
+                                   \sum_(hs in [finType of (k.+1).-tuple (HashState n)])
+                                   \sum_(hs_fun' in [finType of HashState n])
+                                   \sum_(hshs in 'I_Hash_size.+1)
 
                                    ((((true == ~~ tnth
                                          (bloomfilter_state
@@ -2231,12 +2232,12 @@ Qed.
                                         by rewrite xpair_eqE.
 
                               transitivity (          
-                                   \rsum_(hshs' in 'I_Hash_size.+1)
-                                   \rsum_(hshs in 'I_Hash_size.+1)
-                                   \rsum_(result' in 'I_Hash_size.+1)
-                                   \rsum_(h in [finType of HashState n])
-                                   \rsum_(hs in [finType of (k.+1).-tuple (HashState n)])
-                                   \rsum_(hs_fun' in [finType of HashState n])
+                                   \sum_(hshs' in 'I_Hash_size.+1)
+                                   \sum_(hshs in 'I_Hash_size.+1)
+                                   \sum_(result' in 'I_Hash_size.+1)
+                                   \sum_(h in [finType of HashState n])
+                                   \sum_(hs in [finType of (k.+1).-tuple (HashState n)])
+                                   \sum_(hs_fun' in [finType of HashState n])
                                    ((((true ==
                                        ~~
                                          tnth
@@ -2255,10 +2256,10 @@ Qed.
 
 
                               transitivity (
-                                  \rsum_(hshs' in 'I_Hash_size.+1)
-                                   \rsum_(h in [finType of HashState n])
-                                   \rsum_(hs in [finType of (k.+1).-tuple (HashState n)])
-                                   \rsum_(hs_fun' in [finType of HashState n])
+                                  \sum_(hshs' in 'I_Hash_size.+1)
+                                   \sum_(h in [finType of HashState n])
+                                   \sum_(hs in [finType of (k.+1).-tuple (HashState n)])
+                                   \sum_(hs_fun' in [finType of HashState n])
                                    ((((true ==
                                        ~~
                                          tnth
@@ -2293,9 +2294,9 @@ Qed.
                                         do ?(apply f_equal).
                                         by rewrite eq_refl //= Bool.andb_true_r mulR1.
                               transitivity (                                                  
-                                  \rsum_(hshs' in 'I_Hash_size.+1)
-                                   \rsum_(hs_fun' in [finType of HashState n])                                
-                                   \rsum_(h in [finType of HashState n])
+                                  \sum_(hshs' in 'I_Hash_size.+1)
+                                   \sum_(hs_fun' in [finType of HashState n])                                
+                                   \sum_(h in [finType of HashState n])
                                 
                                    ((((true ==
                                        ~~
@@ -2322,7 +2323,7 @@ Qed.
                                                 by rewrite eq_refl Bool.andb_true_r.
 
                               transitivity (
-                                  \rsum_(hshs' in 'I_Hash_size.+1)
+                                  \sum_(hshs' in 'I_Hash_size.+1)
                                    ((((true ==
                                        ~~
                                          tnth
@@ -2364,7 +2365,7 @@ Qed.
                                               by rewrite FixedList.tnth_set_nth_eq.
 
                                               transitivity (
-                                                  \rsum_(i < Hash_size.+1 | i != ind)
+                                                  \sum_(i < Hash_size.+1 | i != ind)
                                                    (Rdefinitions.Rinv (#|'I_Hash_size.+1| %R))
                                                 ).
                                                    - apply eq_bigr => i Hneq.
@@ -2727,8 +2728,8 @@ Qed.
       - case: values => //= _ _ _ _ Htnth; rewrite muln0 //= DistBind.dE rsum_split //=.
 
         transitivity (
-            \rsum_(a in [finType of k.-tuple (HashState n)])
-             \rsum_(b in [finType of BloomFilter])
+            \sum_(a in [finType of k.-tuple (HashState n)])
+             \sum_(b in [finType of BloomFilter])
              (((a == hashes0) &&  (b == bf) %R) *R* (Dist1.d (~~ bloomfilter_get_bit ind b)) true)
           ).
           by apply eq_bigr => a _; apply eq_bigr => b _; rewrite !Dist1.dE //= xpair_eqE.
@@ -2793,14 +2794,14 @@ Qed.
     uniq (x :: xs) ->
     length (x::xs) < Hash_size.+1 ->
 
-    \rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+    \sum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
      (((tnth (bloomfilter_state (bloomfilter_add_internal inds bf')) x &&
         all [eta tnth (bloomfilter_state (bloomfilter_add_internal inds bf'))] xs) %R) *R*
       (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)) =
-    ((\rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+    ((\sum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
      (((tnth (bloomfilter_state (bloomfilter_add_internal inds bf')) x) %R) *R*
       (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l))) *R*
-    (\rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+    (\sum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
       ((( all [eta tnth (bloomfilter_state (bloomfilter_add_internal inds bf'))] xs) %R) *R*
       (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)))).
     Proof.
@@ -2822,9 +2823,9 @@ Qed.
              rewrite rsum_tuple_split rsum_split=>//=.
 
              transitivity (
-                 \rsum_(a in 'I_Hash_size.+1)
+                 \sum_(a in 'I_Hash_size.+1)
                   (Rdefinitions.Rinv (Hash_size.+1 %R) *R*
-                   \rsum_(b in [finType of l.-tuple 'I_Hash_size.+1])
+                   \sum_(b in [finType of l.-tuple 'I_Hash_size.+1])
                     ((tnth (bloomfilter_state
                               (bloomfilter_add_internal b (bloomfilter_set_bit a bf'))) x &&
                            all [eta tnth (bloomfilter_state
@@ -2837,12 +2838,12 @@ Qed.
                      by rewrite mulRC; apply f_equal.
 
              transitivity (
-                 \rsum_(a in 'I_Hash_size.+1)
+                 \sum_(a in 'I_Hash_size.+1)
                   (Rdefinitions.Rinv (Hash_size.+1 %R) *R*
-(\rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+(\sum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
       ((tnth (bloomfilter_state (bloomfilter_add_internal inds (bloomfilter_set_bit a bf'))) x %R) *R*
        (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)) *R*
-   \rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+   \sum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
       ((all [eta tnth (bloomfilter_state (bloomfilter_add_internal inds (bloomfilter_set_bit a bf')))]
           xs %R) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)))
                   )
@@ -2855,12 +2856,12 @@ Qed.
                       rewrite /bloomfilter_set_bit/bloomfilter_state FixedList.tnth_set_nth_eq //=.
                   by rewrite FixedList.tnth_set_nth_neq //=;  move/Bool.negb_true_iff: Haeq.
 
-              have: (\rsum_(inds in [finType of (l.+1).-tuple 'I_Hash_size.+1])
+              have: (\sum_(inds in [finType of (l.+1).-tuple 'I_Hash_size.+1])
                             ((tnth (bloomfilter_state
                                       (bloomfilter_add_internal inds bf')) x %R) *R*
                              (Rdefinitions.Rinv (Hash_size.+1 %R) *R*
                               (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l))) =
-                           \rsum_(inds in [finType of (l.+1).-tuple 'I_Hash_size.+1])
+                           \sum_(inds in [finType of (l.+1).-tuple 'I_Hash_size.+1])
                             (Rdefinitions.Rinv (Hash_size.+1 %R) *R*
                               (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l))
                           ).
@@ -2872,11 +2873,11 @@ Qed.
                     
                     transitivity (
                         Rdefinitions.Rinv (Hash_size.+1 %R) *R*
-                        \rsum_(a in 'I_Hash_size.+1)
-                         ((\rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+                        \sum_(a in 'I_Hash_size.+1)
+                         ((\sum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
                             ((tnth (bloomfilter_state (bloomfilter_add_internal inds (bloomfilter_set_bit a bf'))) x %R) *R*
                              (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)) *R*
-                           \rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+                           \sum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
                             ((all
                                 [eta tnth
                                      (bloomfilter_state (bloomfilter_add_internal inds (bloomfilter_set_bit a bf')))]
@@ -2887,10 +2888,10 @@ Qed.
 
                     transitivity (
                         Rdefinitions.Rinv (Hash_size.+1 %R) *R*
-                        \rsum_(a in 'I_Hash_size.+1)
-                         ((\rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+                        \sum_(a in 'I_Hash_size.+1)
+                         ((\sum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
                            ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l))   *R*
-                           \rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+                           \sum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
                             ((all
                                 [eta tnth
                                      (bloomfilter_state (bloomfilter_add_internal inds (bloomfilter_set_bit a bf')))]
@@ -2909,10 +2910,10 @@ Qed.
 
                     transitivity (
                         Rdefinitions.Rinv (Hash_size.+1 %R) *R*
-                        \rsum_(a in 'I_Hash_size.+1)
+                        \sum_(a in 'I_Hash_size.+1)
                          ((((#|[finType of l.-tuple 'I_Hash_size.+1]| %R) *R*
                            ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)))   *R*
-                           \rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+                           \sum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
                             ((all
                                 [eta tnth
                                      (bloomfilter_state (bloomfilter_add_internal inds (bloomfilter_set_bit a bf')))]
@@ -2924,8 +2925,8 @@ Qed.
                         Rdefinitions.Rinv (Hash_size.+1 %R) *R*
                         ((#|[finType of l.-tuple 'I_Hash_size.+1]| %R) *R*
                            ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)))   *R*
-                        \rsum_(a in 'I_Hash_size.+1)
-                         ((\rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+                        \sum_(a in 'I_Hash_size.+1)
+                         ((\sum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
                             ((all
                                 [eta tnth
                                      (bloomfilter_state (bloomfilter_add_internal inds (bloomfilter_set_bit a bf')))]
@@ -2938,8 +2939,8 @@ Qed.
                         Rdefinitions.Rinv (Hash_size.+1 %R) *R*
                         (((#|[finType of l.-tuple 'I_Hash_size.+1]| %R) *R*
                            ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)))   *R*
-                        \rsum_(a in 'I_Hash_size.+1)
-                         ((\rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+                        \sum_(a in 'I_Hash_size.+1)
+                         ((\sum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
                             ((all
                                 [eta tnth
                                      (bloomfilter_state (bloomfilter_add_internal inds (bloomfilter_set_bit a bf')))]
@@ -2953,7 +2954,7 @@ Qed.
                         (((#|[finType of (l.+1).-tuple 'I_Hash_size.+1]| %R) *R*
                           (
                            (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l))) *R*
-                         \rsum_(inds in [finType of (l.+1).-tuple 'I_Hash_size.+1])
+                         \sum_(inds in [finType of (l.+1).-tuple 'I_Hash_size.+1])
                           ((all [eta tnth (bloomfilter_state (bloomfilter_add_internal inds bf'))] xs %R) *R*
                            (Rdefinitions.Rinv (Hash_size.+1 %R) *R*
                             (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l))))
@@ -2968,7 +2969,7 @@ Qed.
                     transitivity (
                         ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)) *R*
                         (((#|[finType of (l.+1).-tuple 'I_Hash_size.+1]| %R)) *R*
-                         \rsum_(inds in [finType of (l.+1).-tuple 'I_Hash_size.+1])
+                         \sum_(inds in [finType of (l.+1).-tuple 'I_Hash_size.+1])
                           ((all [eta tnth (bloomfilter_state (bloomfilter_add_internal inds bf'))] xs %R) *R*
                            (Rdefinitions.Rinv (Hash_size.+1 %R) *R*
                             (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l))))
@@ -2979,8 +2980,8 @@ Qed.
                     transitivity (
                         ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l)) *R*
                         (((#|[finType of l.-tuple 'I_Hash_size.+1]| %R)) *R*
-                        \rsum_(a in 'I_Hash_size.+1)
-                         ((\rsum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
+                        \sum_(a in 'I_Hash_size.+1)
+                         ((\sum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
                             ((all
                                 [eta tnth
                                      (bloomfilter_state (bloomfilter_add_internal inds (bloomfilter_set_bit a bf')))]
@@ -2991,7 +2992,7 @@ Qed.
                     transitivity (
                         Rdefinitions.Rinv (Hash_size.+1 %R) *R*
                         (((#|[finType of (l.+1).-tuple 'I_Hash_size.+1]| %R)) *R*
-                         \rsum_(inds in [finType of (l.+1).-tuple 'I_Hash_size.+1])
+                         \sum_(inds in [finType of (l.+1).-tuple 'I_Hash_size.+1])
                           ((all [eta tnth (bloomfilter_state (bloomfilter_add_internal inds bf'))] xs %R) *R*
                            ( (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l))))
                       ).
@@ -3038,9 +3039,9 @@ Qed.
 Lemma pr_in_vec (A : finType) (ps : seq A) :
    #|A| > 0 ->
        uniq ps ->
-       \rsum_(ind in A) (Rdefinitions.Rinv (#|A| %R) *R* ((ind \notin ps) %R))
+       \sum_(ind in A) (Rdefinitions.Rinv (#|A| %R) *R* ((ind \notin ps) %R))
        = (1 -R- (Rdefinitions.Rinv (#|A| %R) *R* (length ps %R))).
-  have: (\rsum_(ind in A) (Rdefinitions.Rinv (#|A| %R) *R* ((ind \notin ps) %R))) = ( \rsum_(ind in A) (((ind \notin ps) %R)  *R* Rdefinitions.Rinv (#|A| %R) )
+  have: (\sum_(ind in A) (Rdefinitions.Rinv (#|A| %R) *R* ((ind \notin ps) %R))) = ( \sum_(ind in A) (((ind \notin ps) %R)  *R* Rdefinitions.Rinv (#|A| %R) )
                                                                                     ); last move=> ->; first by apply eq_bigr=> ind _; rewrite mulRC.
   rewrite -rsum_pred_demote.
   rewrite bigsum_card_constE.
@@ -3066,11 +3067,11 @@ Qed.
 Lemma rsum_bijective_eqC {A: finType} (c: Rdefinitions.R) (P Q : pred A) (p:  A -> A) :
    bijective p ->
   (forall a, P (p a) = Q a) ->
-  \rsum_(a in A | P a) c = \rsum_(a in A | Q a) c.
+  \sum_(a in A | P a) c = \sum_(a in A | Q a) c.
 Proof.
   move=> Hbij Himpl.
   rewrite (@reindex _ _ _ _ _ p) //=.
-  by transitivity ( \rsum_(j | Q j) c); first by apply eq_bigl => a'; rewrite Himpl.
+  by transitivity ( \sum_(j | Q j) c); first by apply eq_bigl => a'; rewrite Himpl.
   by apply onW_bij.
 Qed.
 
@@ -3291,7 +3292,7 @@ Qed.
        all (fun ind => ~~ bloomfilter_get_bit ind bf) inds ->
        (d[ res <-$ bloomfilter_add value hashes bf;
              (let '(_, bf') := res in ret (all (bloomfilter_get_bit^~ bf') inds))]) true = 
-\rsum_(i in tuple_finType k (ordinal_finType Hash_size.+1))
+\sum_(i in tuple_finType k (ordinal_finType Hash_size.+1))
      ((((inds \subseteq i) == true) %R) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k)).    Proof.
       have H x1 y1 z1: y1 = (0 %R) -> x1 = z1 -> x1 +R+ y1 = z1; first by move=> -> ->; rewrite addR0.
       rewrite //= DistBind.dE => Hb Hlen Hfree Huns Huniq Hall.
@@ -3369,7 +3370,7 @@ Qed.
 Lemma rsum_subseq_internal (m : nat) (I J: seq 'I_m) : m > 0 ->
   uniq I -> 
   all (fun j => j \notin I) J ->
-  \rsum_(i in 'I_m | i \notin J) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R)) =
+  \sum_(i in 'I_m | i \notin J) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R)) =
  (((length I %R) *R* Rdefinitions.Rinv (m %R))).
 Proof.
   move=> Hm; elim: I J => [|i I IHI] J Huniq Hall; first
@@ -3379,9 +3380,9 @@ Proof.
   move: (Hall); rewrite all_in_negP => //=/andP[-> Hall'] //=; rewrite mul1R.
   rewrite -addn1 natRD RIneq.Rmult_plus_distr_r mul1R [(_ *R* _) +R+ _]addRC; apply f_equal.
 
-  transitivity (\rsum_(i0 < m | i0 \notin (i :: J)) ((((i0 \in I) %R) *R* Rdefinitions.Rinv (m %R)))).
+  transitivity (\sum_(i0 < m | i0 \notin (i :: J)) ((((i0 \in I) %R) *R* Rdefinitions.Rinv (m %R)))).
   - {
-      rewrite rsum_pred_demote [ \rsum_(i0 < _ | _) _]rsum_pred_demote; apply eq_bigr => i0 _ //=.
+      rewrite rsum_pred_demote [ \sum_(i0 < _ | _) _]rsum_pred_demote; apply eq_bigr => i0 _ //=.
         by rewrite in_cons Bool.negb_orb; case: (_ == _); case: (_ \in _) => //=;
                                                                               rewrite ?mulR0 ?mul0R ?mul1R ?mulR1//=.      
     }
@@ -3397,11 +3398,11 @@ Qed.
 
 Lemma rsum_subseq (m : nat) (I : seq 'I_m) : m > 0 ->
   uniq I -> 
-  \rsum_(i in 'I_m) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R)) =
+  \sum_(i in 'I_m) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R)) =
  (((length I %R) *R* Rdefinitions.Rinv (m %R))).
 Proof.
   move=> Hm Huniq.
-  transitivity ( \rsum_(i in 'I_m | i \notin [::]) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R))); first
+  transitivity ( \sum_(i in 'I_m | i \notin [::]) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R))); first
   by apply eq_bigl => i //=.
   by apply rsum_subseq_internal => //=.
 Qed.
@@ -3411,7 +3412,7 @@ Qed.
 Lemma rsum_subseq_mult (m b: nat) (I: seq 'I_m):
   0 < m ->
     uniq I ->
-    \rsum_(ps in [finType of b.-tuple 'I_m] | ps \subseteq I)
+    \sum_(ps in [finType of b.-tuple 'I_m] | ps \subseteq I)
      ((Rdefinitions.Rinv (m %R)) ^R^ b) = (((length I %R) *R* Rdefinitions.Rinv (m %R)) ^R^ b).
 Proof.           
   elim: b I => [//=| b IHb I] Hm Huniq.
@@ -3438,16 +3439,16 @@ Proof.
 Qed.
 
 Lemma rsum_subseq_undup_eq (m : nat) (I : seq 'I_m) : 
-  \rsum_(i in 'I_m) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R)) =
- \rsum_(i in 'I_m) (((i \in undup I) %R) *R* Rdefinitions.Rinv (m %R)).
+  \sum_(i in 'I_m) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R)) =
+ \sum_(i in 'I_m) (((i \in undup I) %R) *R* Rdefinitions.Rinv (m %R)).
 Proof.
   by under big i _ rewrite mem_undup.
 Qed.
 
 Lemma rsum_subseq_mult_undup_eq (m b: nat) (I: seq 'I_m):
-    \rsum_(ps in [finType of b.-tuple 'I_m] | ps \subseteq I)
+    \sum_(ps in [finType of b.-tuple 'I_m] | ps \subseteq I)
      ((Rdefinitions.Rinv (m %R)) ^R^ b) = 
-    \rsum_(ps in [finType of b.-tuple 'I_m] | ps \subseteq undup I)
+    \sum_(ps in [finType of b.-tuple 'I_m] | ps \subseteq undup I)
      ((Rdefinitions.Rinv (m %R)) ^R^ b).
 Proof.
 
@@ -3583,10 +3584,10 @@ Qed.
 
 
 Lemma subseq_imd (A: finType) (m l: nat) (f: (m.+1 * l).-tuple A -> Rdefinitions.R):
-      \rsum_(bs in [finType of (m.+1 * l).-tuple A]) (f bs *R* (Rdefinitions.Rinv (#|A| %R) ^R^ (m.+1 * l))) = 
-      \rsum_(b in [finType of l.-tuple A])
+      \sum_(bs in [finType of (m.+1 * l).-tuple A]) (f bs *R* (Rdefinitions.Rinv (#|A| %R) ^R^ (m.+1 * l))) = 
+      \sum_(b in [finType of l.-tuple A])
        ( (Rdefinitions.Rinv (#|A| %R) ^R^ l)      *R*
-      \rsum_(bs in [finType of (m * l).-tuple A]) (f (cat_tuple b bs) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ (m * l)))
+      \sum_(bs in [finType of (m * l).-tuple A]) (f (cat_tuple b bs) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ (m * l)))
       ).
 Proof.
 under big b _ rewrite rsum_Rmul_distr_l.
@@ -3594,7 +3595,7 @@ under big b _ rewrite rsum_Rmul_distr_l.
   have Hoqv Q p q (vec : seq Q): (size vec == p.+1 * q) = (size vec == q + p * q); first by rewrite mulSnr addnC.
 
   have H: (m * l + l) = (m.+1 * l); first by rewrite mulSnr.
-  transitivity (\rsum_(x in [finType of (l.-tuple A * (m * l).-tuple A)%type])
+  transitivity (\sum_(x in [finType of (l.-tuple A * (m * l).-tuple A)%type])
         (let (b,a) := x in ((Rdefinitions.Rinv (#|A| %R) ^R^ l) *R*
                             (f ((cat_tuple b a)) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ m * l)))) ).
   by rewrite rsum_split //=; do ? (apply eq_bigr; intros); do ?apply f_equal => //=.
@@ -3715,11 +3716,11 @@ Lemma bloomfilter_add_multiple_unwrap_internal bf
        length values == l ->
        hashes_have_free_spaces hashes (l.+1) ->
        all (bloomfilter_value_unseen hashes) (value::values) ->
-  \rsum_(a in [finType of k.-tuple (HashState n) * BloomFilter])
+  \sum_(a in [finType of k.-tuple (HashState n) * BloomFilter])
      ((d[ bloomfilter_add_multiple (Tuple (hash_vec_insert_length value hashes inds)) bf
             values]) a *R*
       (d[ let (hashes2, bf) := a in res' <-$ bloomfilter_query value hashes2 bf; ret res'.2]) true) =
-  \rsum_(a in [finType of k.-tuple (HashState n) * BloomFilter])
+  \sum_(a in [finType of k.-tuple (HashState n) * BloomFilter])
      ((d[ bloomfilter_add_multiple (Tuple (hash_vec_insert_length value hashes inds)) bf
             values]) a *R*
       (bloomfilter_query_internal inds a.2 == true %R)).
@@ -3822,10 +3823,10 @@ Lemma bloomfilter_add_multiple_unwrap_base
        length values == l ->
        hashes_have_free_spaces (hashes: k.-tuple (HashState n)) (l) ->
        all (bloomfilter_value_unseen hashes) (values) ->
-  \rsum_(a in [finType of (k.-tuple (HashState n) * BloomFilter)]%type)
+  \sum_(a in [finType of (k.-tuple (HashState n) * BloomFilter)]%type)
    ((d[ bloomfilter_add_multiple hashes bloomfilter_new values]) a *R*
     ((all (bloomfilter_get_bit^~ (bloomfilter_add_internal others a.2)) inds == true) %R)) =
-  \rsum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1])
+  \sum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1])
      ((inds \subseteq hits ++ others) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l * k)).
 Proof.
 
@@ -3871,8 +3872,8 @@ Proof.
 
       apply eq_bigr => b _ .
 
-      rewrite rsum_Rmul_distr_l rsum_split //= [\rsum_(a in _) (\rsum_(b in _) (_ *R* _))]exchange_big.
-      rewrite [\rsum_(i in [finType of k.-tuple (HashState n)]) (\rsum_(i0 in [finType of BloomFilter]) _)]exchange_big ; apply eq_bigr => bf' _.
+      rewrite rsum_Rmul_distr_l rsum_split //= [\sum_(a in _) (\sum_(b in _) (_ *R* _))]exchange_big.
+      rewrite [\sum_(i in [finType of k.-tuple (HashState n)]) (\sum_(i0 in [finType of BloomFilter]) _)]exchange_big ; apply eq_bigr => bf' _.
       apply eq_bigr => hshs' _.
 
 
@@ -3945,11 +3946,11 @@ Lemma bloomfilter_add_multiple_unwrap
        length values == l ->
        hashes_have_free_spaces (hashes: k.-tuple (HashState n)) (l.+1) ->
        all (bloomfilter_value_unseen hashes) (value::values) ->
-  \rsum_(a in [finType of k.-tuple (HashState n) * BloomFilter])
+  \sum_(a in [finType of k.-tuple (HashState n) * BloomFilter])
      ((d[ bloomfilter_add_multiple (Tuple (hash_vec_insert_length value hashes inds)) bloomfilter_new
             values]) a *R*
       (d[ let (hashes2, bf) := a in res' <-$ bloomfilter_query value hashes2 bf; ret res'.2]) true) =
-  \rsum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1])
+  \sum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1])
      ((inds \subseteq hits) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l * k)).
 Proof.      
 
@@ -4009,9 +4010,9 @@ Theorem bloomfilter_collission_rsum
             res' <-$ bloomfilter_query value hashes2 bf;
             ret (res'.2)
           ] true =
-        \rsum_(inds in [finType of k.-tuple ('I_Hash_size.+1)])
+        \sum_(inds in [finType of k.-tuple ('I_Hash_size.+1)])
          ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k) *R*
-          (\rsum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1])
+          (\sum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1])
             ((( inds \subseteq hits) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ (l * k)))))).
 Proof.
   have H x y z: (y = (0%R)) -> x = z -> x +R+ y = z. by move => -> ->; rewrite addR0.
@@ -4029,8 +4030,8 @@ Proof.
   under big j _ rewrite (bigID (fun i => i == Tuple (hash_vec_insert_length value hashes j))) big_pred1_eq hash_vecP //=.
 
   have Hfail j: 
-\rsum_(i | i != Tuple (hash_vec_insert_length value hashes j))
-         \rsum_(i0 in ([finType of k.-tuple (HashState n) * bool]))
+\sum_(i | i != Tuple (hash_vec_insert_length value hashes j))
+         \sum_(i0 in ([finType of k.-tuple (HashState n) * bool]))
             ((d[ let (hashes1, _) := i0 in
                  res2 <-$ bloomfilter_add_multiple hashes1 bloomfilter_new values;
                  (let (hashes2, bf) := res2 in res' <-$ bloomfilter_query value hashes2 bf; ret res'.2)])
@@ -4075,12 +4076,12 @@ Qed.
 
 
 Lemma subseq_conv l:
-          \rsum_(inds in [finType of k.-tuple ('I_Hash_size.+1)])
+          \sum_(inds in [finType of k.-tuple ('I_Hash_size.+1)])
          ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k) *R*
-          (\rsum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1])
+          (\sum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1])
             ((( inds \subseteq hits) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ (l * k)))))) =
 ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l.+1 * k) *R*
-   \rsum_(a in ordinal_finType (l * k))
+   \sum_(a in ordinal_finType (l * k))
       (((((a %R) ^R^ k) *R* (Factorial.fact a %R)) *R* ('C(l * k, a) %R)) *R* stirling_no_2 (l * k) a)).
 Proof.
 
@@ -4151,7 +4152,7 @@ Theorem bloomfilter_collission_prob
             ret (res'.2)
           ] true =
 ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l.+1 * k) *R*
-   \rsum_(a in ordinal_finType (l * k))
+   \sum_(a in ordinal_finType (l * k))
       (((((a %R) ^R^ k) *R* (Factorial.fact a %R)) *R* ('C(l * k, a) %R)) *R* stirling_no_2 (l * k) a)).
 Proof.
   intros; rewrite (@bloomfilter_collission_rsum _ l) => //=.

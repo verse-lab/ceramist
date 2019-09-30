@@ -1,9 +1,9 @@
 -Q Structures BloomFilter
 -Q Probability BloomFilter
 -Q Properties BloomFilter
--Q infotheo infotheo
 -arg "-w -notation-overridden,-local-declaration,-redundant-canonical-projection,-projection-no-head-constant"
 
+Properties/Parameters.v
 Structures/BloomFilter.v
 Structures/FixedList.v
 Structures/FixedMap.v
@@ -11,7 +11,6 @@ Structures/BitVector.v
 Structures/Hash.v
 Probability/Comp.v
 Probability/Notationv1.v
-Properties/Parameters.v
 Properties/Collision.v
 Properties/InvMisc.v
 Probability/bigop_tactics.v
