@@ -154,6 +154,42 @@ Qed.
 
 
 
+Lemma fixedlist_set_nthC (A:eqType) l (vec: l.-tuple A) (ind: 'I_l) (ind': 'I_l) (a : A):
+  set_tnth (set_tnth vec a ind) a  ind' =
+  set_tnth (set_tnth vec a ind') a ind.
+Proof.
+  elim: l ind ind' vec => [|l IHl] [ind Hind] [ind' Hind'] vec;
+                           first by rewrite !tuple0 //=.
+
+  - {
+
+      case: ind' Hind' => [|ind'] Hind'; case: ind Hind => [|ind] Hind //=; case: vec => [[| v vs] Hvs];
+                                                                                      rewrite ?ntuple_tailE /ntuple_head ?theadE //=.
+
+      - {
+          have ->: (thead (Tuple Hvs)) = v; first by [].
+
+          rewrite/ntuple_tail//=.
+
+          move: (behead_tupleP _ ) => //= H1; move: (behead_tupleP _) => //= H2; move: (behead_tupleP _ ) => //= H3.
+          move: H2; rewrite (proof_irrelevance _ H1 H3) => H2; clear H1.
+
+          rewrite!/[tuple of _ ] //=; move: (valP _) => //= H4; move: (valP _) => //= H5.
+            by rewrite (proof_irrelevance _ H4 H5).
+        }
+      - {
+          rewrite!/[tuple of _ ] //=; move: (valP _) => //= H4; move: (valP _) => //= H5.
+            by rewrite (proof_irrelevance _ H4 H5).
+        }
+      - {
+
+          have H1: (ind < l); first by move: Hind => /ltn_SnnP.
+          have H2: (ind' < l); first by move: Hind' => /ltn_SnnP.
+            by move: (@IHl (Ordinal H1)  (Ordinal H2) (ntuple_tail (Tuple Hvs))) => //= -> //=.
+        }  
+    }
+Qed.
+
 
 
 
@@ -1367,6 +1403,7 @@ Definition fixlist n := n.-tuple (option A).
       by case: b => //=.
     by rewrite Hobv.
   Qed.
+
 
 
 

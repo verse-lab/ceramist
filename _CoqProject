@@ -4,7 +4,10 @@
 -arg "-w -notation-overridden,-local-declaration,-redundant-canonical-projection,-projection-no-head-constant"
 
 Properties/Parameters.v
+Properties/InvMisc.v
 Properties/seq_ext.v
+Properties/seq_subset.v
+Properties/rsum_ext.v
 Structures/BloomFilter.v
 Structures/FixedList.v
 Structures/FixedMap.v
@@ -13,5 +16,4 @@ Structures/Hash.v
 Probability/Comp.v
 Probability/Notationv1.v
 Properties/Collision.v
-Properties/InvMisc.v
 Probability/bigop_tactics.v
