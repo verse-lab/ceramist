@@ -55,7 +55,7 @@ Proof.
   by [].
 Qed.
 
-Print rem.
+
 
 Fixpoint prefix {A : eqType} (xs : list A) (ys : list A) :=
   if length xs > length ys 
@@ -411,7 +411,7 @@ Qed.
 
 Lemma leq_exists  a b : a <= b -> exists c, a + c = b.
 Proof.
-  rewrite leq_eqVlt => /orP [/eqP -> | ]. by exists 0.
+  rewrite leq_eqVlt => /orP [/eqP -> | ]; first by exists 0; rewrite addn0.
   move: a.
   elim: b => //= b IHb a.
   rewrite ltnS leq_eqVlt => /orP [/eqP -> | ]. by exists 1; rewrite addn1.
@@ -638,7 +638,7 @@ Definition ordinal_sub {max : nat} (value : 'I_max) (suband : nat) : 'I_max :=
 
 Lemma Rle_big_eqP (A : finType) (f g : A -> R) (P : pred A) :
    (forall i : A, P i -> f i <= g i) ->
-   \rsum_(i | P i) g i = \rsum_(i | P i) f i <->
+   \sum_(i | P i) g i = \sum_(i | P i) f i <->
    (forall i : A, P i -> g i = f i).
 Proof.
   move=> hf; split => [/Rle_big_eq H//=|].
@@ -649,7 +649,7 @@ Qed.
 
 
 Lemma addRA_rsum  (A : finType) f g : 
-  \rsum_(i in A) (f i + g i)%R = (\rsum_(i in A) f i + \rsum_(i in A) g i)%R .
+  \sum_(i in A) (f i + g i)%R = (\sum_(i in A) f i + \sum_(i in A) g i)%R .
 Proof.
   rewrite unlock.
   elim index_enum => //=.
