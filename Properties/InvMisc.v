@@ -2,11 +2,49 @@ From mathcomp.ssreflect
 Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun bigop seq path finfun tuple.
 
 
+Lemma ltn_Snn a b : a.+1 < b.+1 -> a < b.
+Proof.
+  by rewrite -{1}(addn1 a) -{1}(addn1 b) ltn_add2r.
+Qed.
+
+Lemma rem_in_neq (A: eqType) (q p: A) (inds: seq A) (Hneq:   q != p):
+
+  (q \in rem p inds) = (q \in inds).
+Proof.
+  elim: inds => //= ind inds IHind.
+  move: Hneq.
+  case Heqind: (ind == p).
+  - by move/eqP: Heqind ->;   rewrite in_cons eq_sym =>/Bool.negb_true_iff -> //=.
+  - by rewrite !in_cons IHind.
+Qed.
+
+
+
+
+
+Lemma all_in_negP (A: eqType) (I J : seq A) :
+  all (fun j => j \notin I) J = all (fun i => i \notin J) I.
+Proof.
+  apply/allP.
+
+  case Hall: all.
+
+  - by move/allP: Hall => Hnin; move=> j Hj; apply/memPn => i Hi; move: (Hnin i Hi) =>/memPn/(_ j Hj); rewrite eq_sym.
+  - by move/Bool.negb_true_iff: Hall => /allPn [i Hi];
+                                         rewrite Bool.negb_involutive => Hiinj;
+                                                                          apply/allP;apply/allPn; exists i => //=; rewrite Bool.negb_involutive.
+Qed.
+
+Lemma minn_mult m l: (minn m (l * m + m) = m). Proof. by rewrite minnE //= addnC subnDA subnn subn0. Qed.
+
+Lemma mult_subn m l: ((m * l) + l - l) = (m * l). Proof. by rewrite -addnBA //= subnn addn0. Qed.
 
 
 (* utility function for ranges of values form (inclusive) a to b (exclusive) *)
 Definition itoj (m n : nat) : seq.seq nat :=
   iota m (n - m).
+
+
 
 (* Couldn't find a remove_nth function in stdlib or ssreflect*)
 Fixpoint rem_nth {A:Type} (n : nat) (ls : list A) : list A := 
@@ -55,7 +93,7 @@ Proof.
   by [].
 Qed.
 
-Print rem.
+
 
 Fixpoint prefix {A : eqType} (xs : list A) (ys : list A) :=
   if length xs > length ys 
@@ -411,7 +449,7 @@ Qed.
 
 Lemma leq_exists  a b : a <= b -> exists c, a + c = b.
 Proof.
-  rewrite leq_eqVlt => /orP [/eqP -> | ]. by exists 0.
+  rewrite leq_eqVlt => /orP [/eqP -> | ]; first by exists 0; rewrite addn0.
   move: a.
   elim: b => //= b IHb a.
   rewrite ltnS leq_eqVlt => /orP [/eqP -> | ]. by exists 1; rewrite addn1.
@@ -638,7 +676,7 @@ Definition ordinal_sub {max : nat} (value : 'I_max) (suband : nat) : 'I_max :=
 
 Lemma Rle_big_eqP (A : finType) (f g : A -> R) (P : pred A) :
    (forall i : A, P i -> f i <= g i) ->
-   \rsum_(i | P i) g i = \rsum_(i | P i) f i <->
+   \sum_(i | P i) g i = \sum_(i | P i) f i <->
    (forall i : A, P i -> g i = f i).
 Proof.
   move=> hf; split => [/Rle_big_eq H//=|].
@@ -649,7 +687,7 @@ Qed.
 
 
 Lemma addRA_rsum  (A : finType) f g : 
-  \rsum_(i in A) (f i + g i)%R = (\rsum_(i in A) f i + \rsum_(i in A) g i)%R .
+  \sum_(i in A) (f i + g i)%R = (\sum_(i in A) f i + \sum_(i in A) g i)%R .
 Proof.
   rewrite unlock.
   elim index_enum => //=.
@@ -683,4 +721,5 @@ Proof.
     by move/eqP: Hr2eq0 => ->; rewrite (Rmult_0_r r1) .
   by move/eqP: Hr1eq0 => Hr1neq; move/eqP: Hr2eq0 => Hr2neq.
 Qed.
+
 

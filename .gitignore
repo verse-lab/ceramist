@@ -81,3 +81,4 @@ Makefile.coq
 *.aux
 .coqdeps.d
 Makefile.coq.conf
+Makefile.conf
