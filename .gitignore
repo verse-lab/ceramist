@@ -79,3 +79,5 @@ cv/*.out
 .coq-native
 Makefile.coq
 *.aux
+*~
+Makefile.conf
