@@ -1,14 +1,13 @@
-From mathcomp.ssreflect
-     Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq path bigop finfun .
+From mathcomp.ssreflect Require Import
+     ssreflect ssrbool ssrnat eqtype fintype choice
+     ssrfun seq path bigop finfun.
 
-From mathcomp.ssreflect
-     Require Import tuple.
+From mathcomp.ssreflect Require Import tuple.
 
-From mathcomp
-     Require Import path .
+From mathcomp Require Import path .
 
-From infotheo
-     Require Import ssrR Reals_ext logb ssr_ext ssralg_ext bigop_ext Rbigop proba.
+From infotheo Require Import
+     ssrR Reals_ext logb ssr_ext ssralg_ext bigop_ext Rbigop proba.
 
 Require Import Coq.Logic.ProofIrrelevance.
 Require Import Coq.Logic.FunctionalExtensionality.
@@ -36,62 +35,71 @@ Section HashVec.
 
 
   Lemma Hpredkvld: k.-1 < k.
-    Proof.
-        by  apply InvMisc.ltnn_subS.
-    Qed.
+  Proof.
+      by  apply InvMisc.ltnn_subS.
+  Qed.
 
 
   Lemma Hltn_leq pos pos' (Hpos: pos < k) (Hpos': pos = pos'.+1) : pos' < k.
       by  move: (Hpos); rewrite {1}Hpos' -{1}(addn1 pos') => /InvMisc.addr_ltn .
-    Qed.  
+  Qed.  
 
 
   Definition trcons A n (xs: n.-tuple A) (x: A) : (n.+1.-tuple A) :=
     match xs as t return (_ <- t; (n.+1).-tuple A) with
     | @Tuple _ _ x0 x1 =>
-        (fun (xs0 : seq A) (Hsz : size xs0 == n) =>
-            (Hmap <- (fun Hsz0 : size (xs0 <::< x) = n.+1 => Hrxs <- introT eqP Hsz0; Tuple Hrxs);
-            eq_rect_r (fun n' : nat => size (xs0 <::< x) = n'.+1 -> (n.+1).-tuple A) Hmap (elimTF eqP Hsz))
-            (size_rcons xs0 x))
-            x0 x1
+      (fun (xs0 : seq A) (Hsz : size xs0 == n) =>
+         (Hmap <- (fun Hsz0 : size (xs0 <::< x) = n.+1 =>
+                    Hrxs <- introT eqP Hsz0; Tuple Hrxs);
+            eq_rect_r (fun n' : nat => size (xs0 <::< x) = n'.+1 -> (n.+1).-tuple A)
+                      Hmap (elimTF eqP Hsz))
+           (size_rcons xs0 x))
+        x0 x1
     end.
 
 
 
   (* Helper lemma to perform typecast
   there's got to be a better way to do this... *)
-  Lemma hash_vec_int_cast (h h' : nat) A (Hh: h = h'.+1) (tuple: h.-tuple A) : (h'.+1).-tuple A.
+  Lemma hash_vec_int_cast (h h' : nat) A (Hh: h = h'.+1)
+        (tuple: h.-tuple A) : (h'.+1).-tuple A.
   Proof.
     move: tuple => [tval Htval]; split with tval.
-    by rewrite -Hh.
+      by rewrite -Hh.
   Defined.
 
   
-  Fixpoint hash_vec_int (h: nat) (value: hash_keytype) (hashes:  h.-tuple (HashState n))  : Comp [finType of (h.-tuple (HashState n) * (h.-tuple 'I_(Hash_size.+1)))]
+  Fixpoint hash_vec_int (h: nat) (value: hash_keytype)
+           (hashes:  h.-tuple (HashState n))  :
+    Comp [finType of (h.-tuple (HashState n) * (h.-tuple 'I_(Hash_size.+1)))]
     :=
-    (match h as h' return (h = h' -> h'.-tuple (HashState n) -> Comp [finType of (h'.-tuple (HashState n) * (h'.-tuple 'I_(Hash_size.+1)))]) with
-       | 0 => (fun (Hh: h = 0) (hashes': 0.-tuple (HashState n)) => ret ([tuple of [::]], [tuple of [::]]))
+      (match h as h' return
+             (h = h' -> h'.-tuple (HashState n) ->
+              Comp [finType of (h'.-tuple (HashState n) * (h'.-tuple 'I_(Hash_size.+1)))]) with
+       | 0 => (fun (Hh: h = 0) (hashes': 0.-tuple (HashState n)) =>
+                ret ([tuple of [::]], [tuple of [::]]))
        | h'.+1 => (fun (Hh: h = h'.+1) (sub_hashes': (h'.+1).-tuple (HashState n)) =>
                     (* hash the remaining h' elements *)
                     remain <-$ @hash_vec_int h' value (ntuple_tail  sub_hashes');
-                    let (hashes', values') := remain in        
-                    (* then hash the current element *)
-                    let hsh_fun := thead sub_hashes' in 
-                    hash_vl <-$ hash _ value hsh_fun;
+                      let (hashes', values') := remain in        
+                      (* then hash the current element *)
+                      let hsh_fun := thead sub_hashes' in 
+                      hash_vl <-$ hash _ value hsh_fun;
 
-                    (* retrieve the  *)
-                    let (new_hsh_fun, result) := hash_vl in  
-                    ret ([tuple of new_hsh_fun :: hashes'], [tuple of result :: values'])
-       ) 
-    end   
-    ) (erefl h) hashes .
+                        (* retrieve the  *)
+                        let (new_hsh_fun, result) := hash_vl in  
+                        ret ([tuple of new_hsh_fun :: hashes'], [tuple of result :: values'])
+                 ) 
+       end   
+      ) (erefl h) hashes .
 
 End HashVec.
 
 
 Open Scope R_scope.
 
-Lemma hash_vec_insert_length n l (value: hash_keytype) (hashes: l.-tuple (HashState n)) (inds: l.-tuple 'I_Hash_size.+1):
+Lemma hash_vec_insert_length n l (value: hash_keytype)
+      (hashes: l.-tuple (HashState n)) (inds: l.-tuple 'I_Hash_size.+1):
   size (map (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
                let (hash,ind) := pair in @hashstate_put _ value ind hash)
             (zip (tval hashes) (tval inds))) == l.
@@ -101,59 +109,62 @@ Qed.
 
 
 Lemma hash_vec_insert_length_consP n l (value: hash_keytype)
-      (hashes: seq (HashState n)) (hash: HashState n) (Hhashes: size (hash :: hashes) == l.+1)
-      (inds: seq 'I_Hash_size.+1) (ind: 'I_Hash_size.+1) (Hind: size (ind :: inds) == l.+1) :
+      (hashes: seq (HashState n)) (hash: HashState n)
+      (Hhashes: size (hash :: hashes) == l.+1) (inds: seq 'I_Hash_size.+1)
+      (ind: 'I_Hash_size.+1) (Hind: size (ind :: inds) == l.+1) :
   Tuple (hash_vec_insert_length value (Tuple Hhashes) (Tuple Hind)) =
   cons_tuple
     (@hashstate_put _ value ind hash) 
-    (Tuple (hash_vec_insert_length value (Tuple (cons_sizeP  Hhashes)) (Tuple (cons_sizeP Hind)))).
+    (Tuple (hash_vec_insert_length value (Tuple (cons_sizeP  Hhashes))
+                                   (Tuple (cons_sizeP Hind)))).
 Proof.
-
   move: (cons_sizeP  _ ) => //= Hhashes'.
   move: (cons_sizeP  _) => //= Hinds'.
   move: (hash_vec_insert_length _ _ _) => Hinsert'.
 
   move: (Hinsert') => Hinsert; move: Hinsert'.
-  have:    (map (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
-                   let (hash,ind) := pair in @hashstate_put _ value ind hash)
-                (zip (Tuple Hhashes) (Tuple Hind))) = 
-           (hashstate_put n value ind hash) :: (map
-                                                 (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
-                                                    let (hash,ind) := pair in @hashstate_put _ value ind hash)
-                                                 (zip (Tuple Hhashes') (Tuple Hinds'))).
-    by [].
-    move=> ->; move: Hinsert =>  H1 H2.
-    rewrite (proof_irrelevance _ H1 H2); clear H1.
-    erewrite tuple_eta; case Heq: [tuple of _ :: _] => [[//=| x xs] Hxs].
+  have->:
+      (map
+         (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
+            let (hash,ind) := pair in @hashstate_put _ value ind hash)
+         (zip (Tuple Hhashes) (Tuple Hind))) = 
+  (hashstate_put n value ind hash) :: (map (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
+                                             let (hash,ind) := pair in
+                                             @hashstate_put _ value ind hash)
+                                          (zip (Tuple Hhashes') (Tuple Hinds'))); first by [].
+  move: Hinsert =>  H1 H2.
+  rewrite (proof_irrelevance _ H1 H2); clear H1.
+  erewrite tuple_eta; case Heq: [tuple of _ :: _] => [[//=| x xs] Hxs].
+  move: Heq; rewrite theadE.
+  have: behead_tuple
+          (cons_tuple (hashstate_put n value ind hash)
+                      (Tuple (hash_vec_insert_length value (Tuple Hhashes')
+                                                     (Tuple Hinds')))) =
+        (Tuple (hash_vec_insert_length value (Tuple Hhashes') (Tuple Hinds'))).
 
-    move: Heq.
-    rewrite theadE.
-
-    have: behead_tuple
-            (cons_tuple (hashstate_put n value ind hash)
-                        (Tuple (hash_vec_insert_length value (Tuple Hhashes') (Tuple Hinds')))) = (Tuple (hash_vec_insert_length value (Tuple Hhashes') (Tuple Hinds'))).
-
-    rewrite /behead_tuple //=; move:  (hash_vec_insert_length _ _ _) (behead_tupleP _ ) => //= H3 H4.
-      by rewrite (proof_irrelevance _ H3 H4).
-
-      move=>-> [Heqx Heqxs].
-
-      move: Hxs H2; rewrite Heqx Heqxs => //= Ha Hb.
-        by rewrite (proof_irrelevance _ Ha Hb).
-
+  {
+    rewrite /behead_tuple;
+      move:  (hash_vec_insert_length _ _ _) (behead_tupleP _ ) => //= H3 H4.
+      by rewrite (proof_irrelevance _ H3 H4). 
+  }
+  move=>-> [Heqx Heqxs].
+  move: Hxs H2; rewrite Heqx Heqxs => //= Ha Hb.
+    by rewrite (proof_irrelevance _ Ha Hb).
 Qed.
 
 
-Definition hash_vec_contains_value n l (value: hash_keytype) (hashes: l.-tuple (HashState n)) (inds: l.-tuple 'I_Hash_size.+1) : bool :=
+Definition hash_vec_contains_value n l (value: hash_keytype)
+           (hashes: l.-tuple (HashState n)) (inds: l.-tuple 'I_Hash_size.+1) : bool :=
   all (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
          let (hash,ind) := pair in @hashstate_find _ value hash == Some ind)
       (zip (tval hashes) (tval inds)).
 
-Lemma hash_vec_contains_value_preserve n l (value value': hash_keytype) (hashes: l.-tuple (HashState n)) (inds inds': l.-tuple 'I_Hash_size.+1) : value != value' ->
-                                                                                                                                                  hash_vec_contains_value value hashes inds ->
-                                                                                                                                                  hash_vec_contains_value value (Tuple (hash_vec_insert_length value' hashes inds')) inds.
+Lemma hash_vec_contains_value_preserve n l (value value': hash_keytype)
+      (hashes: l.-tuple (HashState n)) (inds inds': l.-tuple 'I_Hash_size.+1) :
+  value != value' ->
+  hash_vec_contains_value value hashes inds ->
+  hash_vec_contains_value value (Tuple (hash_vec_insert_length value' hashes inds')) inds.
 Proof.
-
   move=> Hvalueq Hcontains; move: Hcontains inds'.
   elim: l  hashes inds => [|l IHl]  hashes inds Hcontains inds' //=.
     by rewrite !tuple0/hash_vec_contains_value //= !zip_empty_r //=.
@@ -213,12 +224,12 @@ Qed.
 
 
 
-Lemma hash_vec_contains_value_base n l (value: hash_keytype) (hashes: l.-tuple (HashState n)) (inds
-                                                                                               : l.-tuple 'I_Hash_size.+1) : 
+Lemma hash_vec_contains_value_base n l (value: hash_keytype)
+      (hashes: l.-tuple (HashState n)) (inds : l.-tuple 'I_Hash_size.+1) : 
   all (fun hsh => FixedList.fixlist_length hsh + 1 <= n) hashes ->
-  hash_vec_contains_value value (Tuple (hash_vec_insert_length value hashes inds)) inds.
+  hash_vec_contains_value
+    value (Tuple (hash_vec_insert_length value hashes inds)) inds.
 Proof.
-
   elim: l  hashes inds => [|l IHl]  hashes inds //=.
     by rewrite !tuple0/hash_vec_contains_value //= !zip_empty_r //=.
 
@@ -228,9 +239,9 @@ Proof.
                   FixedList.fixlist_length hsh + 1 <= n) (behead_tuple hashes).
     {
       apply/allP => ind Hind; apply Hhashes => //=.
-        by move: Hind; rewrite (tuple_eta hashes) //= in_cons => ->; rewrite Bool.orb_true_r //=.    
+        by move: Hind;
+          rewrite (tuple_eta hashes) //= in_cons => ->; rewrite Bool.orb_true_r //=.
     }
-
     move: (IHl (behead_tuple hashes) (behead_tuple inds) H1); clear IHl H1.
     rewrite (tuple_eta inds) (tuple_eta hashes) //=.
     rewrite /hash_vec_contains_value //= => H1; apply/andP; split=>//=; last first.
@@ -276,15 +287,17 @@ Qed.
 
 
 Lemma hash_vecP n l (value: hash_keytype) (hashes: l.-tuple (HashState n))
-      (inds: l.-tuple 'I_Hash_size.+1) (Huns: all (fun hsh => FixedMap.fixmap_find value hsh == None) hashes) :
-  d[ hash_vec_int value hashes ] (Tuple (hash_vec_insert_length value hashes inds), inds) =
+      (inds: l.-tuple 'I_Hash_size.+1)
+      (Huns: all (fun hsh => FixedMap.fixmap_find value hsh == None) hashes) :
+  d[ hash_vec_int value hashes ]
+   (Tuple (hash_vec_insert_length value hashes inds), inds) =
   ((Rdefinitions.Rinv (Hash_size.+1)%:R) ^R^ l).
 Proof.
 
   elim: l value hashes inds Huns => [//=| l IHl].
-  - by move=> value [[|//=] Hlen] [[|//=] Hinds]; rewrite Dist1.dE //=.
+  - by move=> value [[|//=] Hlen] [[|//=] Hinds]; rewrite FDist1.dE //=.
 
-  - move=> //= value [[//=| x xs] Hxs] [[//=| y ys] Hys] Huns; rewrite DistBind.dE.   
+  - move=> //= value [[//=| x xs] Hxs] [[//=| y ys] Hys] Huns; rewrite FDistBind.dE.   
     erewrite <- (IHl value (FixedList.ntuple_tail (Tuple Hxs))).
     rewrite /FixedList.ntuple_tail; move: (behead_tupleP _) => //= Hlen.
 
@@ -296,41 +309,47 @@ Proof.
          ((d[ hash_vec_int value (Tuple Hlen)]) (hshs, inds) *R*
           ((d[ hash n value (thead (Tuple Hxs))]) (hsh, ind) *R*
            ([&& (hsh == hashstate_put n value y x ) &&
-                (hshs == Tuple (hash_vec_insert_length value (Tuple (cons_sizeP Hxs)) (Tuple (cons_sizeP Hys)))),
+                (hshs == Tuple (hash_vec_insert_length value
+                                                       (Tuple (cons_sizeP Hxs))
+                                                       (Tuple (cons_sizeP Hys)))),
              ind == y
              & inds == Tuple (cons_sizeP Hys)] %R)
          ))
       ).
     rewrite rsum_split.
-    apply eq_bigr => hshs _; apply eq_bigr => inds _ //=; rewrite DistBind.dE //=.
+    apply eq_bigr => hshs _; apply eq_bigr => inds _ //=; rewrite FDistBind.dE //=.
     rewrite mulRC rsum_Rmul_distr_r rsum_split.
     apply eq_bigr => hsh _; apply eq_bigr => ind _ //=.
-    apply f_equal; apply f_equal => //=; rewrite Dist1.dE.
+    apply f_equal; apply f_equal => //=; rewrite FDist1.dE.
     rewrite xpair_eqE.
     rewrite hash_vec_insert_length_consP.
     rewrite !xcons_eqE.
     have: (Tuple Hys = cons_tuple y (Tuple (cons_sizeP Hys))).
-    rewrite (tuple_eta (cons_tuple _ _)) //= theadE; case Heq: [tuple of _] => [[//=| y' ys'] Hys'].
+    rewrite (tuple_eta (cons_tuple _ _)) //= theadE;
+      case Heq: [tuple of _] => [[//=| y' ys'] Hys'].
     move: Heq => [Heqy' Heqys'].
     move: Hys'; rewrite -Heqy' -Heqys'; move: Hys => H1 H2.
       by rewrite (proof_irrelevance _ H1 H2).
       move=>->; rewrite xcons_eqE.
-
       rewrite eq_sym; apply f_equal; apply f_equal.
-
       case: (_ == _); rewrite ?Bool.andb_true_l ?Bool.andb_false_l//=.
       rewrite eq_sym.
       case: (_ == _); rewrite ?Bool.andb_true_l ?Bool.andb_false_l //=.
       rewrite eq_sym.
         by case: (_ == _); rewrite ?Bool.andb_true_l ?Bool.andb_false_l//=. 
-        have H x1 y1 z1 : (y1 = (0 %R)) -> x1 = z1 -> x1 +R+ y1 = z1. by move=> -> ->; rewrite addR0.
+        have H x1 y1 z1 : (y1 = (0 %R)) -> x1 = z1 -> x1 +R+ y1 = z1.
+          by move=> -> ->; rewrite addR0.
         transitivity (
             \sum_(hshs in [finType of l.-tuple (HashState n)])
              \sum_(inds in [finType of l.-tuple 'I_Hash_size.+1])
              ((d[ hash_vec_int value (Tuple Hlen)]) (hshs, inds) *R*
-              ((d[ hash n value (thead (Tuple Hxs))]) (hashstate_put n value y x, y) *R*
-               ([&& (hshs == Tuple (hash_vec_insert_length value (Tuple (cons_sizeP Hxs))
-                                                           (Tuple (cons_sizeP Hys))) ) & inds ==  Tuple (cons_sizeP Hys)] %R)))
+              ((d[ hash n value (thead (Tuple Hxs))])
+                 (hashstate_put n value y x, y) *R*
+               ([&& (hshs == Tuple (hash_vec_insert_length
+                                      value
+                                      (Tuple (cons_sizeP Hxs))
+                                      (Tuple (cons_sizeP Hys))) ) &
+                 inds == Tuple (cons_sizeP Hys)] %R)))
           ).                
   - apply eq_bigr => hshs _; apply eq_bigr => inds _.
     rewrite (bigID (fun hsh => hsh == hashstate_put n value y x)) big_pred1_eq eq_refl //=.
@@ -346,19 +365,27 @@ Proof.
   - apply prsumr_eq0P => y' /Bool.negb_true_iff ->; first by dispatch_Rgt.
       by rewrite !Bool.andb_false_l Bool.andb_false_r //= !mulR0.
         by [].     
-
         transitivity (
-            ((d[ hash_vec_int value (Tuple Hlen)]) (Tuple (hash_vec_insert_length value (Tuple (cons_sizeP Hxs)) (Tuple (cons_sizeP Hys))), Tuple (cons_sizeP Hys)) *R*
-             ((d[ hash n value (thead (Tuple Hxs))]) (hashstate_put n value y x, y)))
+            ((d[ hash_vec_int value (Tuple Hlen)])
+               (Tuple (hash_vec_insert_length
+                         value
+                         (Tuple (cons_sizeP Hxs))
+                         (Tuple (cons_sizeP Hys))), Tuple (cons_sizeP Hys)) *R*
+             ((d[ hash n value (thead (Tuple Hxs))])
+                (hashstate_put n value y x, y)))
           ).
-        rewrite (bigID (fun hshs => hshs == Tuple (hash_vec_insert_length value (Tuple (cons_sizeP Hxs)) (Tuple (cons_sizeP Hys))))) big_pred1_eq eq_refl //=.
-
+        rewrite (bigID (fun hshs =>
+                          hshs == Tuple (hash_vec_insert_length
+                                           value
+                                           (Tuple (cons_sizeP Hxs))
+                                           (Tuple (cons_sizeP Hys)))))
+                big_pred1_eq eq_refl //=.
         apply H.
   - apply prsumr_eq0P => y' /Bool.negb_true_iff ->; first by dispatch_Rgt.
     apply prsumr_eq0P => ind' Hind'; first by dispatch_Rgt.
       by rewrite //= !mulR0.
-
-      rewrite (bigID (fun inds => inds == Tuple (cons_sizeP Hys))) big_pred1_eq eq_refl //=.                  apply H.
+      rewrite (bigID (fun inds => inds == Tuple (cons_sizeP Hys))) big_pred1_eq eq_refl //=.
+      apply H.
   - apply prsumr_eq0P => y' /Bool.negb_true_iff ->; first by dispatch_Rgt.
       by rewrite //= !mulR0.
         by rewrite mulR1.
@@ -372,17 +399,17 @@ Proof.
         have H1: (x \in Tuple Hxs). by rewrite in_cons eq_refl //=.
         move /eqP: (Huns x H1) => Hx.
         have: (thead (Tuple Hxs)) = x. by [].
-        move=>->; rewrite /hash/hashstate_find Hx //= DistBind.dE.
+        move=>->; rewrite /hash/hashstate_find Hx //= FDistBind.dE.
         apply Logic.eq_sym.
 
         transitivity (
             \sum_(a in [finType of 'I_Hash_size.+1])
              (\sum_(a0 in ordinal_finType Hash_size.+1)
-               ((Uniform.d (size_enum_equiv (size_enum_ord Hash_size.+1))) a0 *R* (Dist1.d a0) a) *R*
+               ((Uniform.d (size_enum_equiv (size_enum_ord Hash_size.+1))) a0 *R* (FDist1.d a0) a) *R*
               ((hashstate_put n value y x == hashstate_put n value a x) && (a == y) %R))
           ).
         apply eq_bigr => a _.
-          by rewrite DistBind.dE Dist1.dE xpair_eqE (eq_sym y).
+          by rewrite FDistBind.dE FDist1.dE xpair_eqE (eq_sym y).
 
           rewrite (bigID (fun a => a == y)) big_pred1_eq eq_refl //=.   
           apply H.
@@ -396,7 +423,7 @@ Proof.
           \sum_(a0 in 'I_Hash_size.+1)
            ((Uniform.d (size_enum_equiv (size_enum_ord Hash_size.+1))) a0 *R* (a0 == y %R))
         ).
-        by apply eq_bigr => a' _; rewrite Dist1.dE eq_sym.
+        by apply eq_bigr => a' _; rewrite FDist1.dE eq_sym.
 
         rewrite (bigID (fun a0 => a0 == y)) big_pred1_eq //= eq_refl mulR1 //=.
         apply H.
@@ -412,15 +439,13 @@ Qed.
 
 Lemma neg_hash_vecP n l (value: hash_keytype) (hashes hashes': l.-tuple (HashState n))
       (inds: l.-tuple 'I_Hash_size.+1)
-      (Huns: all (fun hsh => FixedMap.fixmap_find value hsh == None) hashes)
-  : (tval hashes' != map (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
-                            let (hash,ind) := pair in
-                            @hashstate_put _ value ind hash) (zip (tval hashes) (tval inds))) ->
-    d[ hash_vec_int value hashes ] (hashes', inds) =
-    (0 %R).
+      (Huns: all (fun hsh => FixedMap.fixmap_find value hsh == None) hashes) :
+  (tval hashes' != map (fun (pair: (HashState n * 'I_Hash_size.+1)) =>
+                          let (hash,ind) := pair in
+                          @hashstate_put _ value ind hash) (zip (tval hashes) (tval inds))) ->
+  d[ hash_vec_int value hashes ] (hashes', inds) =
+  (0 %R).
 Proof.
-
-
   elim: l value hashes hashes' inds Huns => [//=| l IHl].
   - move=> value hashes hashes' inds.
     have: (hashes == [tuple]); last move=> /eqP ->; first by case: hashes => [[]] //=.
@@ -428,7 +453,8 @@ Proof.
     have: (inds == [tuple]); last move=> /eqP ->; first by case: inds => [[]] //=.
       by clear hashes hashes' inds => //=.
 
-  - move=> //= value [[//=| x xs] Hxs] [[//=| y ys] Hys] [[//=| z zs] Hzs] /allP Huns; rewrite DistBind.dE //=.   
+  - move=> //= value [[//=| x xs] Hxs] [[//=| y ys] Hys] [[//=| z zs] Hzs] /allP Huns;
+            rewrite FDistBind.dE //=.   
 
     rewrite negb_consP =>/orP [Hyneq | Hysneq].
 
@@ -447,14 +473,14 @@ Proof.
       )).
   - rewrite rsum_split; apply eq_bigr => hshs' _; apply eq_bigr => bf' _ //=.
     have: (thead (Tuple Hxs)) = x; last move=> ->; first by [].
-    apply f_equal; rewrite DistBind.dE rsum_split.
+    apply f_equal; rewrite FDistBind.dE rsum_split.
     apply eq_bigr => hshs'' _; apply eq_bigr => ind' _ //=.
-    rewrite /hash/hashstate_find Dist1.dE.
+    rewrite /hash/hashstate_find FDist1.dE.
     case Hteq: ((_,_) == _); last by rewrite bigsum_card_constE //= !mulR0.
     move/eqP: Hteq => [<- _ <- _ ] //=; rewrite mulR1.
     have Hin: (x \in Tuple Hxs); first by rewrite (tuple_eta (Tuple Hxs)) //= in_cons; apply/orP;left. 
-    move/eqP: (Huns x Hin) -> => //=; rewrite DistBind.dE.
-    apply eq_bigr => ind'' _; rewrite Dist1.dE xpair_eqE.
+    move/eqP: (Huns x Hin) -> => //=; rewrite FDistBind.dE.
+    apply eq_bigr => ind'' _; rewrite FDist1.dE xpair_eqE.
     case Hz: (z == ind''); last by rewrite Bool.andb_false_r //= mulR0.
       by move/eqP: Hz <-; move/Bool.negb_true_iff: Hyneq -> => //=; rewrite mulR0.  
         by do ? [
@@ -464,9 +490,9 @@ Proof.
 
         apply prsumr_eq0P => [[hshs' bf']|] ; first by dispatch_Rgt; case; intros; dispatch_Rgt.  
         move=> [hshs' bf'] _; case Heq: (tval hshs' == ys); last first.
-  - apply RIneq.Rmult_eq_0_compat_l => //=; rewrite DistBind.dE.
+  - apply RIneq.Rmult_eq_0_compat_l => //=; rewrite FDistBind.dE.
     apply prsumr_eq0P => [[hshs'' ind']|[hshs'' ind']] _; first by dispatch_Rgt.
-    rewrite //= Dist1.dE xpair_eqE //=; apply RIneq.Rmult_eq_0_compat_l => //=.
+    rewrite //= FDist1.dE xpair_eqE //=; apply RIneq.Rmult_eq_0_compat_l => //=.
     suff: (Tuple Hys == [tuple of hshs'' :: hshs']) = false; first by move => -> //=.
     rewrite (tuple_eta (Tuple Hys)).
     have: (thead (Tuple Hys)) = y; last move=> -> //=; first by  [].
@@ -477,9 +503,9 @@ Proof.
     suff: (Tuple Hys' == Tuple Hhshs') = false; first by move=>->; rewrite Bool.andb_false_r.
       by rewrite tuple_eq_inj eq_sym Hneq.
       case Hbfeq: (tval bf' == zs); last first.      
-  - apply RIneq.Rmult_eq_0_compat_l => //=; rewrite DistBind.dE.
+  - apply RIneq.Rmult_eq_0_compat_l => //=; rewrite FDistBind.dE.
     apply prsumr_eq0P => [[hshs'' ind']|[hshs'' ind']] _; first by dispatch_Rgt.
-    rewrite //= Dist1.dE xpair_eqE //=; apply RIneq.Rmult_eq_0_compat_l => //=.
+    rewrite //= FDist1.dE xpair_eqE //=; apply RIneq.Rmult_eq_0_compat_l => //=.
     suff: (Tuple Hzs == [tuple of ind' :: bf']) = false; first by move => ->; rewrite Bool.andb_false_r //=.
     rewrite (tuple_eta (Tuple Hzs)).
     have: (thead (Tuple Hzs)) = z; last move=> -> //=; first by  [].
@@ -487,15 +513,16 @@ Proof.
       apply RIneq.Rmult_eq_0_compat_r; apply IHl;move/eqP:Heq=>Heq;move/eqP:Hbfeq=>Hbfeq; rewrite ?Heq ?Hbfeq //=.
       clear IHl.
         by apply/allP => x' Hx'; apply Huns=> //=; rewrite in_cons;apply/orP;right.
-
 Qed.
 
 
 Lemma hash_vec_simpl (n' k': nat) (hashes: k'.-tuple (HashState n')) value inds f :
-  all (fun hsh : FixedMap.fixmap hash_keytype hash_valuetype n' => FixedMap.fixmap_find value hsh == None) hashes ->
+  all (fun hsh : FixedMap.fixmap hash_keytype hash_valuetype n' =>
+         FixedMap.fixmap_find value hsh == None) hashes ->
   (\sum_(hshs' in [finType of k'.-tuple (HashState n')])
     ((d[ hash_vec_int value hashes]) (hshs', inds) *R* (f hshs'))) =
-  ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k') *R* (f (Tuple (hash_vec_insert_length value hashes inds)))).
+  ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k') *R*
+   (f (Tuple (hash_vec_insert_length value hashes inds)))).
 Proof.
   move=> Hall.
   rewrite (bigID (fun hshs' => hshs' == (Tuple (hash_vec_insert_length value hashes inds)))) big_pred1_eq//=.
@@ -513,19 +540,23 @@ Lemma hash_vec_find_simpl n l (value: hash_keytype) (hashes hashes': l.-tuple (H
   ((hashes' == hashes) && (inds' == inds) %R).
 Proof.
   elim: l hashes inds hashes'  inds' => [//=| l IHl].
-  - by do ?(case; case => //=; intro); move=> _ //=; rewrite Dist1.dE xpair_eqE //= !tuple0 //=.
-  - move=> [[//=| hash hashes] Hhashes] [[//=| ind inds] Hinds] [[//=| hash' hashes'] Hhashes']  [[//=|ind' inds'] Hinds'] //=.
-    rewrite DistBind.dE rsum_split //=.
+  - by do ?(case; case => //=; intro); move=> _ //=; rewrite FDist1.dE xpair_eqE //= !tuple0 //=.
+  - move=> [[//=| hash hashes] Hhashes]
+            [[//=| ind inds] Hinds]
+            [[//=| hash' hashes'] Hhashes']
+            [[//=|ind' inds'] Hinds'] //=.
+    rewrite FDistBind.dE rsum_split //=.
     have H1: (thead (Tuple Hhashes)) = hash; first by [].
     under big a _ under big b _ rewrite H1.
-    move: (IHl (FixedList.ntuple_tail (Tuple Hhashes)) (FixedList.ntuple_tail (Tuple Hinds))) => IHl' /allP Hcontains.
+    move: (IHl (FixedList.ntuple_tail (Tuple Hhashes))
+               (FixedList.ntuple_tail (Tuple Hinds))) => IHl' /allP Hcontains.
     under big a H3 under big b H4 rewrite IHl' ?boolR_distr -?mulRA.
     {
       rewrite exchange_big; under big b _ rewrite -rsum_pred_demote big_pred1_eq.
       rewrite -rsum_pred_demote big_pred1_eq //=.
-      rewrite DistBind.dE rsum_split //=.
+      rewrite FDistBind.dE rsum_split //=.
 
-      under big a _ under big b _ rewrite Dist1.dE xpair_eqE//=.
+      under big a _ under big b _ rewrite FDist1.dE xpair_eqE//=.
 
       have Heq (a: HashState n) (b: 'I_Hash_size.+1):
         (Tuple Hhashes' == [tuple of a :: (FixedList.ntuple_tail (Tuple Hhashes))])
@@ -563,7 +594,10 @@ Proof.
                       (FixedList.ntuple_tail (Tuple Hhashes') == FixedList.ntuple_tail (Tuple Hhashes)) &&
                       (FixedList.ntuple_tail (Tuple Hinds') == FixedList.ntuple_tail (Tuple Hinds)).
       {
-        rewrite (tuple_eta (Tuple Hhashes')) (tuple_eta (Tuple Hhashes)) (tuple_eta (Tuple Hinds)) (tuple_eta (Tuple Hinds'))  //=.
+        rewrite (tuple_eta (Tuple Hhashes'))
+                (tuple_eta (Tuple Hhashes))
+                (tuple_eta (Tuple Hinds))
+                (tuple_eta (Tuple Hinds'))  //=.
         rewrite !ntuple_tailE //=.
         have -> : (thead (Tuple Hhashes')) = hash'; first by [].
         have -> : (thead (Tuple Hhashes)) = hash; first by [].
@@ -572,8 +606,11 @@ Proof.
         apply Logic.eq_sym.
 
         transitivity (
-            ((hash' == hash) && (behead_tuple (Tuple Hhashes') == behead_tuple (Tuple Hhashes))) &&
-                                                                                                 ((ind' == ind) && (behead_tuple (Tuple Hinds') == behead_tuple (Tuple Hinds)))
+            ((hash' == hash)
+               && (behead_tuple (Tuple Hhashes') ==
+                   behead_tuple (Tuple Hhashes)))
+              && ((ind' == ind)
+                    && (behead_tuple (Tuple Hinds') == behead_tuple (Tuple Hinds)))
           ).
 
         {
@@ -585,7 +622,7 @@ Proof.
       }
       rewrite andbC andbA andbC !boolR_distr; do? apply f_equal.
       have Hin: ((hash, ind) \in zip (Tuple Hhashes) (Tuple Hinds)); first by rewrite //= in_cons eq_refl //=.
-        by move: (Hcontains (hash,ind) Hin) =>/eqP -> //=; rewrite Dist1.dE eq_sym xpair_eqE boolR_distr //=.
+        by move: (Hcontains (hash,ind) Hin) =>/eqP -> //=; rewrite FDist1.dE eq_sym xpair_eqE boolR_distr //=.
         
     }
     {
@@ -600,179 +637,175 @@ Qed.
 
 
 
+Lemma hash_vec_int_id' (n' k': nat) (hashes: k'.-tuple (HashState n')) value inds ps :
+  all (fun y => FixedList.fixlist_length y + 1 <= n') hashes ->
+  (d[ hash_vec_int  value (Tuple (hash_vec_insert_length value hashes inds))])
+    (ps, inds) = (ps == (Tuple (hash_vec_insert_length value hashes inds)) %R).
+Proof.
 
+  move: (hash_vec_insert_length _ _ _) => //=.
+  elim: k' n'  inds hashes ps => [//=|k' IHk'] n' [[//=| x xs] Hxs] [[//=|y ys] Hys] ps Hprf Hprf'' //=.
+  move: Hprf => //= H0; rewrite FDist1.dE xpair_eqE //=.
+  apply Logic.eq_sym; case Heq: (_ == _) => //=.
+    by move/eqP: Heq ->; case: ps => //= [//= []] //=; rewrite tuple0 //=.
+      by case: ps Heq  => //= [//= []] //= Hprf.
 
+      case: ps => //= [//=[]]; (try by []); move=>  p ps Hps.
+      rewrite /FixedList.ntuple_tail.
+      move: (behead_tupleP _ ) => //= Hprf'.
+      rewrite FDistBind.dE.
+      rewrite rsum_split //=; under big a _ under big b _ rewrite FDistBind.dE.
 
+      under big a _ under big b _ rewrite rsum_split //=.
+      under big a _ under big b _ under big c _ under big d _ rewrite FDist1.dE xpair_eqE //=.
 
-  Lemma hash_vec_int_id' (n' k': nat) (hashes: k'.-tuple (HashState n')) value inds ps :
-    all (fun y => FixedList.fixlist_length y + 1 <= n') hashes ->
-    (d[ hash_vec_int  value (Tuple (hash_vec_insert_length value hashes inds))])
-      (ps, inds) = (ps == (Tuple (hash_vec_insert_length value hashes inds)) %R).
-  Proof.
-
-    move: (hash_vec_insert_length _ _ _) => //=.
-    elim: k' n'  inds hashes ps => [//=|k' IHk'] n' [[//=| x xs] Hxs] [[//=|y ys] Hys] ps Hprf Hprf'' //=.
-    move: Hprf => //= H0; rewrite Dist1.dE xpair_eqE //=.
-    apply Logic.eq_sym; case Heq: (_ == _) => //=.
-      by move/eqP: Heq ->; case: ps => //= [//= []] //=; rewrite tuple0 //=.
-        by case: ps Heq  => //= [//= []] //= Hprf.
-
-        case: ps => //= [//=[]]; (try by []); move=>  p ps Hps.
-        rewrite /FixedList.ntuple_tail.
-        move: (behead_tupleP _ ) => //= Hprf'.
-        rewrite DistBind.dE.
-        rewrite rsum_split //=; under big a _ under big b _ rewrite DistBind.dE.
-
-        under big a _ under big b _ rewrite rsum_split //=.
-        under big a _ under big b _ under big c _ under big d _ rewrite Dist1.dE xpair_eqE //=.
-
-        have Hsusp1 (c: HashState n') (a: k'.-tuple (HashState n')) : ( (Tuple Hps) ==  [tuple of c :: a]) = ((p == c) && (ps == a)).
+      have Hsusp1 (c: HashState n') (a: k'.-tuple (HashState n')) : ( (Tuple Hps) ==  [tuple of c :: a]) = ((p == c) && (ps == a)).
+        by rewrite/[tuple of _] //=.
+        have Hsusp2 (d: 'I_Hash_size.+1) (b: k'.-tuple 'I_Hash_size.+1) : ( (Tuple Hxs) ==  [tuple of d :: b]) = ((x == d) && (xs == b)).
           by rewrite/[tuple of _] //=.
-          have Hsusp2 (d: 'I_Hash_size.+1) (b: k'.-tuple 'I_Hash_size.+1) : ( (Tuple Hxs) ==  [tuple of d :: b]) = ((x == d) && (xs == b)).
-            by rewrite/[tuple of _] //=.
-            under big a _ under big b _ under big c _ under big d _ rewrite Hsusp1 Hsusp2 !boolR_distr eq_sym mulRC -mulRA -mulRA -mulRA.
-            under big a _ under big b _ rewrite exchange_big.
-            under big a _ under big b _ under big c _ rewrite -rsum_pred_demote big_pred1_eq //=.
+          under big a _ under big b _ under big c _ under big d _ rewrite Hsusp1 Hsusp2 !boolR_distr eq_sym mulRC -mulRA -mulRA -mulRA.
+          under big a _ under big b _ rewrite exchange_big.
+          under big a _ under big b _ under big c _ rewrite -rsum_pred_demote big_pred1_eq //=.
 
-            under big b _ under big c _ under big d _ rewrite mulRC eq_sym -mulRA.
-            under big b _ under big c _ rewrite -rsum_pred_demote big_pred1_eq.
+          under big b _ under big c _ under big d _ rewrite mulRC eq_sym -mulRA.
+          under big b _ under big c _ rewrite -rsum_pred_demote big_pred1_eq.
 
-            under big b _ under big c _ rewrite mulRC -mulRA -mulRA eq_sym.
+          under big b _ under big c _ rewrite mulRC -mulRA -mulRA eq_sym.
 
-            have H (c: k'.-tuple 'I_Hash_size.+1): (tval c == xs) = (c == (behead_tuple (Tuple Hxs))).
+          have H (c: k'.-tuple 'I_Hash_size.+1): (tval c == xs) = (c == (behead_tuple (Tuple Hxs))).
+            by rewrite/behead_tuple //=.
+
+            (under big b _ under big c _ rewrite H); clear H.
+            under big b _ rewrite -rsum_pred_demote big_pred1_eq//=.
+            have H (b: k'.-tuple (HashState n')): (tval b == ps) = (b == (behead_tuple (Tuple Hps))).
               by rewrite/behead_tuple //=.
 
-              (under big b _ under big c _ rewrite H); clear H.
-              under big b _ rewrite -rsum_pred_demote big_pred1_eq//=.
-              have H (b: k'.-tuple (HashState n')): (tval b == ps) = (b == (behead_tuple (Tuple Hps))).
-                by rewrite/behead_tuple //=.
+              under big b _ rewrite mulRC -mulRA  eq_sym H.
+              rewrite -rsum_pred_demote big_pred1_eq.
 
-                under big b _ rewrite mulRC -mulRA  eq_sym H.
-                rewrite -rsum_pred_demote big_pred1_eq.
+              move: (IHk' n' (behead_tuple (Tuple Hxs)) (behead_tuple (Tuple Hys)) (behead_tuple (Tuple Hps))) =>//=.
+              move=> /(_ Hprf') -> //=; clear IHk'.
+              rewrite /hash //=.
 
-                move: (IHk' n' (behead_tuple (Tuple Hxs)) (behead_tuple (Tuple Hys)) (behead_tuple (Tuple Hps))) =>//=.
-                move=> /(_ Hprf') -> //=; clear IHk'.
-                rewrite /hash //=.
+              have ->: ((thead (Tuple Hprf)) = (hashstate_put n' value x y)); first by move=>//=.
+              rewrite hash_find_insert_involutive //= ?FDist1.dE ?xpair_eqE ?eq_refl //=.
+              rewrite ?Bool.andb_true_r.
 
-                have ->: ((thead (Tuple Hprf)) = (hashstate_put n' value x y)); first by move=>//=.
-                rewrite hash_find_insert_involutive //= ?Dist1.dE ?xpair_eqE ?eq_refl //=.
-                rewrite ?Bool.andb_true_r.
-
-                have ->: ((Tuple Hps == Tuple Hprf) = ((thead (Tuple Hps)== thead (Tuple Hprf))
-                                                         && (behead_tuple (Tuple Hps) == (Tuple Hprf'))));
-                  move=>//=.
-                  by rewrite !boolR_distr;apply Logic.eq_sym; rewrite mulRC; apply f_equal => //=.
+              have ->: ((Tuple Hps == Tuple Hprf) = ((thead (Tuple Hps)== thead (Tuple Hprf))
+                                                       && (behead_tuple (Tuple Hps) == (Tuple Hprf'))));
+                move=>//=.
+                by rewrite !boolR_distr;apply Logic.eq_sym; rewrite mulRC; apply f_equal => //=.
+                  by move: Hprf'' => //= /andP [] //=.
                     by move: Hprf'' => //= /andP [] //=.
-                      by move: Hprf'' => //= /andP [] //=.
-  Qed.
+Qed.
 
 
-  Lemma hash_vec_int_id (n' k': nat) (hashes: k'.-tuple (HashState n')) value inds ps qs :
- all (fun y => FixedList.fixlist_length y + 1 <= n') hashes ->
-                                                                                        (d[ hash_vec_int  value (Tuple (hash_vec_insert_length value hashes inds))])
-                                                                                          (ps, qs) = ((ps == (Tuple (hash_vec_insert_length value hashes inds))) && (qs == inds) %R).
-  Proof.
+Lemma hash_vec_int_id (n' k': nat) (hashes: k'.-tuple (HashState n')) value inds ps qs :
+  all (fun y => FixedList.fixlist_length y + 1 <= n') hashes ->
+  (d[ hash_vec_int  value (Tuple (hash_vec_insert_length value hashes inds))])
+    (ps, qs) = ((ps == (Tuple (hash_vec_insert_length value hashes inds))) && (qs == inds) %R).
+Proof.
 
-    move=> Hall.
+  move=> Hall.
 
-    case Heq: (qs == inds).
+  case Heq: (qs == inds).
   - {
       rewrite Bool.andb_true_r.
-                             by move/eqP:Heq ->; rewrite hash_vec_int_id'.      
-                           }
+        by move/eqP:Heq ->; rewrite hash_vec_int_id'.      
+    }
 
-                           - rewrite Bool.andb_false_r //=.
-                             move: (hash_vec_insert_length _ _ _) Heq Hall => //=.
-                             elim: k' n'  inds hashes ps qs => [//=|k' IHk'] n' [[//=| x xs] Hxs] [[//=|y ys] Hys] ps qs Hprf Hprf''' Hprf''  //=.
-                             move: Hprf => //= H0; rewrite Dist1.dE xpair_eqE //=.
-                             apply Logic.eq_sym; case Heq: (_ == _) => //=.
+  - rewrite Bool.andb_false_r //=.
+    move: (hash_vec_insert_length _ _ _) Heq Hall => //=.
+    elim: k' n'  inds hashes ps qs => [//=|k' IHk'] n' [[//=| x xs] Hxs] [[//=|y ys] Hys] ps qs Hprf Hprf''' Hprf''  //=.
+    move: Hprf => //= H0; rewrite FDist1.dE xpair_eqE //=.
+    apply Logic.eq_sym; case Heq: (_ == _) => //=.
 
-                               by move: Hxs Hprf''' => //=; rewrite !tuple0 => Hxs //=.
+      by move: Hxs Hprf''' => //=; rewrite !tuple0 => Hxs //=.
 
-                               case: ps => //= [//=[]]; (try by []); move=>  p ps Hps.
-  rewrite /FixedList.ntuple_tail.
-                                                                                    move: (behead_tupleP _ ) => //= Hprf'.
-                                                                                    rewrite DistBind.dE.
-                                                                                    rewrite rsum_split //=; under big a _ under big b _ rewrite DistBind.dE.
+      case: ps => //= [//=[]]; (try by []); move=>  p ps Hps.
+      rewrite /FixedList.ntuple_tail.
+      move: (behead_tupleP _ ) => //= Hprf'.
+      rewrite FDistBind.dE.
+      rewrite rsum_split //=; under big a _ under big b _ rewrite FDistBind.dE.
 
-                                                                                    under big a _ under big b _ rewrite rsum_split //=.
-                                                                                    under big a _ under big b _ under big c _ under big d _ rewrite Dist1.dE xpair_eqE //=.
+      under big a _ under big b _ rewrite rsum_split //=.
+      under big a _ under big b _ under big c _ under big d _ rewrite FDist1.dE xpair_eqE //=.
 
-                                                                                    have Hsusp1 (c: HashState n') (a: k'.-tuple (HashState n')) : ( (Tuple Hps) ==  [tuple of c :: a]) = ((p == c) && (ps == a)).
-                                                                                      by rewrite/[tuple of _] //=.
-                                                                                      have Hsusp2 (d: 'I_Hash_size.+1) (b: k'.-tuple 'I_Hash_size.+1) : ( (Tuple Hxs) ==  [tuple of d :: b]) = ((x == d) && (xs == b)).
-  by rewrite/[tuple of _] //=.
+      have Hsusp1 (c: HashState n') (a: k'.-tuple (HashState n')) : ( (Tuple Hps) ==  [tuple of c :: a]) = ((p == c) && (ps == a)).
+        by rewrite/[tuple of _] //=.
+        have Hsusp2 (d: 'I_Hash_size.+1) (b: k'.-tuple 'I_Hash_size.+1) : ( (Tuple Hxs) ==  [tuple of d :: b]) = ((x == d) && (xs == b)).
+          by rewrite/[tuple of _] //=.
 
-                                                                                                                                                                                                                      under big a _ under big b _ under big c _ under big d _ rewrite Hsusp1 !boolR_distr eq_sym mulRC -mulRA -mulRA.
-                                                                                                                                                                                                                      under big a _ under big b _ rewrite exchange_big.
-                                                                                                                                                                                                                      under big a _ under big b _ under big c _ rewrite -rsum_pred_demote big_pred1_eq //=.
+          under big a _ under big b _ under big c _ under big d _ rewrite Hsusp1 !boolR_distr eq_sym mulRC -mulRA -mulRA.
+          under big a _ under big b _ rewrite exchange_big.
+          under big a _ under big b _ under big c _ rewrite -rsum_pred_demote big_pred1_eq //=.
 
-                                                                                                                                                                                                                      rewrite exchange_big.
-                                                                                                                                                                                                                      under big a _ under big b _ rewrite !rsum_Rmul_distr_l ?rsum_Rmul_distr_r. 
+          rewrite exchange_big.
+          under big a _ under big b _ rewrite !rsum_Rmul_distr_l ?rsum_Rmul_distr_r. 
 
-                                                                                                                                                                                                                      under big a _ rewrite exchange_big; under big c _ under big d _ rewrite mulRC eq_sym -mulRA.
+          under big a _ rewrite exchange_big; under big c _ under big d _ rewrite mulRC eq_sym -mulRA.
 
-                                                                                                                                                                                                                      have Hd' (d: k'.-tuple (HashState n')): ((tval d == ps)) = (d == behead_tuple (Tuple Hps)).
-                                                                                                                                                                                                                        by rewrite /behead_tuple //=.
+          have Hd' (d: k'.-tuple (HashState n')): ((tval d == ps)) = (d == behead_tuple (Tuple Hps)).
+            by rewrite /behead_tuple //=.
 
-                                                                                                                                                                                                                        have Hq' (c: 'I_Hash_size.+1) (a: k'.-tuple ('I_Hash_size.+1)):
-                                                                                                                                                                                                                          (qs == [tuple of c :: a]) = ((c == thead qs) && (a == behead_tuple qs)).
-                                                                                                                                                                                                                        {
-                                                                                                                                                                                                                          rewrite/cons_tuple; rewrite -xcons_eqE eq_sym //=; rewrite (tuple_eta qs).
-                                                                                                                                                                                                                          rewrite !theadE !beheadE//= ; case: qs Hprf''' => [[| q qs] Hqs] Hprf'''//=.
-                                                                                                                                                                                                                        }
+            have Hq' (c: 'I_Hash_size.+1) (a: k'.-tuple ('I_Hash_size.+1)):
+              (qs == [tuple of c :: a]) = ((c == thead qs) && (a == behead_tuple qs)).
+            {
+              rewrite/cons_tuple; rewrite -xcons_eqE eq_sym //=; rewrite (tuple_eta qs).
+              rewrite !theadE !beheadE//= ; case: qs Hprf''' => [[| q qs] Hqs] Hprf'''//=.
+            }
 
-                                                                                                                                                                                                                        rewrite/[tuple of _ :: _] //=.
-                                                                                                                                                                                                                        
-                                                                                                                                                                                                                        move=>//=.
-                                                                                                                                                                                                                        under big a _ under big b _ under big c _ rewrite Hd'.
-                                                                                                                                                                                                                        under big a _ under big b _ rewrite -rsum_pred_demote  big_pred1_eq //=.
+            rewrite/[tuple of _ :: _] //=.
+            
+            move=>//=.
+            under big a _ under big b _ under big c _ rewrite Hd'.
+            under big a _ under big b _ rewrite -rsum_pred_demote  big_pred1_eq //=.
 
-                                                                                                                                                                                                                        under big a _ under big b _  rewrite Hq' boolR_distr -mulRA -mulRA.
-                                                                                                                                                                                                                        under big a _ rewrite -rsum_pred_demote big_pred1_eq.
-                                                                                                                                                                                                                        rewrite -rsum_pred_demote big_pred1_eq.
+            under big a _ under big b _  rewrite Hq' boolR_distr -mulRA -mulRA.
+            under big a _ rewrite -rsum_pred_demote big_pred1_eq.
+            rewrite -rsum_pred_demote big_pred1_eq.
 
-                                                                                                                                                                                                                        clear Hq'.
-                                                                                                                                                                                                                        case: qs Hprf''' => [[//=|q qs] Hqs]//= Hprf'''.
-                                                                                                                                                                                                                        have: ((q :: qs) == (x :: xs)) = false; first by clear Hprf Hsusp2; move: Hqs Hxs Hprf''' => //=.
+            clear Hq'.
+            case: qs Hprf''' => [[//=|q qs] Hqs]//= Hprf'''.
+            have: ((q :: qs) == (x :: xs)) = false; first by clear Hprf Hsusp2; move: Hqs Hxs Hprf''' => //=.
 
-                                                                                                                                                                                                                        move=>/Bool.negb_true_iff; rewrite negb_consP =>/orP [Hneq| Heqf]; last first.
+            move=>/Bool.negb_true_iff; rewrite negb_consP =>/orP [Hneq| Heqf]; last first.
 
-                           - {
-                               move: (IHk' n' (behead_tuple (Tuple Hxs)) (behead_tuple (Tuple Hys)) (behead_tuple (Tuple Hps)) (behead_tuple (Tuple Hqs))) =>//= -> //=; first by rewrite mulR0.
-                               clear Hprf Hsusp2 Hprf'''; move: Hqs Hxs Heqf =>//=.
-                               rewrite/behead_tuple//= => Hqs Hxs Hneq; move: (behead_tupleP _) (behead_tupleP _) =>//= H1 H2.
-                                 by rewrite tuple_eq_inj //=; apply /Bool.negb_true_iff.
-                                   by move: Hprf'' => //= /andP [].
-                             }
-                           - {
-                               rewrite mulR_eq0; left => //=; have ->: (thead (Tuple Hqs)) = q; first by [].
-                               have ->: (thead (Tuple Hprf)) = hashstate_put n' value x y; first by [].
-                               rewrite/hash.
-                               rewrite hash_find_insert_involutive //= ?Dist1.dE ?xpair_eqE ?eq_refl //=.
-                                 by move/Bool.negb_true_iff: Hneq ->; rewrite Bool.andb_false_r //=.
-                                   by move: Hprf'' => //= /andP [] //=.
-                             }
+  - {
+      move: (IHk' n' (behead_tuple (Tuple Hxs)) (behead_tuple (Tuple Hys)) (behead_tuple (Tuple Hps)) (behead_tuple (Tuple Hqs))) =>//= -> //=; first by rewrite mulR0.
+      clear Hprf Hsusp2 Hprf'''; move: Hqs Hxs Heqf =>//=.
+      rewrite/behead_tuple//= => Hqs Hxs Hneq; move: (behead_tupleP _) (behead_tupleP _) =>//= H1 H2.
+        by rewrite tuple_eq_inj //=; apply /Bool.negb_true_iff.
+          by move: Hprf'' => //= /andP [].
+    }
+  - {
+      rewrite mulR_eq0; left => //=; have ->: (thead (Tuple Hqs)) = q; first by [].
+      have ->: (thead (Tuple Hprf)) = hashstate_put n' value x y; first by [].
+      rewrite/hash.
+      rewrite hash_find_insert_involutive //= ?FDist1.dE ?xpair_eqE ?eq_refl //=.
+        by move/Bool.negb_true_iff: Hneq ->; rewrite Bool.andb_false_r //=.
+          by move: Hprf'' => //= /andP [] //=.
+    }
 
-  Qed.
+Qed.
 
 
-  
 
-  Lemma hash_vec_simpl_inv' (n' k': nat) (hashes: k'.-tuple (HashState n')) value inds f :
-    all
-      (fun y : FixedList.fixlist [eqType of B * 'I_Hash_size.+1] n' =>
-         FixedList.fixlist_length y + 1 <= n') hashes ->
-    (\sum_(hshs' in [finType of k'.-tuple (HashState n')])
-      ((d[ hash_vec_int  value (Tuple (hash_vec_insert_length value hashes inds))]) (hshs', inds) *R* (f hshs'))) =
-    ((f (Tuple (hash_vec_insert_length value hashes inds)))).
-  Proof.
-    move=> H1.
-    under big hshs' _ rewrite hash_vec_int_id' //=.
-      by rewrite -rsum_pred_demote big_pred1_eq //=.
-  Qed.
 
-  
+Lemma hash_vec_simpl_inv' (n' k': nat) (hashes: k'.-tuple (HashState n')) value inds f :
+  all
+    (fun y : FixedList.fixlist [eqType of B * 'I_Hash_size.+1] n' =>
+       FixedList.fixlist_length y + 1 <= n') hashes ->
+  (\sum_(hshs' in [finType of k'.-tuple (HashState n')])
+    ((d[ hash_vec_int  value (Tuple (hash_vec_insert_length value hashes inds))]) (hshs', inds) *R* (f hshs'))) =
+  ((f (Tuple (hash_vec_insert_length value hashes inds)))).
+Proof.
+  move=> H1.
+  under big hshs' _ rewrite hash_vec_int_id' //=.
+    by rewrite -rsum_pred_demote big_pred1_eq //=.
+Qed.
+
+
 
 
 
@@ -794,10 +827,10 @@ Section Hash.
       ((1 %R) /R/ (#|ordinal Hash_size.+1| %R))
     ).
   Proof.
-    move=>/eqP Hhsfindnone; rewrite /hash Hhsfindnone //= DistBindA //= DistBindp1.
-    rewrite (functional_extensionality (fun x : 'I_Hash_size.+1 => DistBind.d (Dist1.d (hashstate_put n value x hash_state, x)) (fun b : HashState n * 'I_Hash_size.+1 => Dist1.d b.2)) (fun x : 'I_Hash_size.+1 => Dist1.d x)); first last.
-      by move=> x; rewrite DistBind1f //=.
-        by  rewrite DistBindp1 Uniform.dE div1R  //=.
+    move=>/eqP Hhsfindnone; rewrite /hash Hhsfindnone //= FDistBindA //= FDistBindp1.
+    rewrite (functional_extensionality (fun x : 'I_Hash_size.+1 => FDistBind.d (FDist1.d (hashstate_put n value x hash_state, x)) (fun b : HashState n * 'I_Hash_size.+1 => FDist1.d b.2)) (fun x : 'I_Hash_size.+1 => FDist1.d x)); first last.
+      by move=> x; rewrite FDistBind1f //=.
+        by  rewrite FDistBindp1 Uniform.dE div1R  //=.
   Qed.
 
 End Hash.
