@@ -12,7 +12,8 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 From BloomFilter
-     Require Import Parameters Hash Comp Notationv1 BitVector FixedList.
+     Require Import Parameters Hash HashVec Comp Notationv1 BitVector FixedList.
+
 
 
 Section BloomFilter.
@@ -34,59 +35,6 @@ Section BloomFilter.
   (*
      list of hash functions used in the bloom filter
    *)
-
-
-  Lemma Hpredkvld: k.-1 < k.
-    Proof.
-        by  apply InvMisc.ltnn_subS.
-    Qed.
-
-
-  Lemma Hltn_leq pos pos' (Hpos: pos < k) (Hpos': pos = pos'.+1) : pos' < k.
-      by  move: (Hpos); rewrite {1}Hpos' -{1}(addn1 pos') => /InvMisc.addr_ltn .
-    Qed.  
-
-
-  Definition trcons A n (xs: n.-tuple A) (x: A) : (n.+1.-tuple A) :=
-    match xs as t return (_ <- t; (n.+1).-tuple A) with
-    | @Tuple _ _ x0 x1 =>
-        (fun (xs0 : seq A) (Hsz : size xs0 == n) =>
-            (Hmap <- (fun Hsz0 : size (xs0 <::< x) = n.+1 => Hrxs <- introT eqP Hsz0; Tuple Hrxs);
-            eq_rect_r (fun n' : nat => size (xs0 <::< x) = n'.+1 -> (n.+1).-tuple A) Hmap (elimTF eqP Hsz))
-            (size_rcons xs0 x))
-            x0 x1
-    end.
-
-
-
-  (* Helper lemma to perform typecast
-  there's got to be a better way to do this... *)
-  Lemma hash_vec_int_cast (h h' : nat) A (Hh: h = h'.+1) (tuple: h.-tuple A) : (h'.+1).-tuple A.
-  Proof.
-    move: tuple => [tval Htval]; split with tval.
-    by rewrite -Hh.
-  Defined.
-
-  
-  Fixpoint hash_vec_int (h: nat) (value: hash_keytype) (hashes:  h.-tuple (HashState n))  : Comp [finType of (h.-tuple (HashState n) * (h.-tuple 'I_(Hash_size.+1)))]
-    :=
-    (match h as h' return (h = h' -> h'.-tuple (HashState n) -> Comp [finType of (h'.-tuple (HashState n) * (h'.-tuple 'I_(Hash_size.+1)))]) with
-       | 0 => (fun (Hh: h = 0) (hashes': 0.-tuple (HashState n)) => ret ([tuple of [::]], [tuple of [::]]))
-       | h'.+1 => (fun (Hh: h = h'.+1) (sub_hashes': (h'.+1).-tuple (HashState n)) =>
-                    (* hash the remaining h' elements *)
-                    remain <-$ @hash_vec_int h' value (ntuple_tail  sub_hashes');
-                    let (hashes', values') := remain in        
-                    (* then hash the current element *)
-                    let hsh_fun := thead sub_hashes' in 
-                    hash_vl <-$ hash _ value hsh_fun;
-
-                    (* retrieve the  *)
-                    let (new_hsh_fun, result) := hash_vl in  
-                    ret ([tuple of new_hsh_fun :: hashes'], [tuple of result :: values'])
-       ) 
-    end   
-    ) (erefl h) hashes .
-
 
 
 

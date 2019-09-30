@@ -8,6 +8,7 @@ Properties/InvMisc.v
 Properties/seq_ext.v
 Properties/seq_subset.v
 Properties/rsum_ext.v
+Structures/HashVec.v
 Structures/BloomFilter.v
 Structures/FixedList.v
 Structures/FixedMap.v
