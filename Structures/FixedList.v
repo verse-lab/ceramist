@@ -8,12 +8,17 @@ Require Import tuple.
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Logic.ProofIrrelevance.
 
-From BloomFilter Require Import InvMisc.
+From BloomFilter Require Import InvMisc seq_ext.
 
 
 
 
 Set Implicit Arguments.
+Definition tlast (n : nat) (T : Type) tuple :=
+  (tnth (T:=T) tuple (Ordinal (ltnSn n))).
+
+
+
 
 Definition ntuple_cons (A : Type) (n : nat) (a : A) (list : n.-tuple A) : (n.+1).-tuple A.
 Proof.
@@ -34,11 +39,53 @@ Proof.
     apply behead_tupleP.
 Defined.
 
-Lemma size_ncons_nil (A : Type) (a : A) (n : nat): (size (ncons n a [::])) == n.
+
+
+Lemma ntuple_tail_consE n A (ls: n.-tuple A) val : (ntuple_tail (ntuple_cons val ls)) = ls.
 Proof.
-    rewrite size_ncons => //=.
-    by rewrite addn0.
-Defined.
+  rewrite /ntuple_tail/ntuple_cons//=.
+  case: ls => [ls Hls]; move: (behead_tupleP _) =>//= Hls'.
+    by rewrite (proof_irrelevance _ Hls Hls').
+Qed.
+
+Lemma ntuple_head_consE n A (ls: n.-tuple A) val : (thead (ntuple_cons val ls)) = val.
+Proof.
+  rewrite /ntuple_tail/ntuple_cons//=.
+    by case: ls => [ls Hls]; move: (eq_ind _ _ _ ) =>//= Hls'.
+Qed.
+
+
+Lemma ntuple_tailE A l (x:A) (xs: l.-tuple A): ntuple_tail [tuple of x :: xs] = xs.
+Proof.
+  rewrite /ntuple_tail/[tuple of _]//=.
+  move: xs (behead_tupleP _) => [xs Hxs Hxs'].
+    by rewrite (proof_irrelevance _ Hxs Hxs').
+Qed.
+
+Lemma ntuple_cons_eq n' A v (vs: n'.-tuple A): ntuple_cons v vs = [tuple of v :: vs].
+Proof.    
+
+  case: vs => vs Hvs.
+
+  have Hvvs: size (v :: vs) == n'.+1; first by [].
+  have Hthead: (thead (Tuple Hvvs)) = v; first by [].
+  have: [tuple of v :: Tuple Hvs] = Tuple Hvvs.
+  {
+    move=>//=; rewrite (tuple_eta (Tuple Hvvs)) => //=; rewrite Hthead //=. 
+    rewrite!/[tuple of _ :: _] //=; move: (valP _ ) (valP _) => //= H1 H2;
+                                                                rewrite (proof_irrelevance _ H1 H2) //=.
+  }
+  move=> ->; rewrite /ntuple_cons //=; clear Hthead.
+    by move: Hvvs (eq_ind _ _ _ _ _ ) =>//= H1 H2; rewrite (proof_irrelevance _ H1 H2).
+Qed.
+
+Lemma cons_tuple_eq_tuple n' A c (a: n'.-tuple A): 
+  [tuple of c :: a] = cons_tuple c a.
+Proof.
+  rewrite/[tuple of _ :: _ ] //=.
+Qed.
+
+
 
 
 Fixpoint set_tnth (A : Type) (m : nat) (list : m.-tuple A) (a : A) (n : nat) : m.-tuple A.
@@ -55,10 +102,7 @@ Proof.
         (* m'.+1, n'.+1 *)
         exact [tuple of ntuple_head list ::  set_tnth A m' (ntuple_tail list) a n0].
 Defined.
-Lemma ltn_Snn a b : a.+1 < b.+1 -> a < b.
-Proof.
-  by rewrite -{1}(addn1 a) -{1}(addn1 b) ltn_add2r.
-Qed.
+
 
 Lemma tnth_cons A n (ls : n.-tuple A) x i :  forall (prf : i.+1 < n.+1) (prf': i < n),  tnth [tuple of x :: ls] (Ordinal prf) = tnth ls (Ordinal prf').
 Proof.
@@ -107,6 +151,12 @@ Qed.
 
 
 
+
+
+
+
+
+
 Section fixlist.
     Variable A : eqType.
 Definition fixlist n := n.-tuple (option A).
@@ -152,41 +202,6 @@ Definition fixlist n := n.-tuple (option A).
                             end) list).
 
 
-    (* Lemma fixlist_insert (m : nat) (list : fixlist m) (a : A) : fixlist m. *)
-    (*     move: a. *)
-    (*     move: list. *)
-    (*     elim m. *)
-    (*     move=> list a. *)
-    (*         exact list. (* can not insert anything into an empty list*) *)
-    (*     move=> m0 fixlist_insert list a. *)
-    (*     case (thead list) eqn:H; last first. *)
-    (*         exact [tuple of (Some a) :: [tuple of behead list]]. *)
-    (*         exact [tuple of (Some s) :: [tuple of fixlist_insert (ntuple_tail list) a]]. *)
-    (* Defined. *)
-
-
-
-
-(* 
-    Lemma fixlist_remove_h (m m' : nat) : (m'.+1 = m) -> fixlist m.+1 -> fixlist m'.+2.
-    Proof.
-        move=> H list.
-        rewrite -H in list.
-        exact list.
-    Qed.
- *)
-    (* Fixpoint fixlist_remove (m : nat) (list : fixlist m.+1) (n : nat) : fixlist m.+1 :=
-        match m as m', n return _ = m -> fixlist _ with
-            | m'.+1, n'.+1 => fun epf => [tuple of ntuple_head list ::  @fixlist_remove m' (ntuple_tail list) n']
-            | 0, n'.+1 => fun epf => [ tuple of [:: ntuple_head list]]
-            | m'.+1, 0 => fun epf => match (tnth list (inord m'))  with
-                            | None =>  list 
-                            | Some v => [tuple of None :: (ntuple_tail list)]
-                          end
-            | 0, 0 => fun epf =>  [tuple of [:: None] ]
-           end (erefl _)
-           .
-    *)
 
 
     (* remove will remove the nth index of the list *)
@@ -229,23 +244,8 @@ Definition fixlist n := n.-tuple (option A).
     Defined.
 
 
-    (* Fixpoint fixlist_set_nth (m : nat) (list : fixlist  m.+1) (a : A) (n : nat) : fixlist m.+1 :=
-         match m, n with
-            | m'.+1, n'.+1 => [tuple of ntuple_head list ::  @fixlist_remove m' (ntuple_tail list) n']
-            | 0, n'.+1 => [tuple of [:: ntuple_head list]]
-            | m'.+1, 0 => [tuple of (Some a) :: (ntuple_tail list)] 
-            | 0, 0 =>  [tuple of [:: Some a] ]
-       end. *)
 
     Definition fixlist_set_nth (m : nat) (list : fixlist  m) (a : A) (n : nat) : fixlist m := set_tnth list (Some a) n .
-
-    (* Definition fixlist_nth (m : nat) (default : A) (list : fixlist m) (n : nat) : A :=
-        if n < m then
-            match m with
-                | 0 => default
-                | m'.+1 => tnth list (Ordinal (m'.+1))
-                end
-        else default. *)
 
     Definition fixlist_nth (m : nat) (default : A) (list : fixlist m)  (n : nat) : A.
     Proof.
@@ -273,19 +273,6 @@ Definition fixlist n := n.-tuple (option A).
    Defined.
         
 
-    (* Fixpoint fixlist_length' (m : nat) (list : fixlist  m.+1) : nat :=
-        match m with 
-            | 0 => match ntuple_head list with 
-                | Some _ => 1 
-                | None   => 0
-                end
-            | m'.+1 => match ntuple_head list with 
-                | Some _ => 1 + fixlist_length' (ntuple_tail list)
-                | None   =>  fixlist_length' (ntuple_tail list)
-                end
-            end. *)
-
-
 
     Definition fixlist_length (m : nat) (list : fixlist  m) : nat :=
       length (fixlist_unwrap list). 
@@ -310,30 +297,6 @@ Definition fixlist n := n.-tuple (option A).
           end H) m list
       .
 
-
-
-    (* Proof. *)
-    (*   move: list. *)
-    (*   elim m. *)
-    (*     move=> list. *)
-    (*     exact true. *)
-    (*   move=> m0 fixlist_is_top_heavy list. *)
-    (*   case (thead list) eqn: H; last first. *)
-    (*   exact (fixlist_is_empty [tuple of behead list]). *)
-    (*   exact (fixlist_is_top_heavy [tuple of behead list]). *)
-    (* Defined. *)
-
-
-
-    (* Fixpoint fixlist_filter (m : nat) (P : pred A) (list : fixlist m) : fixlist m :=
-        match m with
-            | 0 => list
-            | m'.+1 => match ntuple_head list with
-                | Some a => if P a then [tuple of (Some a) :: fixlist_filter (ntuple_tail list)]
-                                    else [tuple of fixlist_filter (ntuple_tail list)]
-                | None => [tuple of fixlist_filter (ntuple_tail list)]
-                end
-            end. *)
     Fixpoint fixlist_filter (m : nat) (P : pred A) (list : fixlist m) : fixlist m.
         case m eqn: H.
             exact list.
@@ -348,15 +311,6 @@ Definition fixlist n := n.-tuple (option A).
 
 
 
-    (* Fixpoint fixlist_contains (m : nat) (a : A) (list : fixlist m) : bool :=
-        match m with
-            | 0 => false
-            end
-            | m'.+1 => match ntuple_head list with 
-                | Some a' => if a' == a then true else fixlist_contains (ntuple_tail list)
-                | None => fixlist_contains (ntuple_tail list)
-                end
-            end. *)
 
     Definition fixlist_contains (m : nat) (a : A) (list : fixlist m) : bool :=
       has (fun x => x == a) (fixlist_unwrap list).
@@ -1415,7 +1369,12 @@ Definition fixlist n := n.-tuple (option A).
   Qed.
 
 
+
+  
 End fixlist.
+
+
+
 
 
 Notation "[ ls <- x ]" := (@fixlist_insert _ _ ls x).

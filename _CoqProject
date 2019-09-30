@@ -4,6 +4,7 @@
 -arg "-w -notation-overridden,-local-declaration,-redundant-canonical-projection,-projection-no-head-constant"
 
 Properties/Parameters.v
+Properties/seq_ext.v
 Structures/BloomFilter.v
 Structures/FixedList.v
 Structures/FixedMap.v

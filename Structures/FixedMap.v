@@ -2,7 +2,7 @@ From mathcomp.ssreflect
 Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq path.
 
 From BloomFilter
-Require Import FixedList.
+Require Import FixedList seq_ext.
 Set Implicit Arguments.
 
 From mathcomp.ssreflect
@@ -121,6 +121,33 @@ Section fixmap.
       by apply IHn => //=.
     Qed.   
 
+    Lemma fixmap_find_neq (n : nat) (map : fixmap n)
+          (x y : K) (v: V):
+      (x != y) ->
+      (fixmap_find x map == None) ->
+      (fixmap_find x (fixmap_put y v map) == None).
+    Proof.
+      elim: n map x y v => [//=|n IHn] [[//=|m ms] Hmap] x y v Hneq /eqP Hz.
+      apply/eqP; move: Hz; move=> //=.
+      rewrite/FixedList.ntuple_head //=.
+      have: thead (Tuple Hmap) = m. by []. move=>->.
+      case: m Hmap => [[k' v']|] Hmap //=.
+      case Hk': (k' == x) => //=.
+      - case: (k' == y) => //=.
+      - move/Bool.negb_true_iff: Hneq; rewrite (eq_sym y) => -> //=.
+        move: Hmap (eq_ind _ _ _ _ _) => //= Hmap Hmap'.
+        rewrite (proof_irrelevance _  Hmap' Hmap);   move=> <- //=.
+        rewrite/FixedList.ntuple_tail; move: (behead_tupleP _) (behead_tupleP _) => //= H1 H2.
+          by rewrite (proof_irrelevance _ H1 H2).
+      -  by rewrite ntuple_head_consE Hk' ntuple_tail_consE => /eqP/(IHn _ _ _ _ Hneq)/eqP; apply.
+      - rewrite eq_sym; move/Bool.negb_true_iff: (Hneq) ->.
+
+        move: Hmap (eq_ind _ _ _ _ _) => //=Hmap Hmap'.
+        rewrite (proof_irrelevance _ Hmap Hmap') /FixedList.ntuple_tail//=.
+        move: (behead_tupleP _) (behead_tupleP _) => //= H H'.
+          by rewrite (proof_irrelevance _ H H'). 
+    Qed.
+
 
 
 
@@ -140,4 +167,22 @@ Section fin_fixmap.
     Canonical finmap_of_finType := Eval hnf in [finType of finmap].
 
 End fin_fixmap.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

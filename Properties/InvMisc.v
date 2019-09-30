@@ -2,11 +2,18 @@ From mathcomp.ssreflect
 Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun bigop seq path finfun tuple.
 
 
+Lemma ltn_Snn a b : a.+1 < b.+1 -> a < b.
+Proof.
+  by rewrite -{1}(addn1 a) -{1}(addn1 b) ltn_add2r.
+Qed.
+
 
 
 (* utility function for ranges of values form (inclusive) a to b (exclusive) *)
 Definition itoj (m n : nat) : seq.seq nat :=
   iota m (n - m).
+
+
 
 (* Couldn't find a remove_nth function in stdlib or ssreflect*)
 Fixpoint rem_nth {A:Type} (n : nat) (ls : list A) : list A := 
@@ -683,4 +690,5 @@ Proof.
     by move/eqP: Hr2eq0 => ->; rewrite (Rmult_0_r r1) .
   by move/eqP: Hr1eq0 => Hr1neq; move/eqP: Hr2eq0 => Hr2neq.
 Qed.
+
 
