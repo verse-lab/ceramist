@@ -10,6 +10,8 @@ Properties/seq_subset.v
 Properties/rsum_ext.v
 Structures/HashVec.v
 Structures/BloomFilter.v
+Structures/CountingBloomFilter.v
+Properties/Counting.v
 Structures/FixedList.v
 Structures/FixedMap.v
 Structures/BitVector.v

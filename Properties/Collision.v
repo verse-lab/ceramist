@@ -63,91 +63,6 @@ Axiom second_stirling_number_sum: forall l k m (f: nat -> Rdefinitions.R),
 
 
 
-Lemma bloomfilter_set_bitC bf ind ind':
-  (bloomfilter_set_bit ind (bloomfilter_set_bit ind' bf)) =
-  (bloomfilter_set_bit ind' (bloomfilter_set_bit ind bf)).
-Proof.
-  rewrite /bloomfilter_set_bit/bloomfilter_state//.
-  apply f_equal => //.
-  apply eq_from_tnth => pos.
-  case Hpos: (pos == ind); case Hpos': (pos == ind').
-  - by rewrite !FixedList.tnth_set_nth_eq.
-  - rewrite FixedList.tnth_set_nth_eq; last by [].
-    rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos' ->.
-      by rewrite FixedList.tnth_set_nth_eq; last by [].
-  - rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos ->.
-    rewrite FixedList.tnth_set_nth_eq; last by [].
-      by rewrite FixedList.tnth_set_nth_eq; last by [].
-
-  - rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos ->.  
-    rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos' ->.
-    rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos' ->.  
-      by rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos ->.
-Qed.
-
-
-Lemma bloomfilter_add_internal_hit bf (ind: 'I_Hash_size.+1) hshs :
-  (ind \in hshs) ->
-  (tnth (bloomfilter_state (bloomfilter_add_internal hshs bf)) ind).
-Proof.
-  elim: hshs bf  => //= hsh hshs IHs bf.
-
-  rewrite in_cons => /orP [/eqP -> | H]; last by apply IHs.
-
-  clear IHs ind.
-  elim: hshs bf hsh => //.
-  - rewrite /bloomfilter_add_internal/bloomfilter_set_bit/bloomfilter_state //.
-      by move=> bf hsh; rewrite FixedList.tnth_set_nth_eq => //=.
-  - move=> hsh hshs IHs bf hsh'.    
-    move=> //=.
-    rewrite bloomfilter_set_bitC .
-      by apply IHs.
-Qed.
-
-Lemma bloomfilter_add_internal_preserve bf ind hshs:
-  tnth (bloomfilter_state bf) ind ->
-  tnth (bloomfilter_state (bloomfilter_add_internal hshs bf)) ind.
-Proof.
-
-  elim: hshs bf ind => //= hsh hshs IHs bf ind Htnth.
-  apply IHs.
-  rewrite /bloomfilter_set_bit/bloomfilter_state //.
-  case Hhsh: (ind == hsh).
-  - by rewrite FixedList.tnth_set_nth_eq //=.
-  - rewrite FixedList.tnth_set_nth_neq; first by move: Htnth; rewrite/bloomfilter_state//=.
-      by move/Bool.negb_true_iff: Hhsh.
-Qed.
-
-
-Lemma bloomfilter_add_internal_miss
-      bf (ind: 'I_Hash_size.+1) hshs :
-  ~~ tnth (bloomfilter_state bf) ind ->
-  ~~ ( ind \in hshs) ->
-  (~~ tnth (bloomfilter_state (bloomfilter_add_internal hshs bf)) ind).
-Proof.
-
-  move=> Htnth.
-  elim: hshs bf Htnth => //= hsh hshs IHs bf Htnth.
-  move=> H; move: (H).
-  rewrite in_cons.
-  rewrite negb_or => /andP [Hneq Hnotin].
-  apply IHs.
-  rewrite /bloomfilter_state/bloomfilter_set_bit.
-  rewrite FixedList.tnth_set_nth_neq => //=.
-  exact Hnotin.
-Qed.
-
-
-Lemma bloomfilter_add_internal_hit_infer bf (ind: 'I_Hash_size.+1) inds:
-  ~~ bloomfilter_get_bit ind bf ->
-  tnth (bloomfilter_state (bloomfilter_add_internal inds bf)) ind ->
-  ind \in inds.
-Proof.
-  move=> Hbit Htnth.
-  case Hind: (ind \in inds) =>//=; move/Bool.negb_true_iff: Hind => Hind.
-    by move/Bool.negb_true_iff: (bloomfilter_add_internal_miss Hbit Hind) Htnth ->.
-Qed.
-
 
 
 
@@ -167,41 +82,6 @@ Section BloomFilter.
 
   (* the sequence of hash functions used to update the bloom filter *)
   Definition hash_vec := k.-tuple (HashState n).
-
-
-  Definition hash_not_full (hsh: HashState n) : bool :=
-    FixedList.fixlist_length hsh < n.
-
-  Definition hash_unseen (b: B) (hsh: HashState n) : bool :=
-    FixedMap.fixmap_find b hsh == None.
-
-  Definition hash_has_free_spaces (s: nat) (hsh: HashState n) : bool :=
-    FixedList.fixlist_length hsh + s <= n.
-
-  Definition hashes_not_full (hashes: hash_vec) : bool :=
-    (* provided the finite maps of all the hash function are not full*)
-    all hash_not_full (tval hashes).
-
-  Definition bloomfilter_value_unseen  (hashes: hash_vec)  (b: B) : bool :=
-    (* provided the finite maps of all the hash function have not seen the value*)
-    all (hash_unseen b) (tval hashes).
-
-  Definition hashes_have_free_spaces  (hashes: hash_vec) (s: nat) : bool :=
-    all (hash_has_free_spaces s) (tval hashes).
-  
-
-  Lemma bloomfilter_set_get_eq hash_value bf :
-    bloomfilter_get_bit hash_value (bloomfilter_set_bit hash_value bf).
-  Proof.
-      by rewrite /bloomfilter_get_bit/bloomfilter_set_bit//
-                 /bloomfilter_state FixedList.tnth_set_nth_eq //=.
-  Qed.
-
-
-  
-  
-
-
 
 
   Lemma bloomfilter_add_internal_prob bf x l:
@@ -344,9 +224,9 @@ Section BloomFilter.
 
   Lemma bloomfilter_addn hashes (ind: 'I_(Hash_size.+1)) (bf: BloomFilter) (value: B):
     (* provided the bloom filter is not full *)
-    hashes_not_full hashes ->
+    @hashes_not_full k n  hashes ->
     (* and that the bloom filter has not set the value *)
-    bloomfilter_value_unseen hashes value ->
+    hashes_value_unseen hashes value ->
     (* the bit in question is not set  *)
     ~~ bloomfilter_get_bit ind bf ->
     P[
@@ -361,7 +241,7 @@ Section BloomFilter.
     ((1 -R- Rdefinitions.Rinv (Hash_size.+1)%:R) ^R^ k).
   Proof.
     rewrite /bloomfilter_add/hashes_not_full
-            /bloomfilter_value_unseen/hash_unseen
+            /hashes_value_unseen/hash_unseen
             /hash_not_full /bloomfilter_get_bit  => /allP Hnfl /allP Husn Hunset //= .  
     rewrite !FDistBind.dE //=.
 
@@ -1241,17 +1121,8 @@ Section BloomFilter.
 
 
 
-  Definition bloomfilter_add_multiple  hsh_0 bf_0 values :=
-    @foldr B (Comp [finType of k.-tuple (HashState n) * BloomFilter])
-           (fun val hsh_bf =>
-              res_1 <-$ hsh_bf;
-                let (hsh, bf) := res_1 in
-                bloomfilter_add val hsh bf) (ret (hsh_0, bf_0)) values.
-
-
-
   Lemma bloomfilter_add_multiple_unfold A hshs bf x xs (f: _ -> Comp A):
-    d[ res <-$ bloomfilter_add_multiple hshs bf (x :: xs);
+    d[ res <-$ @bloomfilter_add_multiple k n hshs bf (x :: xs);
          f (res) ] =
     d[
         res1 <-$ bloomfilter_add_multiple hshs bf xs;
@@ -1268,7 +1139,7 @@ Section BloomFilter.
 
   Lemma bloomfilter_add_multiple_find_preserve value  inds hashes hashes' bf bf' xs:
     hash_vec_contains_value value hashes inds ->
-    ((d[ bloomfilter_add_multiple hashes bf xs]) (hashes', bf') != (0 %R)) ->
+    ((d[ @bloomfilter_add_multiple k n hashes bf xs]) (hashes', bf') != (0 %R)) ->
     hash_vec_contains_value value hashes' inds.
   Proof.
 
@@ -1444,9 +1315,9 @@ Section BloomFilter.
         (Huniq: uniq (x :: xs))
         (Hlen: length xs == l) 
         (Hfree: hashes_have_free_spaces hshs  ((l+m).+1))
-        (Huns:      all (bloomfilter_value_unseen hshs) (x :: xs)):
-    ((d[ bloomfilter_add_multiple hshs bf xs]) (hshs', bf') != (0 %R)) ->
-    (hashes_have_free_spaces hshs' (m.+1)) && (bloomfilter_value_unseen hshs' x).
+        (Huns:      all (hashes_value_unseen hshs) (x :: xs)):
+    ((d[ @bloomfilter_add_multiple k n hshs bf xs]) (hshs', bf') != (0 %R)) ->
+    (hashes_have_free_spaces hshs' (m.+1)) && (hashes_value_unseen hshs' x).
   Proof.
 
     (* First clean up the proof *)
@@ -1457,7 +1328,7 @@ Section BloomFilter.
     move/eqP: Hlen <-; clear l.
     have all_cons P y ys : all P (y :: ys) =  P y && all P ys. by [].
     move=> m hshs Hfree; rewrite all_cons => /andP []; move: x m hshs Huniq Hfree; clear all_cons.
-    rewrite/hashes_have_free_spaces/hash_has_free_spaces/bloomfilter_value_unseen/hash_unseen.
+    rewrite/hashes_have_free_spaces/hash_has_free_spaces/hashes_value_unseen/hash_unseen.
 
     (* proof has been cleaned up *)
 
@@ -1568,10 +1439,10 @@ Section BloomFilter.
   Lemma bloomfilter_addn_insert_multiple hashes l (ind: 'I_Hash_size.+1) (bf: BloomFilter) (values: seq B):
     length values == l ->
     hashes_have_free_spaces hashes l ->
-    all (bloomfilter_value_unseen hashes) values ->
+    all (hashes_value_unseen hashes) values ->
     uniq values ->
     ~~ bloomfilter_get_bit ind bf ->
-    (d[ res <-$ bloomfilter_add_multiple hashes bf values;
+    (d[ res <-$ @bloomfilter_add_multiple  k n hashes bf values;
           (let '(_, bf') := res in ret ~~ bloomfilter_get_bit ind bf')]) true =
     ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ (k * l)).
 
@@ -1614,7 +1485,7 @@ Section BloomFilter.
 
       move: Hfree; rewrite -(addn0 l) => Hfree.
       move: (bloomfilter_add_multiple_preserve Huniq Hlen Hfree Huns Hnz) => /andP [].
-      rewrite /hashes_have_free_spaces/bloomfilter_value_unseen => Hfree' Huns'.
+      rewrite /hashes_have_free_spaces/hashes_value_unseen => Hfree' Huns'.
       apply Logic.eq_sym; rewrite mulRA mulRC mulRA mulRC; apply f_equal; apply Logic.eq_sym.
       case Htnth': (~~ bloomfilter_get_bit ind bf').
     - have <-: (Rdefinitions.IZR 1) = (BinNums.Zpos BinNums.xH); first by [].
@@ -1880,23 +1751,16 @@ Section BloomFilter.
                                       rewrite Raxioms.Rinv_l; first by rewrite mul1R.
                                         by apply RIneq.not_0_INR =>//=.
   Qed.
-  
-  Lemma bloomfilter_add_insert_contains l (bf: BloomFilter) (inds: l.-tuple 'I_Hash_size.+1 )
-        (ps: seq 'I_Hash_size.+1) :
-    all (fun p => p \in inds) ps -> all (bloomfilter_get_bit^~ (bloomfilter_add_internal inds bf)) ps.
-  Proof.                  
-    move=>/allP HinP; apply/allP => [p Hp].
-      by rewrite /bloomfilter_get_bit/bloomfilter_state bloomfilter_add_internal_hit //=; move: (HinP p Hp).
-  Qed.
+
 
 
   Lemma bloomfilter_addn_insert_multiple_inv hashes l (ind: 'I_Hash_size.+1) (bf: BloomFilter) (values: seq B):
     length values == l ->
     hashes_have_free_spaces hashes l ->
-    all (bloomfilter_value_unseen hashes) values ->
+    all (hashes_value_unseen hashes) values ->
     uniq values ->
     ~~ bloomfilter_get_bit ind bf ->
-    (d[ res <-$ bloomfilter_add_multiple hashes bf values;
+    (d[ res <-$ @bloomfilter_add_multiple k n hashes bf values;
           (let '(_, bf') := res in ret bloomfilter_get_bit ind bf')]) true =
     (1 -R- ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ (k * l))).
   Proof.
@@ -1926,8 +1790,8 @@ Section BloomFilter.
           hashes b (inds: seq 'I_Hash_size.+1) (bf: BloomFilter) (value: B):
     b < k ->
     length inds == b ->
-    hashes_have_free_spaces hashes 1 ->
-    (bloomfilter_value_unseen hashes value)  ->
+    @hashes_have_free_spaces k n hashes 1 ->
+    (hashes_value_unseen hashes value)  ->
     uniq inds ->
     all (fun ind => ~~ bloomfilter_get_bit ind bf) inds ->
     (d[ res <-$ bloomfilter_add value hashes bf;
@@ -1997,45 +1861,11 @@ Section BloomFilter.
 
 
 
-  Definition bloomfilter_new : BloomFilter.
-    apply mkBloomFilter.
-    apply Tuple with (nseq Hash_size.+1 false).
-      by rewrite size_nseq.
-  Defined.
-
-  Lemma bloomfilter_new_empty_bits b : ~~ bloomfilter_get_bit b bloomfilter_new .
-  Proof.
-    clear k n Hkgt0.
-    rewrite/bloomfilter_get_bit/bloomfilter_new //=.
-    elim: Hash_size b => [[[|//=] Hm]|//= n IHn] //=.
-    move=> [[| b] Hb]; rewrite /tnth //=.
-    move: (Hb); move/ltn_SnnP: Hb => Hb' Hb;move: (IHn (Ordinal Hb'));rewrite /tnth //=.
-    clear.
-
-    move: (size_nseq n.+1 _)  => Hprf.
-    move:(tnth_default _ _) (tnth_default _ _); clear Hb => b1 b2.
-
-    have ->: (false :: nseq n false) = (nseq n.+1 false); first by [].
-    move: Hb'; rewrite -Hprf; clear Hprf.
-    move: (n.+1); clear n; elim: b => [//= n'|]; first by case: (nseq n' _).
-    move=>  b IHb.
-    case => [//=| n].
-      by move=>//=/ltn_SnnP/(IHb n) IHb' H; apply IHb'.
-  Qed.
-
-  Lemma bloomfilter_new_empty bs : length bs > 0 -> ~~ bloomfilter_query_internal bs bloomfilter_new .
-  Proof.
-    clear k n Hkgt0.
-    case: bs => [//=| b1 [//=| b2 bs]] Hlen; first by rewrite Bool.andb_true_r; apply bloomfilter_new_empty_bits.
-    rewrite Bool.negb_andb; apply/orP; left; apply bloomfilter_new_empty_bits.
-  Qed.
-
-
   Lemma bloomfilter_add_multiple_unwrap_internal bf
         hashes l value (values: seq B) inds:
     length values == l ->
     hashes_have_free_spaces hashes (l.+1) ->
-    all (bloomfilter_value_unseen hashes) (value::values) ->
+    all (hashes_value_unseen hashes) (value::values) ->
     \sum_(a in [finType of k.-tuple (HashState n) * BloomFilter])
      ((d[ bloomfilter_add_multiple (Tuple (hash_vec_insert_length value hashes inds)) bf
                                    values]) a *R*
@@ -2078,36 +1908,13 @@ Section BloomFilter.
 
 
 
-  Lemma bloomfilter_set_bit_conv bf b b':
-    (bloomfilter_set_bit b (bloomfilter_set_bit b' bf)) =
-    (bloomfilter_set_bit b' (bloomfilter_set_bit b bf)).
-  Proof.
-
-    rewrite/bloomfilter_set_bit/bloomfilter_state; apply f_equal.
-    case: bf; rewrite/BitVector=>bf .
-      by rewrite  fixedlist_set_nthC.
-  Qed.
-
-  Lemma bloomfilter_add_multiple_cat bf b others:
-    (bloomfilter_add_internal others (bloomfilter_add_internal b bf)) =
-    (bloomfilter_add_internal (others ++ b) bf).
-  Proof.
-
-    elim: others bf => [//=|other others Hothers] bf //= .
-    rewrite -Hothers; apply f_equal; clear Hothers others.
-    elim: b bf => [//=| b bs Hbs] bf //=.
-    rewrite  bloomfilter_set_bit_conv.
-      by rewrite Hbs.
-  Qed.
-
-  
 
   Lemma bloomfilter_add_multiple_unwrap_base 
         hashes l (values: seq B) others inds:
     uniq values ->
     length values == l ->
     hashes_have_free_spaces (hashes: k.-tuple (HashState n)) (l) ->
-    all (bloomfilter_value_unseen hashes) (values) ->
+    all (hashes_value_unseen hashes) (values) ->
     \sum_(a in [finType of (k.-tuple (HashState n) * BloomFilter)]%type)
      ((d[ bloomfilter_add_multiple hashes bloomfilter_new values]) a *R*
       ((all (bloomfilter_get_bit^~ (bloomfilter_add_internal others a.2)) inds == true) %R)) =
@@ -2188,7 +1995,7 @@ Section BloomFilter.
         have H1:   (uniq (value :: values)); first by [].
         have H2: length values == l; first by move: Hlen =>/eqP [->].
         have H3: hashes_have_free_spaces hashes (l + 0).+1; first by rewrite addn0.
-        have H4: all (bloomfilter_value_unseen hashes) (value :: values); first by [].
+        have H4: all (hashes_value_unseen hashes) (value :: values); first by [].
         move: (@bloomfilter_add_multiple_preserve
                  value
                  values l 0 hashes hshs' bloomfilter_new bf'
@@ -2212,7 +2019,7 @@ Section BloomFilter.
     uniq (value::values) ->
     length values == l ->
     hashes_have_free_spaces (hashes: k.-tuple (HashState n)) (l.+1) ->
-    all (bloomfilter_value_unseen hashes) (value::values) ->
+    all (hashes_value_unseen hashes) (value::values) ->
     \sum_(a in [finType of k.-tuple (HashState n) * BloomFilter])
      ((d[ bloomfilter_add_multiple (Tuple (hash_vec_insert_length value hashes inds)) bloomfilter_new
                                    values]) a *R*
@@ -2244,7 +2051,7 @@ Section BloomFilter.
       }
     - {
         move/andP: Hunseen Hnin => [Huns ]; clear.
-        rewrite/bloomfilter_value_unseen //=; move=>/allP Hfree Hnin.
+        rewrite/hashes_value_unseen //=; move=>/allP Hfree Hnin.
         apply/allP => [//= value' Hvalue]; move: (Hfree value' Hvalue)=>/allP  Hfree'.
         apply/allP => //= [ hsh' /mapP [[hsh ind] /mem_zip/andP [Hhsh Hind] ->]].
         move: (Hfree' hsh Hhsh ).
@@ -2267,12 +2074,12 @@ Section BloomFilter.
           hashes l value (values: seq B):
     length values == l ->
     hashes_have_free_spaces hashes (l.+1) ->
-    all (bloomfilter_value_unseen hashes) (value::values) ->
+    all (hashes_value_unseen hashes) (value::values) ->
     uniq (value::values) ->
     d[ 
         res1 <-$ bloomfilter_query value hashes (bloomfilter_new);
           let (hashes1, init_query_res) := res1 in
-          res2 <-$ bloomfilter_add_multiple hashes1 (bloomfilter_new) values;
+          res2 <-$ @bloomfilter_add_multiple k n hashes1 (bloomfilter_new) values;
             let (hashes2, bf) := res2 in
             res' <-$ bloomfilter_query value hashes2 bf;
               ret (res'.2)
@@ -2408,12 +2215,12 @@ Section BloomFilter.
           hashes l value (values: seq B):
     length values == l ->
     hashes_have_free_spaces hashes (l.+1) ->
-    all (bloomfilter_value_unseen hashes) (value::values) ->
+    all (hashes_value_unseen hashes) (value::values) ->
     uniq (value::values) ->
     d[ 
         res1 <-$ bloomfilter_query value hashes (bloomfilter_new);
           let (hashes1, init_query_res) := res1 in
-          res2 <-$ bloomfilter_add_multiple hashes1 (bloomfilter_new) values;
+          res2 <-$ @bloomfilter_add_multiple k n hashes1 (bloomfilter_new) values;
             let (hashes2, bf) := res2 in
             res' <-$ bloomfilter_query value hashes2 bf;
               ret (res'.2)

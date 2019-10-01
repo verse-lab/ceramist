@@ -33,6 +33,28 @@ Section HashVec.
   Variable Hkgt0: k >0.
 
 
+  Definition hash_not_full (hsh: HashState n) : bool :=
+    FixedList.fixlist_length hsh < n.
+
+  Definition hash_unseen (b: B) (hsh: HashState n) : bool :=
+    FixedMap.fixmap_find b hsh == None.
+
+  Definition hash_has_free_spaces (s: nat) (hsh: HashState n) : bool :=
+    FixedList.fixlist_length hsh + s <= n.
+
+  Definition hashes_not_full (hashes: k.-tuple (HashState n)) : bool :=
+    (* provided the finite maps of all the hash function are not full*)
+    all hash_not_full (tval hashes).
+
+  Definition hashes_value_unseen  (hashes: k.-tuple (HashState n))  (b: B) : bool :=
+    (* provided the finite maps of all the hash function have not seen the value*)
+    all (hash_unseen b) (tval hashes).
+
+  Definition hashes_have_free_spaces  (hashes: k.-tuple (HashState n)) (s: nat) : bool :=
+    all (hash_has_free_spaces s) (tval hashes).
+  
+
+  
 
   Lemma Hpredkvld: k.-1 < k.
   Proof.
