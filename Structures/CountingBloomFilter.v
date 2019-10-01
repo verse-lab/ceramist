@@ -429,4 +429,36 @@ Qed.
 
     Qed.        
 
+  Lemma countingbloomfilter_new_capacity l (Hngt0: n > 0):
+    l < n -> countingbloomfilter_free_capacity (countingbloomfilter_new Hngt0) l.
+  Proof.
+    move=> Hlen; rewrite/countingbloomfilter_new/countingbloomfilter_free_capacity//=.
+    rewrite add0n; apply/andP; split => //=.
+    apply/allP => val.
+    by rewrite mem_nseq =>/andP [Hgt0 /eqP ->] //=.
+  Qed.
+
+  Lemma countingbloomfilter_add_capacity_change l bf values:
+    length values == k ->
+    countingbloomfilter_free_capacity bf (k  + l) ->
+    @countingbloomfilter_free_capacity (countingbloomfilter_add_internal values bf) l.
+  Proof.
+    rewrite /countingbloomfilter_free_capacity//=.
+
+    move: values bf k; clear k Hkgt0.
+    elim => [//=| val vals Hvals] bf [//=|].
+    - by [].
+    - {
+        move=> k Hlen Hall //=.
+        apply (Hvals _ k).
+        - by move/eqP: Hlen => [->].
+        - apply/allP => ind.
+          move: Hall.
+
+          move: (@countingbloomfilter_add_capacity_decr (k + l) bf val ind).
+          by rewrite /countingbloomfilter_free_capacity//=.
+      }
+  Qed.
+
+    
 End CountingBloomFilter.
