@@ -17,5 +17,32 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 From BloomFilter Require Import
-     Parameters Hash HashVec Comp Notationv1 BitVector BloomFilter
+     Parameters Hash HashVec Comp Notationv1 BitVector CountingBloomFilter
      InvMisc bigop_tactics FixedList seq_ext seq_subset FixedMap rsum_ext.
+
+
+Section CountingBloomFilter.
+  (*
+    k - number of hashes
+   *)
+  Variable k: nat.
+  (*
+    n - maximum capacity of each counter
+   *)
+  Variable n: nat.
+
+  Variable Hngt0: n > 0.
+  Variable Hkgt0: k > 0.
+
+
+
+  Theorem countingbloomfilter_counter_prob
+    hashes l (values: seq B):
+    length values == l ->
+    hashes_have_free_spaces hashes (l.+1) ->
+    all (bloomfilter_value_unseen hashes) (value::values) ->
+    d[ 
+        res1 <-$ countingbloomfilter_add_multiple hashes (countingbloomfilter_new Hngt0) values;
+        let (hashes1, bf') := res1 in
+        ret (countingbloomfilter_bitcount bf' == l * k)
+      ] true = 1.
