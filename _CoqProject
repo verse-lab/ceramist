@@ -14,7 +14,6 @@ Structures/Core/FixedList.v
 Structures/Core/FixedMap.v
 Structures/Core/Hash.v
 Structures/Core/HashVec.v
-Structures/Core/Parameters.v
 Structures/CountingBloomFilter/Definitions.v
 Structures/CountingBloomFilter/Probability.v
 Utils/bigop_tactics.v

@@ -25,8 +25,7 @@ The structure of the overall development is as follows:
 │   │   ├── FixedList.v
 │   │   ├── FixedMap.v
 │   │   ├── Hash.v
-│   │   ├── HashVec.v
-│   │   └── Parameters.v
+│   │   └── HashVec.v
 │   ├── BloomFilter
 │   │   ├── Definitions.v
 │   │   └── Probability.v
