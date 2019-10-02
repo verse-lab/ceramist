@@ -4,8 +4,21 @@ Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq path.
 From mathcomp.ssreflect
 Require Import tuple.
 
-From BloomFilter
-Require Import Parameters Comp Notationv1 FixedMap FixedList seq_ext.
+
+From ProbHash.Computation
+     Require Import Comp Notationv1.
+
+From ProbHash.Utils
+     Require Import  seq_ext.
+
+From ProbHash.Core
+     Require Import  FixedList FixedMap.
+
+(* Input type being hashed *)
+Parameter B: finType.
+(* size of hash output and bitvector output *)
+Parameter Hash_size: nat.
+
 (*
    Hash
 -----------

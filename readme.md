@@ -1,6 +1,6 @@
-# Bloom filters in Coq - Reasoning about Hash-based Probabilistic Algorithms
+# ProbHash -  Reasoning about Hash-based Probabilistic Algorithms (Bloomfilters etc.)
 
-# Installation
+## Installation
 Use opam to install dependencies
 
 ```
@@ -13,25 +13,37 @@ make clean && make
 ```
 
 
-# Project Structure
+## Project Structure
+The structure of the overall development is as follows:
 ```
-
 .
-├── Probability
-│   ├── bigop_tactics.v
+├── Computation
 │   ├── Comp.v
 │   └── Notationv1.v
-├── Properties
-│   ├── Collision.v
-│   ├── InvMisc.v
-│   └── Parameters.v
 ├── Structures
-│   ├── BitVector.v
-│   ├── BloomFilter.v
-│   ├── FixedList.v
-│   ├── FixedMap.v
-│   └── Hash.v
-
-4 directories, 45 files
-
+│   ├── Core
+│   │   ├── FixedList.v
+│   │   ├── FixedMap.v
+│   │   ├── Hash.v
+│   │   ├── HashVec.v
+│   │   └── Parameters.v
+│   ├── BloomFilter
+│   │   ├── Definitions.v
+│   │   └── Probability.v
+│   └── CountingBloomFilter
+│       ├── Definitions.v
+│       └── Probability.v
+└── Utils
+    ├── bigop_tactics.v
+    ├── InvMisc.v
+    ├── rsum_ext.v
+    ├── seq_ext.v
+    └── seq_subset.v
+7 directories, 16 files
 ```
+The library is split into separate logical components by directory:
+- *Computation* - defines a probability monad and associated notation for it on top of the 'coq-infotheo' probability library.
+- *Utils* - collection of utility lemmas used throughout the development
+- *Structures/Core* - contains definitions and properties about the core probabilistic primitives exported by the library.
+- *Structures/BloomFilter* - example use of the exported library to prove various probabilistic properties on bloom filters.
+- *Structures/CountingBloomFilter* - another exemplar use of the library to prove probabilistic properties on counting bloom filters. 

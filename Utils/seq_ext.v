@@ -7,7 +7,7 @@ Require Import tuple.
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Logic.ProofIrrelevance.
 
-From BloomFilter Require Import InvMisc.
+From ProbHash.Utils Require Import InvMisc.
 
 
 (* A set of utility functions and lemmas on sequences and finite sequences *)

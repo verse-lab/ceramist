@@ -16,9 +16,17 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-From BloomFilter Require Import
-     Parameters Hash HashVec Comp Notationv1 BitVector CountingBloomFilter
-     InvMisc bigop_tactics FixedList seq_ext seq_subset FixedMap rsum_ext.
+From ProbHash.Computation
+     Require Import Comp Notationv1.
+
+From ProbHash.Core
+     Require Import Hash HashVec FixedList FixedMap.
+
+From ProbHash.CountingBloomFilter
+     Require Import Definitions.
+
+From ProbHash.Utils
+     Require Import InvMisc bigop_tactics seq_ext seq_subset rsum_ext.
 
 Section CountingBloomFilter.
   (*

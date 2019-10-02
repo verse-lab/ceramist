@@ -3,7 +3,7 @@ Set Implicit Arguments.
 From mathcomp.ssreflect
 Require Import ssreflect ssrnat seq ssrbool ssrfun fintype choice eqtype .
 
-From BloomFilter
+From ProbHash.Computation
 Require Import Comp.
 
 Lemma size_enum_equiv: forall n: nat, size(enum (ordinal n.+1)) = n.+1 -> #|ordinal_finType n.+1| = n.+1.

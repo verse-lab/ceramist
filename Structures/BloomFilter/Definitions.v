@@ -7,8 +7,16 @@ From mathcomp
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
-From BloomFilter
-     Require Import Parameters Hash HashVec Comp Notationv1 BitVector FixedList InvMisc.
+
+From ProbHash.Utils
+     Require Import InvMisc.
+From ProbHash.Computation
+     Require Import Comp Notationv1.
+From ProbHash.Core
+     Require Import Hash HashVec FixedList.
+
+
+
 Section BloomFilter.
   (*
    A fomalization of a bloom filter structure and properties
@@ -22,6 +30,9 @@ Section BloomFilter.
    *)
   Variable n: nat.
   Variable Hkgt0: k >0.
+
+  Definition BitVector := (Hash_size.+1).-tuple bool.
+
   (*
      list of hash functions used in the bloom filter
    *)
