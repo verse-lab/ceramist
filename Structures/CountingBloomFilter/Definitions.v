@@ -14,8 +14,12 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-From BloomFilter
-     Require Import Parameters Hash HashVec Comp Notationv1 BitVector FixedList.
+From ProbHash.Computation
+     Require Import Comp Notationv1.
+
+From ProbHash.Core
+     Require Import Hash HashVec FixedList.
+
 
 Section CountingBloomFilter.
   (*

@@ -11,8 +11,11 @@ Unset Strict Implicit.
 
 Unset Printing Implicit Defensive.
 
-From BloomFilter
-     Require Import Parameters  seq_ext InvMisc.
+From ProbHash.Utils
+     Require Import  seq_ext InvMisc.
+From ProbHash.Core
+     Require Import Hash.
+
 
 Notation "a \subseteq b" := (all (fun a' => a' \in b) a) (at level 70).
 

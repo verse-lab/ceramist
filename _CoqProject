@@ -1,22 +1,23 @@
--Q Structures BloomFilter
--Q Probability BloomFilter
--Q Properties BloomFilter
+-Q Utils ProbHash.Utils
+-Q Computation ProbHash.Computation
+-R Structures ProbHash
 -arg "-w -notation-overridden,-local-declaration,-redundant-canonical-projection,-projection-no-head-constant"
 
-Properties/Parameters.v
-Properties/InvMisc.v
-Properties/seq_ext.v
-Properties/seq_subset.v
-Properties/rsum_ext.v
-Structures/HashVec.v
-Structures/BloomFilter.v
-Structures/CountingBloomFilter.v
-Properties/Counting.v
-Structures/FixedList.v
-Structures/FixedMap.v
-Structures/BitVector.v
-Structures/Hash.v
-Probability/Comp.v
-Probability/Notationv1.v
-Properties/Collision.v
-Probability/bigop_tactics.v
+
+
+
+Computation/Comp.v
+Computation/Notationv1.v
+Structures/BloomFilter/Definitions.v
+Structures/BloomFilter/Probability.v
+Structures/Core/FixedList.v
+Structures/Core/FixedMap.v
+Structures/Core/Hash.v
+Structures/Core/HashVec.v
+Structures/CountingBloomFilter/Definitions.v
+Structures/CountingBloomFilter/Probability.v
+Utils/bigop_tactics.v
+Utils/InvMisc.v
+Utils/rsum_ext.v
+Utils/seq_ext.v
+Utils/seq_subset.v

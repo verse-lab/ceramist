@@ -4,8 +4,11 @@ From mathcomp.ssreflect
 From mathcomp.ssreflect
      Require Import tuple.
 
-From BloomFilter
-     Require Import FixedList seq_ext InvMisc.
+From ProbHash.Core
+     Require Import FixedList.
+
+From ProbHash.Utils
+     Require Import seq_ext InvMisc.
 
 Set Implicit Arguments.
 

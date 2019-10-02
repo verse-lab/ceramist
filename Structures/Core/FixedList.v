@@ -7,7 +7,7 @@ From mathcomp.ssreflect
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Logic.ProofIrrelevance.
 
-From BloomFilter Require Import InvMisc seq_ext.
+From ProbHash.Utils Require Import InvMisc seq_ext.
 Set Implicit Arguments.
 
 Definition tlast (n : nat) (T : Type) tuple :=

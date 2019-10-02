@@ -4,7 +4,7 @@ From mathcomp.ssreflect Require Import
 
 From mathcomp.ssreflect Require Import tuple.
 
-From mathcomp Require Import path .
+From mathcomp Require Import path.
 
 From infotheo Require Import
      ssrR Reals_ext logb ssr_ext ssralg_ext bigop_ext Rbigop proba.
@@ -12,13 +12,22 @@ From infotheo Require Import
 Require Import Coq.Logic.ProofIrrelevance.
 Require Import Coq.Logic.FunctionalExtensionality.
 
+From ProbHash.Computation
+     Require Import Comp Notationv1.
+
+From ProbHash.Core
+     Require Import Hash FixedList FixedMap.
+
+From ProbHash.Utils
+     Require Import InvMisc bigop_tactics seq_ext seq_subset rsum_ext.
+
+
+
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-From BloomFilter
-     Require Import Parameters Hash Comp Notationv1 BitVector FixedList FixedMap
-     InvMisc bigop_tactics  seq_ext seq_subset  rsum_ext.
+
 
 Section HashVec.
   (*
