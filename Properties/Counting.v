@@ -20,7 +20,6 @@ From BloomFilter Require Import
      Parameters Hash HashVec Comp Notationv1 BitVector CountingBloomFilter
      InvMisc bigop_tactics FixedList seq_ext seq_subset FixedMap rsum_ext.
 
-
 Section CountingBloomFilter.
   (*
     k - number of hashes
@@ -30,11 +29,8 @@ Section CountingBloomFilter.
     n - maximum capacity of each counter
    *)
   Variable n: nat.
-
   Variable Hngt0: n > 0.
   Variable Hkgt0: k > 0.
-
-
   
   Lemma countingbloomfilter_preserve hashes l m (vals: seq B) hsh bf:
                       l.+1 * k + m < n ->
@@ -58,7 +54,6 @@ Section CountingBloomFilter.
         rewrite mulR_neq0' =>/andP [H1 H2].
         have H3: (length vals) == l; first by move/eqP: Hlen => //= [->].
         have H4: (l.+1 * k + (m + k) < n); first by move: Hltn; rewrite mulSnr -addnA [k + m]addnC.
-
         move: (IHvals l (m + k) hsh' bf' H4 H3 H1) => Hpref; clear IHvals H4 H3 H1.
         move: H2 => //=; rewrite FDistBind.dE.
         move=>/eqP/ prsumr_ge0 []; first by intros;dispatch_Rgt.
@@ -66,16 +61,13 @@ Section CountingBloomFilter.
         rewrite mulR_neq0' =>/andP [H4]  //=; rewrite FDist1.dE xpair_eqE.
         case Hand: (_ && _) => /eqP //= _.
         move/andP:Hand => [_ /eqP ->].
-
         eapply  countingbloomfilter_add_capacity_change.
         - by rewrite -length_sizeP size_tuple.
           by rewrite [k + m]addnC.
       }
-
   Qed.
-  
-    
 
+    
   Theorem countingbloomfilter_counter_prob
     hashes l (values: seq B):
     l * k < n ->
@@ -88,7 +80,6 @@ Section CountingBloomFilter.
     Proof.
       rewrite //= FDistBind.dE rsum_split //=.
       under big a _ under big b _ rewrite FDist1.dE eq_sym eqb_id.
-
       elim: values l => [| val vals  IHval] [|l] Hltn Hval //=.
       - {
           under big a _ under big b _ rewrite FDist1.dE xpair_eqE andbC boolR_distr -!mulRA.
@@ -97,7 +88,6 @@ Section CountingBloomFilter.
           by rewrite countingbloomfilter_new_empty_bitcount.
         }
       - {
-
           under big a _ under big b _ rewrite FDistBind.dE rsum_Rmul_distr_r.
           (under big a _ rewrite exchange_big); rewrite exchange_big rsum_split //=.
           erewrite <- (IHval l) => //=.
@@ -105,25 +95,18 @@ Section CountingBloomFilter.
           under big hsh2 _  under big bf2 _ rewrite  mulRC -mulRA.
           under big hsh2 _ rewrite -rsum_Rmul_distr_l.
           rewrite -rsum_Rmul_distr_l.
-
-
           case Hzr0: ((d[ countingbloomfilter_add_multiple hashes (countingbloomfilter_new Hngt0) vals]) (hsh1, bf1) == 0).
           - by move/eqP: Hzr0 ->; rewrite !mul0R.
           - {
               apply f_equal.
               under big hsh2 _ under big bf2 _ rewrite FDistBind.dE.
               under big hsh2 _ under big bf2 _ rewrite rsum_Rmul_distr_r rsum_split //=.
-
               under big hshs2 _ rewrite exchange_big; under big hshs3 _ rewrite exchange_big //=.
-
               rewrite exchange_big; under big hshs3 _ rewrite exchange_big//=.
-
               under big ? _ under big inds _ under big hshs2 _ under big bf2 _
                     rewrite mulRA mulRC FDist1.dE xpair_eqE andbC boolR_distr -!mulRA.
               under big ? _ under big inds _ under big hshs2 _ rewrite -rsum_pred_demote big_pred1_eq.
               under big ? _ under big inds _ rewrite -rsum_pred_demote big_pred1_eq.
-
-
               under big hshs3 _ under big inds _ rewrite -(@countingbloomfilter_add_internal_incr _ k).
               - {
                 under big ? _ rewrite -rsum_Rmul_distr_l.
@@ -140,9 +123,8 @@ Section CountingBloomFilter.
                   by rewrite !addn0=> H1; move: (H1 Hltn H2 Hzr0).
                 }
             }
-
           - by move: Hltn; rewrite mulSnr =>/addr_ltn.
         }
-
     Qed.
+
 End CountingBloomFilter.    

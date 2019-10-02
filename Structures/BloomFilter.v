@@ -1,27 +1,18 @@
 From mathcomp.ssreflect
      Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq path bigop finfun .
-
 From mathcomp.ssreflect
      Require Import tuple.
-
 From mathcomp
      Require Import path.
-
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
-
 From BloomFilter
      Require Import Parameters Hash HashVec Comp Notationv1 BitVector FixedList InvMisc.
-
-
-
 Section BloomFilter.
   (*
    A fomalization of a bloom filter structure and properties
-
    *)
-
   (*
     k - number of hashes
    *)
@@ -31,19 +22,16 @@ Section BloomFilter.
    *)
   Variable n: nat.
   Variable Hkgt0: k >0.
-
   (*
      list of hash functions used in the bloom filter
    *)
-
-
-
   Record BloomFilter := mkBloomFilter {
                             bloomfilter_state: BitVector
                           }.
 
   Definition BloomFilter_prod (bf: BloomFilter) :=
     (bloomfilter_state bf).
+
   Definition prod_BloomFilter  pair := let: (state) := pair in @mkBloomFilter state.
 
   Lemma bloomfilter_cancel : cancel (BloomFilter_prod) (prod_BloomFilter).
@@ -51,27 +39,29 @@ Section BloomFilter.
       by case.
   Qed.
 
-
   Definition bloomfilter_eqMixin :=
     CanEqMixin bloomfilter_cancel .
+
   Canonical bloomfilter_eqType  :=
     Eval hnf in EqType BloomFilter  bloomfilter_eqMixin .
 
   Definition bloomfilter_choiceMixin :=
     CanChoiceMixin bloomfilter_cancel.
+
   Canonical bloomfilter_choiceType  :=
     Eval hnf in ChoiceType BloomFilter  bloomfilter_choiceMixin.
 
   Definition bloomfilter_countMixin :=
     CanCountMixin bloomfilter_cancel.
+
   Canonical bloomfilter_countType :=
     Eval hnf in CountType BloomFilter  bloomfilter_countMixin.
 
   Definition bloomfilter_finMixin :=
     CanFinMixin bloomfilter_cancel .
+
   Canonical bloomfilter_finType :=
     Eval hnf in FinType BloomFilter  bloomfilter_finMixin.
-
 
   Definition bloomfilter_set_bit (value: 'I_(Hash_size.+1)) bf : BloomFilter :=
     mkBloomFilter
@@ -101,25 +91,19 @@ Section BloomFilter.
       let qres := bloomfilter_query_internal (tval hash_vec) bf in
       ret (new_hashes, qres).
 
-
   Definition bloomfilter_add_multiple  hsh_0 bf_0 values :=
     @foldr B (Comp [finType of k.-tuple (HashState n) * BloomFilter])
            (fun val hsh_bf =>
               res_1 <-$ hsh_bf;
                 let (hsh, bf) := res_1 in
                 bloomfilter_add val hsh bf) (ret (hsh_0, bf_0)) values.
-
   
-
   Definition bloomfilter_new : BloomFilter.
     apply mkBloomFilter.
     apply Tuple with (nseq Hash_size.+1 false).
       by rewrite size_nseq.
   Defined.
-
-
   
-
   Lemma bloomfilter_new_empty_bits b : ~~ bloomfilter_get_bit b bloomfilter_new .
   Proof.
     clear k n Hkgt0.
@@ -128,10 +112,8 @@ Section BloomFilter.
     move=> [[| b] Hb]; rewrite /tnth //=.
     move: (Hb); move/ltn_SnnP: Hb => Hb' Hb;move: (IHn (Ordinal Hb'));rewrite /tnth //=.
     clear.
-
     move: (size_nseq n.+1 _)  => Hprf.
     move:(tnth_default _ _) (tnth_default _ _); clear Hb => b1 b2.
-
     have ->: (false :: nseq n false) = (nseq n.+1 false); first by [].
     move: Hb'; rewrite -Hprf; clear Hprf.
     move: (n.+1); clear n; elim: b => [//= n'|]; first by case: (nseq n' _).
@@ -146,8 +128,6 @@ Section BloomFilter.
     case: bs => [//=| b1 [//=| b2 bs]] Hlen; first by rewrite Bool.andb_true_r; apply bloomfilter_new_empty_bits.
     rewrite Bool.negb_andb; apply/orP; left; apply bloomfilter_new_empty_bits.
   Qed.
-
-  
   
   Lemma bloomfilter_set_bitC bf ind ind':
     (bloomfilter_set_bit ind (bloomfilter_set_bit ind' bf)) =
@@ -164,22 +144,18 @@ Section BloomFilter.
     - rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos ->.
       rewrite FixedList.tnth_set_nth_eq; last by [].
         by rewrite FixedList.tnth_set_nth_eq; last by [].
-
     - rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos ->.  
       rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos' ->.
       rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos' ->.  
         by rewrite FixedList.tnth_set_nth_neq; last by move/Bool.negb_true_iff: Hpos ->.
   Qed.
 
-
   Lemma bloomfilter_add_internal_hit bf (ind: 'I_Hash_size.+1) hshs :
     (ind \in hshs) ->
     (tnth (bloomfilter_state (bloomfilter_add_internal hshs bf)) ind).
   Proof.
     elim: hshs bf  => //= hsh hshs IHs bf.
-
     rewrite in_cons => /orP [/eqP -> | H]; last by apply IHs.
-
     clear IHs ind.
     elim: hshs bf hsh => //.
     - rewrite /bloomfilter_add_internal/bloomfilter_set_bit/bloomfilter_state //.
@@ -194,7 +170,6 @@ Section BloomFilter.
     tnth (bloomfilter_state bf) ind ->
     tnth (bloomfilter_state (bloomfilter_add_internal hshs bf)) ind.
   Proof.
-
     elim: hshs bf ind => //= hsh hshs IHs bf ind Htnth.
     apply IHs.
     rewrite /bloomfilter_set_bit/bloomfilter_state //.
@@ -204,14 +179,12 @@ Section BloomFilter.
         by move/Bool.negb_true_iff: Hhsh.
   Qed.
 
-
   Lemma bloomfilter_add_internal_miss
         bf (ind: 'I_Hash_size.+1) hshs :
     ~~ tnth (bloomfilter_state bf) ind ->
     ~~ ( ind \in hshs) ->
     (~~ tnth (bloomfilter_state (bloomfilter_add_internal hshs bf)) ind).
   Proof.
-
     move=> Htnth.
     elim: hshs bf Htnth => //= hsh hshs IHs bf Htnth.
     move=> H; move: (H).
@@ -223,7 +196,6 @@ Section BloomFilter.
     exact Hnotin.
   Qed.
 
-
   Lemma bloomfilter_add_internal_hit_infer bf (ind: 'I_Hash_size.+1) inds:
     ~~ bloomfilter_get_bit ind bf ->
     tnth (bloomfilter_state (bloomfilter_add_internal inds bf)) ind ->
@@ -234,14 +206,12 @@ Section BloomFilter.
       by move/Bool.negb_true_iff: (bloomfilter_add_internal_miss Hbit Hind) Htnth ->.
   Qed.
 
-
   Lemma bloomfilter_set_get_eq hash_value bf :
     bloomfilter_get_bit hash_value (bloomfilter_set_bit hash_value bf).
   Proof.
       by rewrite /bloomfilter_get_bit/bloomfilter_set_bit//
                  /bloomfilter_state FixedList.tnth_set_nth_eq //=.
   Qed.
-
   
   Lemma bloomfilter_add_insert_contains l (bf: BloomFilter) (inds: l.-tuple 'I_Hash_size.+1 )
         (ps: seq 'I_Hash_size.+1) :
@@ -255,7 +225,6 @@ Section BloomFilter.
     (bloomfilter_set_bit b (bloomfilter_set_bit b' bf)) =
     (bloomfilter_set_bit b' (bloomfilter_set_bit b bf)).
   Proof.
-
     rewrite/bloomfilter_set_bit/bloomfilter_state; apply f_equal.
     case: bf; rewrite/BitVector=>bf .
       by rewrite  fixedlist_set_nthC.
@@ -265,14 +234,12 @@ Section BloomFilter.
     (bloomfilter_add_internal others (bloomfilter_add_internal b bf)) =
     (bloomfilter_add_internal (others ++ b) bf).
   Proof.
-
     elim: others bf => [//=|other others Hothers] bf //= .
     rewrite -Hothers; apply f_equal; clear Hothers others.
     elim: b bf => [//=| b bs Hbs] bf //=.
     rewrite  bloomfilter_set_bit_conv.
       by rewrite Hbs.
   Qed.
-
   
   
 End BloomFilter.

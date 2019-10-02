@@ -1,6 +1,5 @@
 From mathcomp.ssreflect
      Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq    .
-
 From mathcomp.ssreflect
      Require Import tuple.
 
@@ -9,13 +8,13 @@ Require Import Coq.Logic.FunctionalExtensionality.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
+
 Unset Printing Implicit Defensive.
 
 From BloomFilter
      Require Import Parameters  seq_ext InvMisc.
 
 Notation "a \subseteq b" := (all (fun a' => a' \in b) a) (at level 70).
-
 
 Lemma subseteq_in_rem (A: eqType) (p : A) (ps: seq A) inds:
   p \notin ps ->
@@ -30,8 +29,6 @@ Proof.
   clear IHps Hnin qs IHind.
     by apply rem_in_neq; rewrite eq_sym.
 Qed.
-
-
 
 Lemma subseq_cons_cat (A: eqType) (ps qs: seq A) (q: A): (ps \subseteq (q::qs)) = (ps \subseteq qs ++ [:: q]).
 Proof.
@@ -50,5 +47,3 @@ Proof.
   elim: ps qs rs ts  => [|p ps IHps] qs rs ts//=.
     by rewrite !mem_cat IHps orbA.
 Qed.
-
-
