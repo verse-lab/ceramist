@@ -1559,7 +1559,7 @@ Section BloomFilter.
       }
   Qed.
   
-  Theorem bloomfilter_no_false_positives l  bf (hashes: hash_vec) x xs :
+  Theorem bloomfilter_no_false_negatives l  bf (hashes: hash_vec) x xs :
     uniq (x :: xs) ->
     length xs == l ->
     hashes_have_free_spaces hashes (l.+1) ->
