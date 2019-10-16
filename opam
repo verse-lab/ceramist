@@ -8,9 +8,9 @@ description: """
   the probability of a false positive.
 """ # Longer description, can span several lines
 
-homepage: "https://github.com/certichain/bloom-filter"
-dev-repo: "git+https://github.com/certichain/bloom-filter.git"
-bug-reports: "https://github.com/certichain/bloom-filter/issues"
+homepage: "https://github.com/certichain/probhash"
+dev-repo: "git+https://github.com/certichain/probhash.git"
+bug-reports: "https://github.com/certichain/probhash/issues"
 maintainer: "kirang@comp.nus.edu.sg"
 authors: [
   "Kiran Gopinathan"
@@ -31,7 +31,7 @@ install: [
 ]
 
 url {
-  src: "https://github.com/certichain/bloom-filter/archive/0.0.1.tar.gz"
+  src: "https://github.com/certichain/probhash/archive/0.0.1.tar.gz"
   checksum: "sha256=7a805043e10dcc618778c65c3014fbaf52210d22db63554a61eb6021f4633e07"
 }
 
