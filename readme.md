@@ -47,7 +47,7 @@ The library is split into separate logical components by directory:
 - *Structures/BloomFilter* - example use of the exported library to prove various probabilistic properties on bloom filters.
 - *Structures/CountingBloomFilter* - another exemplar use of the library to prove probabilistic properties on counting bloom filters. 
 
-# Axioms
+## Axioms
 We axiomatize stirling numbers of the second kind in our proof of the false-positives of a bloom filter under `Structures/Core/BloomFilter/Probability` in the axiom `second_stirling_number_sum`:
 ```
 Axiom second_stirling_number_sum: forall l k m (f: nat -> Rdefinitions.R),
@@ -62,7 +62,7 @@ Axiom second_stirling_number_sum: forall l k m (f: nat -> Rdefinitions.R),
      )).
 ```
 
-# License
+## License
 Given its dependencies:
 
 - Coq (distributed under the LGPLv2.1 license)
