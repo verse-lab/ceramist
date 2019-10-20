@@ -244,6 +244,15 @@ Proof.
     by rewrite -subRBA subRR subR0.
 Qed.
 
+Lemma rsum_pred_inv (A: finType) (f: dist A) (p: pred A) :
+  \sum_(a in A | p a) (f a) = (1 -R- \sum_(a in A | ~~ p a) (f a)).
+Proof.
+  move: (fdist_is_fdist f) => [_ <-].
+  have->: (\sum_(a in A) (f a) = (( \sum_(a in A | p a) f a) +R+ ( \sum_(a in A | ~~ p a) f a)) ); first by rewrite (bigID (fun a => p a)).
+  by rewrite -subRBA subRR subR0.
+Qed.
+
+
 Lemma rsum_mem_pred (A: finType) k x :
   #|A| > 0 ->
        \sum_(xs in [finType of k.-tuple A] | x \in xs)
