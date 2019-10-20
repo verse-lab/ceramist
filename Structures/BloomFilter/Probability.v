@@ -50,9 +50,9 @@ Axiom second_stirling_number_sum: forall l k m (f: nat -> Rdefinitions.R),
     (\sum_(inds in [finType of (l * k).-tuple 'I_m.+1])
       ((Rdefinitions.Rinv (m.+1 %R) ^R^ l * k) *R*
        (f (length (undup inds)))) ) =
-    \sum_(len in [finType of 'I_(l * k)])
+    \sum_(len in [finType of 'I_(m.+1)])
      (f(len) *R*
-      ( ('C ((l * k), len) %R) *R*
+      ( ('C ((m.+1), len) %R) *R*
         (Factorial.fact len %R) *R* (stirling_no_2 (l * k) len) *R*
         (Rdefinitions.Rinv (m.+1 %R) ^R^ (l * k))
      )).
@@ -1962,8 +1962,8 @@ Section BloomFilter.
       (\sum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1])
         ((( inds \subseteq hits) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ (l * k)))))) =
     ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l.+1 * k) *R*
-     \sum_(a in ordinal_finType (l * k))
-      (((((a %R) ^R^ k) *R* (Factorial.fact a %R)) *R* ('C(l * k, a) %R)) *R* stirling_no_2 (l * k) a)).
+     \sum_(a in ordinal_finType (Hash_size.+1))
+      (((((a %R) ^R^ k) *R* (Factorial.fact a %R)) *R* ('C(Hash_size.+1, a) %R)) *R* stirling_no_2 (l * k) a)).
   Proof.
     under big inds _ rewrite rsum_Rmul_distr_l.
     rewrite exchange_big.
@@ -1980,12 +1980,12 @@ Section BloomFilter.
                                          (fun len => (((len %R) *R* Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ k))
              ) => //= ->.
       have H len: ((((len %R) *R* Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ k) *R*
-                   (((('C(l * k, len) %R) *R* (Factorial.fact len %R)) *R* stirling_no_2 (l * k) len) *R*
+                   (((('C(Hash_size.+1, len) %R) *R* (Factorial.fact len %R)) *R* stirling_no_2 (l * k) len) *R*
                     (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l * k))) = (
                     (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ (l.+1 * k)) *R* (
                       ((len %R) ^R^ k) *R*
                       (Factorial.fact len %R) *R*
-                      ('C (l * k, len) %R) *R*
+                      ('C (Hash_size.+1, len) %R) *R*
                       (stirling_no_2 (l * k) len)
                   )).
       {
@@ -2018,8 +2018,8 @@ Section BloomFilter.
               ret (res'.2)
       ] true =
     ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l.+1 * k) *R*
-     \sum_(a in ordinal_finType (l * k))
-      (((((a %R) ^R^ k) *R* (Factorial.fact a %R)) *R* ('C(l * k, a) %R)) *R* stirling_no_2 (l * k) a)).
+     \sum_(a in ordinal_finType (Hash_size.+1))
+      (((((a %R) ^R^ k) *R* (Factorial.fact a %R)) *R* ('C(Hash_size.+1, a) %R)) *R* stirling_no_2 (l * k) a)).
   Proof.
     intros; rewrite (@bloomfilter_collision_rsum _ l) => //=.
       by rewrite  subseq_conv.

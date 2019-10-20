@@ -54,9 +54,9 @@ Axiom second_stirling_number_sum: forall l k m (f: nat -> Rdefinitions.R),
     (\sum_(inds in [finType of (l * k).-tuple 'I_m.+1])
       ((Rdefinitions.Rinv (m.+1 %R) ^R^ l * k) *R*
        (f (length (undup inds)))) ) =
-    \sum_(len in [finType of 'I_(l * k)])
+    \sum_(len in [finType of 'I_(m.+1)])
      (f(len) *R*
-      ( ('C ((l * k), len) %R) *R*
+      ( ('C ((m.+1), len) %R) *R*
         (Factorial.fact len %R) *R* (stirling_no_2 (l * k) len) *R*
         (Rdefinitions.Rinv (m.+1 %R) ^R^ (l * k))
      )).
