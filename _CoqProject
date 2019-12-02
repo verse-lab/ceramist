@@ -21,3 +21,4 @@ Utils/InvMisc.v
 Utils/rsum_ext.v
 Utils/seq_ext.v
 Utils/seq_subset.v
+Utils/stirling.v
