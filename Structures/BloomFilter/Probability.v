@@ -2053,6 +2053,8 @@ Section BloomFilter.
   Qed.
 
 End BloomFilter.
+
+Print Assumptions  bloomfilter_collision_prob.
 (* Local Variables: *)
 (* company-coq-local-symbols: (("\\subseteq" . ?⊆)) *)
 (* End: *)

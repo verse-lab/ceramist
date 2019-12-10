@@ -16,7 +16,6 @@ Structures/Core/Hash.v
 Structures/Core/HashVec.v
 Structures/CountingBloomFilter/Definitions.v
 Structures/CountingBloomFilter/Probability.v
-Utils/bigop_tactics.v
 Utils/InvMisc.v
 Utils/rsum_ext.v
 Utils/seq_ext.v

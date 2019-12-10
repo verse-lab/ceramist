@@ -179,10 +179,10 @@ Section stirling_second_number.
 
   Lemma stirling_number_combinations (n i k: nat) (M: finType)
         (I:{set M}) (K: {set 'I_#|pred_of_set I| })
-        (HpredI : #|pred_of_set I| == i)
+        (HpredI : #| I| == i)
         (HpredK : #|pred_of_set K| == k):
     \sum_(v : [finType of n.-tuple M] | [set x in v] \subset pred_of_set I)
-     Ind (\bigcap_(j in pred_of_set K) [set x : [finType of n.-tuple M] | enum_val j \notin x]) v = 
+     Ind (\bigcap_(j in  K) [set x : [finType of n.-tuple M] | enum_val j \notin x]) v = 
     (((i %R) -R- (k %R)) ^R^ n).
   Proof.
 
@@ -438,8 +438,8 @@ Section stirling_second_number.
           rewrite -!RIneq.INR_IZR_INZ; apply RIneq.not_0_INR; apply (Factorial.fact_neq_0 i).
     }
 
+    
     (* Stirlings number proof - step 2 *)
-
     have H (v: (l * k).-tuple 'I_m.+1): 
       [set x in v] == I = (([set x in v] \subset I) && ([set x in v] == I)).
 
@@ -485,8 +485,6 @@ Section stirling_second_number.
       }
         by [].
     }
-
-
 
     rewrite rsum_pred_demote; under eq_bigr => v Hv do rewrite boolR_distr -mulRA mulR1; rewrite -rsum_pred_demote //=.
 
@@ -583,6 +581,7 @@ Section stirling_second_number.
       by apply eq_bigr => y Hy //=; move/eqP:Hi =>->; rewrite -!mulRA; apply f_equal; rewrite mulRC.
   Qed.
 
+  About second_stirling_number_sum.
   
 
 End stirling_second_number.

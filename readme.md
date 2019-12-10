@@ -48,19 +48,7 @@ The library is split into separate logical components by directory:
 - *Structures/CountingBloomFilter* - another exemplar use of the library to prove probabilistic properties on counting bloom filters. 
 
 ## Axioms
-We axiomatize stirling numbers of the second kind in our proof of the false-positives of a bloom filter under `Structures/Core/BloomFilter/Probability` in the axiom `second_stirling_number_sum`:
-```
-Axiom second_stirling_number_sum: forall l k m (f: nat -> Rdefinitions.R),
-    (\sum_(inds in [finType of (l * k).-tuple 'I_m.+1])
-      ((Rdefinitions.Rinv (m.+1 %R) ^R^ l * k) *R*
-       (f (length (undup inds)))) ) =
-    \sum_(len in [finType of 'I_(m.+1)])
-     (f(len) *R*
-      ( ('C ((m.+1), len) %R) *R*
-        (Factorial.fact len %R) *R* (stirling_no_2 (l * k) len) *R*
-        (Rdefinitions.Rinv (m.+1 %R) ^R^ (l * k))
-     )).
-```
+NO AXIOMS!
 
 ## License
 Given its dependencies:

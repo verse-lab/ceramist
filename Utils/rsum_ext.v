@@ -18,7 +18,7 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 From ProbHash.Utils
-     Require Import  InvMisc bigop_tactics  seq_ext seq_subset.
+     Require Import  InvMisc   seq_ext seq_subset.
 From ProbHash.Computation
      Require Import Comp Notationv1.
 From ProbHash.Core
@@ -263,8 +263,8 @@ Proof.
                                                  first by rewrite rsum_empty //= mul0R subRR.
   rewrite rsum_tuple_split rsum_split //=.
   rewrite (bigID (fun a => a == x)) big_pred1_eq//=.
-  (under big b _ rewrite  mulRC -mulRA in_cons eq_refl); rewrite -rsum_Rmul_distr_l //=.
-  under big b _ rewrite mulR1.
+  (under eq_bigr => b _ do rewrite  mulRC -mulRA in_cons eq_refl); rewrite -rsum_Rmul_distr_l //=.
+  under eq_bigr => b _ do rewrite mulR1.
   rewrite bigsum_card_constE.
   have->: (((#|[finType of k.-tuple A]| %R) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ k))) = (1 %R).
   - {
@@ -274,8 +274,8 @@ Proof.
           by apply RIneq.not_0_INR; apply/eqP; apply lt0n_neq0.      
     }
     rewrite mulR1 //=.
-    under big i Hi under big b _ (move/Bool.negb_true_iff: Hi => Hi; rewrite in_cons eq_sym Hi mulRC -mulRA//=).
-    under big i _ rewrite -rsum_Rmul_distr_l; under big b _ rewrite mulRC.
+    under eq_bigr => i Hi do under eq_bigr => b _ do (move/Bool.negb_true_iff: Hi => Hi; rewrite in_cons eq_sym Hi mulRC -mulRA//=).
+    under eq_bigr => i _ do (rewrite -rsum_Rmul_distr_l; under eq_bigr => b _ do rewrite mulRC).
     rewrite rsum_sans_one_const //= IHk //=.
     rewrite natRB.
     rewrite -addR_opp RIneq.Rmult_plus_distr_r mulRA.
@@ -501,7 +501,7 @@ Lemma rsum_subseq_internal (m : nat) (I J: seq 'I_m) :
 Proof.
   move=> Hm; elim: I J => [|i I IHI] J Huniq Hall; first
                             by rewrite //= ?mul0R bigsum_card_constE ?mulR0.
-  under big i0 _ rewrite in_cons.
+  under eq_bigr => i0 _ do rewrite in_cons.
   rewrite rsum_pred_demote (bigID (fun i0 => i0 == i)) big_pred1_eq //= eq_refl //= mul1R.
   move: (Hall); rewrite all_in_negP => //=/andP[-> Hall'] //=; rewrite mul1R.
   rewrite -addn1 natRD RIneq.Rmult_plus_distr_r mul1R [(_ *R* _) +R+ _]addRC; apply f_equal.
@@ -553,7 +553,7 @@ Proof.
         first by rewrite -mulRA Hbool -mulRA;apply f_equal;
           rewrite mulRC -mulRA; apply f_equal;
             rewrite mulRC; apply f_equal.
-      under big a _ under big b0 _  rewrite Hsusp.
+      under eq_bigr => a _ do under eq_bigr => b0 _ do  rewrite Hsusp.
         by rewrite -big_distrlr //= -!rsum_pred_demote IHb 1?rsum_pred_demote 1?rsum_subseq //=.
     }
 Qed.
@@ -562,7 +562,7 @@ Lemma rsum_subseq_undup_eq (m : nat) (I : seq 'I_m) :
   \sum_(i in 'I_m) (((i \in I) %R) *R* Rdefinitions.Rinv (m %R)) =
   \sum_(i in 'I_m) (((i \in undup I) %R) *R* Rdefinitions.Rinv (m %R)).
 Proof.
-    by under big i _ rewrite mem_undup.
+     by under eq_bigr => i Hi do rewrite -mem_undup.
 Qed.
 
 Lemma rsum_subseq_mult_undup_eq (m b: nat) (I: seq 'I_m):
@@ -580,7 +580,7 @@ Proof.
     (((a \in I) && (b0 \subseteq I) %R) *R* (Rdefinitions.Rinv (m %R) *R* (Rdefinitions.Rinv (m %R) ^R^ b))) =
     ((((a \in I) %R) *R* Rdefinitions.Rinv (m %R)) *R* ((b0 \subseteq I %R) *R* (Rdefinitions.Rinv (m %R) ^R^ b)));
     first by rewrite Hbool -mulRA -mulRA; apply f_equal;  rewrite mulRC -mulRA; apply f_equal; rewrite mulRC.
-  under big a _ under big b0 _ rewrite Hsusp.
+  under eq_bigr => a _ do under eq_bigr => b0 _ do rewrite Hsusp.
   rewrite -big_distrlr //= -!rsum_pred_demote IHb 2!rsum_pred_demote big_distrl.
   apply Logic.eq_sym; rewrite rsum_pred_demote rsum_tuple_split rsum_split //=.
   apply eq_bigr=> a _;  rewrite rsum_Rmul_distr_l; apply eq_bigr=> b0 _.
@@ -597,7 +597,7 @@ Lemma subseq_imd (A: finType) (m l: nat) (f: (m.+1 * l).-tuple A -> Rdefinitions
       (f (cat_tuple b bs) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ (m * l)))
    ).
 Proof.
-  under big b _ rewrite rsum_Rmul_distr_l.
+  under [  \sum_(b in [finType of l.-tuple A]) _]eq_bigr => b _ do rewrite rsum_Rmul_distr_l.
   apply Logic.eq_sym.
   have Hoqv Q p q (vec : seq Q): (size vec == p.+1 * q) = (size vec == q + p * q);
     first by rewrite mulSnr addnC.
@@ -607,7 +607,7 @@ Proof.
                                      (f ((cat_tuple b a)) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ m * l)))) ).
     by rewrite rsum_split //=; do ? (apply eq_bigr; intros); do ?apply f_equal => //=.
     rewrite (@reindex Rdefinitions.R Rdefinitions.R0 _ ([finType of (l.-tuple A * (m * l).-tuple A)]) _ (@tuple_split A m l)) => //=.
-    rewrite rsum_pred_demote //=; under big a _ rewrite mul1R.
+    rewrite rsum_pred_demote //=; under eq_bigr => a _ do rewrite mul1R.
     rewrite (big_tcast H) => //=; apply eq_bigr=> a Ha.
     rewrite  mulRA mulRC mulRA.
     have ->: (((Rdefinitions.Rinv (#|A| %R) ^R^ m * l) *R* (Rdefinitions.Rinv (#|A| %R) ^R^ l))) =
