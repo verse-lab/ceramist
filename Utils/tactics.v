@@ -183,3 +183,22 @@ Ltac dispatch_eq0_obligations :=
   | [|- context [Rdefinitions.Rinv (?x.+1 %R)]] => rewrite -add1n
   end.
 
+
+(* given that a probabilistic computation is possible (d[ c1; c2; c3] v) != 0,
+   derives that individual statements of computation are also possible
+ *)
+Ltac comp_possible_decompose  :=
+  match goal with
+  | [ |- ((?X ->- ?Y)) -> ?F ] =>
+    move=> /RIneq.Rgt_not_eq; comp_possible_decompose
+  | [ |- (is_true (?X != ?Y)) -> ?F ] =>
+    move=>/eqP; comp_possible_decompose
+  | [ |- ( (?X *R* ?Y <> ?Z)) -> ?F ] =>
+    move=>/RIneq.Rmult_neq_0_reg [];
+    comp_possible_decompose
+  | [ |- ( (?X <> ?Y)) -> ?F ] =>
+    let name := fresh "value" in
+    (move=> /prsumr_ge0; case; first (by do?dispatch_eq0_obligations);
+            move=> name; comp_possible_decompose; move:name)
+    || ( move=>/eqP name; comp_possible_decompose; move: name )                                                          | _ => idtac
+  end.

@@ -38,6 +38,11 @@ Proof idea
  *)
 Open Scope R_scope.
 
+Lemma bool_neq0_true (v:bool) :
+  (v %R) != BinNums.Z0 -> v = true.
+Proof. by case: v => //=; move=> /eqP //=. Qed.
+
+
 
 Lemma bloomfilter_second_stirling_number_sum: forall l k m (f: nat -> Rdefinitions.R),
     (\sum_(inds in [finType of (l * k).-tuple 'I_m.+1])
@@ -173,7 +178,6 @@ Section BloomFilter.
         rewrite mulR1.
         comp_normalize.
         comp_simplify.
-
         rewrite /hash/hashstate_find.
         have Hthead: (thead hashes) \in hashes; first by clear; rewrite (tuple_eta hashes) theadE//=; apply mem_head. 
         move/eqP: (Husn (thead hashes) Hthead) ->.
@@ -283,19 +287,17 @@ Section BloomFilter.
             rewrite bloomfilter_add_internal_preserve; first (by rewrite //= mul0R);
               last by move: (bloomfilter_set_get_eq ind (bloomfilter_set_bit i bf)); rewrite /bloomfilter_get_bit.
           }
-
           rewrite bloomfilter_add_internal_miss; [
           | by move/Bool.negb_true_iff:
                  Hres => Hres; rewrite/bloomfilter_state/bloomfilter_set_bit tnth_set_nth_neq 1?eq_sym//=
           | by move/Bool.negb_true_iff:Hind]; rewrite mulR1.
           under eq_bigr => i Hi.
           {
-            rewrite bloomfilter_add_internal_miss; by [
-                                                       rewrite //= mul1R; over
-                                                     | move/Bool.negb_true_iff:
-                                                         Hres => Hres; rewrite/bloomfilter_state/bloomfilter_set_bit !tnth_set_nth_neq 1?eq_sym //=
-                                                     |  move/Bool.negb_true_iff:Hind
-                                                     ].
+            rewrite bloomfilter_add_internal_miss;
+              by [ rewrite //= mul1R; over
+                 | move/Bool.negb_true_iff:
+                     Hres => Hres; rewrite/bloomfilter_state/bloomfilter_set_bit !tnth_set_nth_neq 1?eq_sym //=
+                 |  move/Bool.negb_true_iff:Hind ].
           }
           apply prsumr_sans_one => //=.
             by rewrite card_ord.
@@ -303,7 +305,6 @@ Section BloomFilter.
               by apply RIneq.not_0_INR => //=.
         }
       }
-      
       (* DONE!!!! *)                                                         
   Qed.
 
@@ -339,38 +340,23 @@ Section BloomFilter.
           by move/eqP: Hhashes -> .
       }
     - {
-        rewrite //= FDistBind.dE rsum_split //=.
-        under eq_bigr => a _ do under eq_bigr => b _ do rewrite FDistBind.dE rsum_Rmul_distr_l rsum_split //=.
-        under eq_bigr => a _ do under eq_bigr => b _ do under eq_bigr => c _ do under eq_bigr => d _ do rewrite
-              FDist1.dE mulRA mulRC eq_sym xpair_eqE boolR_distr -!mulRA.
-        under eq_bigr => a _ do under eq_bigr => b _ do
-              rewrite exchange_big.
-        under eq_bigr => a _ do under eq_bigr => b _ do
-          under eq_bigr => c _ do rewrite -rsum_pred_demote big_pred1_eq.
-        move: (IHxs);clear IHxs => IHxs.
-        move=>/eqP /prsumr_ge0; case; first by (intros; dispatch_Rgt).
-        move=> hashes_internal' /RIneq.Rgt_not_eq/prsumr_ge0; case; first by (intros;dispatch_Rgt).
-        move=> bf_prev/RIneq.Rgt_not_eq/prsumr_ge0; case; first by (intros;dispatch_Rgt).
-        move=> inds_prev.
-        case Heq0: ((d[ bloomfilter_add_multiple hashes bf xs]) (hashes_internal', bf_prev) == (0%R)).
-        - by move/eqP:Heq0 ->;rewrite !mul0R mulR0 //= RIneq.INR_IZR_INZ //==>/RIneq.Rgt_not_eq //=.
-        - {
-            move/Bool.negb_true_iff: Heq0 => //= /IHxs Heq0. 
-            
-            move: (Heq0 _ Hcontains); clear Heq0 => Hcontains_internal.
-            move=>/RIneq.Rgt_not_eq; rewrite (RIneq.INR_IZR_INZ 0) //= =>/eqP.
-            rewrite !mulR_neq0' =>/andP[Hadd /andP [Haddm Hint]].
+        comp_normalize.
+        comp_simplify.
+        comp_possible_decompose.
+        move=> hashes_internal' bf_prev inds' Heq0 Hhashes0 Hbf0.
+        move: Heq0 => //= /IHxs Heq0. 
+        move: (Heq0 _ Hcontains); clear Heq0 => Hcontains_internal.
             case Hneq: (value == x).
             - {
-                move: Hcontains_internal Hint.
+                move: Hcontains_internal Hhashes0.
                 move/eqP: Hneq <- =>Hcontains_internal.
                 erewrite hash_vec_find_simpl =>//=; last by exact Hcontains_internal.
                 move=>/eqP; rewrite RIneq.INR_IZR_INZ; case Hand: (_ && _) => //= _.
                 move/andP: Hand => [/eqP ->] //=.
               }
               move/Bool.negb_true_iff: Hneq => Hneq.
-              move: Hneq Hcontains_internal Hint; clear.
-              move: k inds hashes' hashes_internal' inds_prev;clear k; elim => [|k IHk].
+              move: Hneq Hcontains_internal Hhashes0; clear.
+              move: k inds hashes' hashes_internal' inds';clear k; elim => [|k IHk].
             - {
                 do 5!intro; rewrite !tuple0 //= FDist1.dE xpair_eqE => H3.  
                 case Htrue: (_ && _); try rewrite RIneq.INR_IZR_INZ => /eqP //= _.
@@ -379,6 +365,7 @@ Section BloomFilter.
             - {
                 move=> [[//=| ind inds] Hinds] [[//=| hash hashes] Hhashes] [[//=| hash' hashes'] Hhashes'].
                 move=> [[//=|ind' inds'] Hinds'] Hneq.
+                comp_normalize.
                 rewrite
                   (tuple_eta (Tuple Hhashes'))
                   (tuple_eta (Tuple Hinds))
@@ -390,21 +377,18 @@ Section BloomFilter.
                 have->: ( thead (Tuple Hinds)) = ind; first by [].
                 have->: ( thead (Tuple Hinds')) = ind'; first by [].
                 rewrite/hash_vec_contains_value //= => /andP[Hfind Hcontains].
-                rewrite FDistBind.dE rsum_split //=.
-                move=> /eqP/prsumr_ge0; case; last move=> b'; first by (intros; dispatch_Rgt).
-                move=> /RIneq.Rgt_not_eq/prsumr_ge0; case; last move=> b; first by (intros; dispatch_Rgt).
-                move=>/RIneq.Rgt_not_eq/eqP.
-                rewrite !mulR_neq0'=>/andP[Hint]/eqP;rewrite FDistBind.dE.
-                move=>/prsumr_ge0; case; last move=> [] //=; first by (intros; dispatch_Rgt).
-                move=> hsh_val ind_val; rewrite FDist1.dE xpair_eqE.
-                move=>/RIneq.Rgt_not_eq/eqP; rewrite !mulR_neq0'=>/andP[Hhash].
-                rewrite RIneq.INR_IZR_INZ; case Hand: (_ && _) => //=/eqP //= _.
-                move:Hint.
-                move/andP: Hand =>[/eqP [ H1 H2 ] /eqP [ H3 H4 ]] Hint.
-                have Hcont': hash_vec_contains_value value (behead_tuple (Tuple Hhashes')) (FixedList.ntuple_tail (Tuple Hinds)); first by rewrite/hash_vec_contains_value //=.
-                move: (IHk (FixedList.ntuple_tail (Tuple Hinds)) b' (behead_tuple (Tuple Hhashes')) b Hneq Hcont' Hint); clear IHk; rewrite/hash_vec_contains_value //= -H2 => ->; rewrite Bool.andb_true_r.
+                comp_possible_decompose.
+                move=> b' b hsh_val ind_val Hint Hhash .
+                rewrite !xpair_eqE !cons_tuple_eq_tuple !xcons_eqE.
+                move=>/bool_neq0_true/andP [/andP [/eqP Hhsheq /eqP Htupleeq] /andP [/eqP Hindeq /eqP Hindstupleeq]].
+                have Hcont':
+                  hash_vec_contains_value value (behead_tuple (Tuple Hhashes')) (FixedList.ntuple_tail (Tuple Hinds));
+                  first by rewrite/hash_vec_contains_value //=.
+                move:
+                  (IHk (FixedList.ntuple_tail (Tuple Hinds)) b' (behead_tuple (Tuple Hhashes')) b Hneq Hcont' Hint);
+                  clear IHk; rewrite/hash_vec_contains_value //= -Htupleeq => ->; rewrite Bool.andb_true_r.
                 move:  Hneq Hfind Hhash.
-                rewrite H1 /Hash.hash; clear.
+                rewrite Hhsheq /Hash.hash; clear.
                 case: (hashstate_find n x hash') => //=.
                 - {
                     move=> ind_val' Hneq; rewrite FDist1.dE xpair_eqE=> Hfind'/eqP.
@@ -412,13 +396,10 @@ Section BloomFilter.
                       by move/andP: Hand => [/eqP ->] //=.
                   }
                 - {
-                    move=> Hneq Hfind //=; rewrite FDistBind.dE=>/eqP.
-                    under eq_bigr => a _ do rewrite FDistBind.dE FDist1.dE xpair_eqE rsum_Rmul_distr_r.
-                    under eq_bigr => a _ do under eq_bigr =>a0 _ do rewrite mulRC -mulRA mulRC -mulRA FDist1.dE eq_sym.
-                    under eq_bigr => a _ do rewrite -rsum_pred_demote big_pred1_eq andbC boolR_distr -!mulRA eq_sym.
-                    rewrite -rsum_pred_demote big_pred1_eq //==>/eqP.
-                    rewrite mulR_neq0' =>/andP[/eqP ]; case Heq: (_ == _) => //= _ _.
-                    move/eqP: Heq ->; move: Hneq Hfind; clear.
+                    move=> Hneq Hfind //=; comp_normalize.
+                    comp_possible_decompose.
+                    move=> ind1 ind2 /bool_neq0_true; rewrite xpair_eqE=>/andP[/eqP-> /eqP <-] _/bool_neq0_true/eqP ->.
+                    move: Hneq Hfind; clear.
                     move=> Hvalue.
                     move: n hash';clear n; elim => [//=|n IHn] [[//=| hash hashes] Hhashes].
                     rewrite (tuple_eta (Tuple Hhashes)) //=.
@@ -456,8 +437,6 @@ Section BloomFilter.
                   }
               }
           }
-      }
-      
   Qed.            
   
 
