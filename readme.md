@@ -33,12 +33,11 @@ The structure of the overall development is as follows:
 │       ├── Definitions.v
 │       └── Probability.v
 └── Utils
-    ├── bigop_tactics.v
     ├── InvMisc.v
     ├── rsum_ext.v
     ├── seq_ext.v
     └── seq_subset.v
-7 directories, 16 files
+7 directories, 15 files
 ```
 The library is split into separate logical components by directory:
 - *Computation* - defines a probability monad and associated notation for it on top of the 'coq-infotheo' probability library.
