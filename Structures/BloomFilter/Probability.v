@@ -458,70 +458,69 @@ Section BloomFilter.
     rewrite/hashes_have_free_spaces/hash_has_free_spaces/hashes_value_unseen/hash_unseen.
     (* proof has been cleaned up *)
     elim: xs => [//= | y ys IHy] x m hshs Huniq /allP Hfree /allP Huns Hx  bf bf' hshs'.
-    - rewrite FDist1.dE=>/eqP;case Heq: (_ == _)=>//=;move:Heq;rewrite xpair_eqE=>/andP[/eqP->_] _.
-      apply /allP=> hsh Hin //=; apply/andP; split.
-        by apply Hfree.
-          by apply Huns.
+    - comp_normalize=>/bool_neq0_true; rewrite xpair_eqE =>/andP[/eqP -> _].
+      apply /allP=> hsh Hin //=; apply/andP; split; by [apply Hfree | apply Huns].
     - move: Hx; have all_cons P z zs : all P (z :: zs) =  P z && all P zs. by [].
       rewrite all_cons => /andP [/allP Hfindy /allP Hfindys].
-      have H1: uniq (x :: ys).
+      have H1: uniq (x :: ys); first
         by move: Huniq => //=/andP [Hcons /andP [_ ->]]; move: Hcons; rewrite !in_cons Bool.negb_orb=>/andP[_ ->].
-        have H2: all (fun hsh : HashState n => FixedList.fixlist_length hsh + (length ys + m.+1).+1 <= n) hshs.
-          by apply/allP => vec Hvec; move: (Hfree vec Hvec) => //=; rewrite addSn !addnS.
-          have H3: all (fun hsh : HashState n => FixedMap.fixmap_find x hsh == None) hshs.
-            by apply /allP.
-            have H4: all (fun b : B => all (fun hsh : HashState n => FixedMap.fixmap_find b hsh == None) hshs) ys.    
-              by apply/allP.
-              move: (IHy x m.+1 hshs H1 H2 H3 H4); clear IHy H1 H2 H3 H4 => IHy.
-              move=>/eqP//=; rewrite FDistBind.dE prsumr_ge0 => [[[hs1 bf1]]|]; last by move=>a;dispatch_Rgt.
-              move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg[/eqP/(IHy bf bf1 hs1) ].
-              clear IHy all_cons bf Hfree Huns Hkgt0 Hfindys .
-              move=>H1 H2; move: H2 H1; rewrite //=FDistBind.dE.
-              rewrite prsumr_ge0 => [[[hs2 vec1]]|]; last by move=>a;dispatch_Rgt.
-              move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg[ ] //=; rewrite FDist1.dE.
-              case Heq: (_ == _)=>//=; move: Heq;rewrite xpair_eqE=>/andP[/eqP -> _] Hint _.
-              clear hshs'; elim: k hs1 hs2 vec1 Hint; clear hshs Hfindy k.
-    - by move=> hs1 hs2 vec1 //=; rewrite FDist1.dE;case Heq:(_==_)=>//=;move:Heq;rewrite xpair_eqE=>/andP[/eqP ->] //=.          
-    - move=> k IHk hs1 hs2 vec1 //=.  
-      rewrite FDistBind.dE prsumr_ge0=>[[[hs3 vec2]]|]; last by move=>a; dispatch_Rgt.
-      move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg[ ].
-      rewrite (tuple_eta hs1) ntuple_tailE //=.
-      move=>/ (IHk _ _ _); clear IHk => IHk.
-      rewrite FDistBind.dE prsumr_ge0 => [[[state1 ind1]]|]; last by move=>a;dispatch_Rgt.
-      move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg[ ]//=.
-      rewrite theadE FDist1.dE => Hhash;case Heq:(_==_)=>//=;move:Heq;rewrite xpair_eqE.
-      move=>/andP [/eqP -> /eqP _] _.
-      move=>/andP [/andP [Hlen Hfree]] =>/IHk //= ->; rewrite Bool.andb_true_r.
+      have H2: all (fun hsh : HashState n => FixedList.fixlist_length hsh + (length ys + m.+1).+1 <= n) hshs;
+        first by apply/allP => vec Hvec; move: (Hfree vec Hvec) => //=; rewrite addSn !addnS.
+      have H3: all (fun hsh : HashState n => FixedMap.fixmap_find x hsh == None) hshs;
+        first by apply /allP.
+      have H4: all (fun b : B => all (fun hsh : HashState n => FixedMap.fixmap_find b hsh == None) hshs) ys;
+        first by apply/allP.
+      move: (IHy x m.+1 hshs H1 H2 H3 H4); clear IHy H1 H2 H3 H4 => IHy.
+
+      comp_normalize.
+      comp_possible_decompose => d_hshs' d_bf d_hshs'' d_ind /(IHy).
+      clear IHy all_cons bf Hfree Huns Hkgt0 Hfindys .
+      move=> Hall //= Hint /bool_neq0_true; rewrite xpair_eqE=>/andP[/eqP -> _].
+      (* clear hshs'; elim: k hs1 hs2 vec1 Hint; clear hshs Hfindy k. *)
+      clear hshs'; elim: k d_hshs' d_hshs'' d_ind Hint Hall; clear hshs Hfindy k.
+    - by move=> hs1 hs2 vec1 //=; comp_normalize => /bool_neq0_true; rewrite xpair_eqE=>/andP[/eqP -> _] //=.
+    - move=> k IHk hs1 hs2 vec1 //=; comp_normalize; comp_possible_decompose.
+      move=> hs3 vec2 state1 ind1.
+      move=>/IHk;clear IHk => IHk Hhash /bool_neq0_true; rewrite xpair_eqE => /andP[/eqP -> _ ] //= Hall.
       move: Hhash; rewrite/hash/hashstate_find.
+      have Hthead: (thead hs1 \in hs1); first by rewrite (tuple_eta hs1) theadE in_cons eq_refl //=.
       case: (FixedMap.fixmap_find _ _) => [val //=|]. 
-    - rewrite FDist1.dE //=; case Heq:(_==_)=>//=;move:Heq;rewrite xpair_eqE.
-      move=>/andP [/eqP -> _] _; apply/andP; split => //=.
-        by move:Hlen; rewrite addnS =>/ltnW.
-    - move=> //=;rewrite FDistBind.dE prsumr_ge0 => [[ind2]|];last by move=>a;dispatch_Rgt.
-      move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg[ ]//=.
-      rewrite FDistBind.dE prsumr_ge0 => [[ind3]|];last by move=>a;dispatch_Rgt.
-      move=>/RIneq.Rgt_not_eq/RIneq.Rmult_neq_0_reg[ ]//= _.
-      rewrite !FDist1.dE;case Heq:(_==_)=>//=;move/eqP:Heq => -> _; clear ind2.
-      case Heq: (_ == _)=>//=;move:Heq;rewrite xpair_eqE=>/andP[/eqP -> /eqP <-] _;clear ind3.
-      apply/andP;split;last first.
-    - rewrite /hashstate_put.
-      move: Huniq => //=/andP[];rewrite in_cons Bool.negb_orb=>/andP[Hneq _ _].
-        by rewrite fixmap_find_neq //=.
-    - move: Hlen.
-      clear.
-      rewrite !addnS -addSn addnC -ltn_subRL => Hlen.
-      rewrite addnC -ltn_subRL.
-      apply (@leq_ltn_trans  (FixedList.fixlist_length (thead hs1)).+1) => //=.
-      clear Hlen; move: (thead _) => [ls Hls]; clear hs1.
-      elim: n ls Hls => [//=|]; clear n => n IHn [//=|l ls] Hls //=.
-      have->: (FixedList.ntuple_head (Tuple Hls)) = l; first by [].
-      case: l Hls => [[k' v']|] Hls; last first; last case Heq: (_ == _).
-    - by move: Hls (eq_ind _ _ _ _ _) => //=.
-    - by move: Hls (eq_ind _ _ _ _ _) => //= Hls Hls'.
-      rewrite /FixedList.ntuple_tail; move: (behead_tupleP _) => //= Hls'.
-      move: (IHn ls Hls') => IHn'.
-      rewrite/FixedList.fixlist_length/FixedList.ntuple_cons.
-        by case Hput: (hashstate_put _) => [ms Hms] //=; move: IHn';rewrite Hput.
+      - {
+          comp_normalize => /bool_neq0_true; rewrite xpair_eqE => /andP[/eqP -> _]; apply/andP; split => //=.
+          - by move/allP: Hall => /(_ _ Hthead) //=; rewrite !addnS => /andP [/ltnW -> ->] //=.
+          -  apply IHk; apply/allP => v Hin; move/allP:Hall => Hall; apply/Hall.
+             by move: Hin; rewrite (tuple_eta hs1) ntuple_tailE in_cons => ->; apply/orP; right.
+      }
+      - {
+          comp_normalize; comp_possible_decompose
+          => ind2 ind3 /bool_neq0_true;rewrite xpair_eqE=>/andP[/eqP -> Hind'] Hinv /bool_neq0_true/eqP ->.
+          apply/andP;split;last first.
+          - apply IHk; apply/allP => v Hv //=; move/allP:Hall => Hall; apply/Hall.
+              by move: Hv; rewrite (tuple_eta hs1) ntuple_tailE in_cons => ->; apply/orP; right.
+          - move/allP: Hall => /(_ _ Hthead) //= /andP[].
+            rewrite !addnS -addSn addnC -ltn_subRL => Hlen Hfind; apply/andP;split.
+            {
+              rewrite addnC -ltn_subRL.
+              apply (@leq_ltn_trans  (FixedList.fixlist_length (thead hs1)).+1) => //=.              
+              clear Hlen IHk Hthead hs2 hs3 state1; move: (thead _) => [ls Hls]; clear hs1 Hfind.
+              elim: n ls Hls => [//=|]; clear n => n IHn [//=|l ls] Hls //=.
+              have->: (FixedList.ntuple_head (Tuple Hls)) = l; first by [].
+              case: l Hls => [[k' v']|] Hls; last first; last case Heq: (_ == _).
+              - by move: Hls (eq_ind _ _ _ _ _) => //=. 
+              - by move: Hls (eq_ind _ _ _ _ _) => //= Hls Hls'. 
+              - {
+                  rewrite /FixedList.ntuple_tail; move: (behead_tupleP _) => //= Hls'.
+                  move: (IHn ls Hls') => IHn'.
+                  rewrite/FixedList.fixlist_length/FixedList.ntuple_cons.
+                    by case Hput: (hashstate_put _) => [ms Hms] //=; move: IHn';rewrite Hput.
+                }
+            }
+            {
+              rewrite /hashstate_put.
+              move: Huniq => //=/andP[];rewrite in_cons Bool.negb_orb=>/andP[Hneq _ _].
+                by rewrite fixmap_find_neq //=. 
+            }
+        }
   Qed.
   
   
