@@ -1008,44 +1008,22 @@ Section BloomFilter.
   Proof.
     have H x y z: (y = (0%R)) -> x = z -> x +R+ y = z. by move => -> ->; rewrite addR0.
     move=>//= Hlen Hfree /andP[Huns Halluns]/andP[Hnin Huniq].
-    rewrite FDistBind.dE.
-    (under eq_bigr => a _ do rewrite FDistBind.dE  rsum_Rmul_distr_r rsum_split exchange_big //=).
-    rewrite exchange_big //=.
-    (under eq_bigr => j _ do rewrite exchange_big//=).
-    under eq_bigr => j _ do rewrite (bigID (fun i => i == Tuple (hash_vec_insert_length value hashes j))) big_pred1_eq hash_vecP //=.
-    have Hfail j: 
-      \sum_(i | i != Tuple (hash_vec_insert_length value hashes j))
-       \sum_(i0 in ([finType of k.-tuple (HashState n) * bool]))
-       ((d[ let (hashes1, _) := i0 in
-            res2 <-$ bloomfilter_add_multiple hashes1 bloomfilter_new values;
-            (let (hashes2, bf) := res2 in res' <-$ bloomfilter_query value hashes2 bf; ret res'.2)])
-          true *R*
-        ((d[ hash_vec_int value hashes]) (i, j) *R*
-         (FDist1.d (i, bloomfilter_query_internal j bloomfilter_new)) i0)) = (0%R).
-    {
-      apply prsumr_eq0P => i Hni; first by dispatch_Rgt.
-      apply prsumr_eq0P => i0 _; first by dispatch_Rgt.
-      rewrite neg_hash_vecP //=  mul0R ?mulR0 //=.
-    }
-    under eq_bigr => j _ do rewrite Hfail addR0 //=.
-    apply eq_bigr => inds _.
-    under eq_bigr => i _ do rewrite FDist1.dE //=.
-    rewrite rsum_split //=.
-    under eq_bigr => a _ do under eq_bigr => b _ do rewrite xpair_eqE.
-    move: (size_tuple inds) Hkgt0 => {1}<- Hiff.
-    move/Bool.negb_true_iff: (bloomfilter_new_empty Hiff) => Hfalse.
-    under eq_bigr => a _ do under eq_bigr => b _ do rewrite Hfalse //=.
-    rewrite (bigID (fun a => a == Tuple (hash_vec_insert_length value hashes inds))) big_pred1_eq//=.
-    apply H; first by apply prsumr_eq0P => i /Bool.negb_true_iff -> //=; rewrite !mulR0 bigsum_card_constE mulR0; try ( right).
-    under eq_bigr => b _ do rewrite eq_refl //=.
-    rewrite (bigID (fun b => b == false)) big_pred1_eq //=.
-    apply H; first by rewrite (eq_bigl (fun i => i == true)); first rewrite big_pred1_eq //= !mulR0; last by case.
-    rewrite mulR1 mulRC; apply f_equal.
-    rewrite FDistBind.dE.
-    erewrite  bloomfilter_add_multiple_unwrap => //=.
-      by apply/andP; split=>//=.
-        by apply/andP; split=>//=.
-  Qed.
+    comp_normalize; comp_simplify_n 2.
+    exchange_big_outwards 5 => //=; comp_simplify_n 1.
+    exchange_big_outwards 4 => //=; comp_simplify_n 1.
+    apply Logic.eq_sym. under eq_bigr
+    => inds _ do (rewrite  -(@bloomfilter_add_multiple_unwrap hashes l value values) 1?rsum_Rmul_distr_l //=;
+                                                                                     try (by apply/andP;split => //=)).
+    comp_normalize.
+    exchange_big_outwards 4 => //=; comp_simplify_n 1.
+    exchange_big_outwards 3 => //=; comp_simplify_n 1.
+    rewrite exchange_big; apply eq_bigr => hshs' _ //=.
+    rewrite exchange_big; apply eq_bigr => bf' _ //=.
+    rewrite exchange_big; apply Logic.eq_sym => //=; exchange_big_outwards 2 => //=; apply eq_bigr => hshs'' _.
+    exchange_big_outwards 2 => //=; apply Logic.eq_sym; rewrite exchange_big; apply eq_bigr => inds' _. 
+    rewrite exchange_big; apply eq_bigr => inds _; apply Logic.eq_sym=> //=.
+    rewrite hash_vec_simpl //.
+  Qed.    
 
   Lemma subseq_conv l:
     \sum_(inds in [finType of k.-tuple ('I_Hash_size.+1)])
