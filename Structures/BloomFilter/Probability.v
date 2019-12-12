@@ -869,15 +869,7 @@ Section BloomFilter.
                   (hshs', bf') == 0); first by move/eqP:Hzro -> ; rewrite !mul0R.
     move/Bool.negb_true_iff: Hzro => Hzro.
     apply f_equal.
-    rewrite //= /bloomfilter_query_internal //=.
-    rewrite FDistBind.dE rsum_split //=.
-    under eq_bigr => a _ do under eq_bigr => b _ do rewrite mulRC FDist1.dE eq_sym.
-    under eq_bigr => a _ do rewrite -rsum_pred_demote big_pred1_eq FDistBind.dE rsum_split //=.
-    under eq_bigr => a _ do under eq_bigr => a0 _ do under eq_bigr => b _ do rewrite mulRC FDist1.dE xpair_eqE boolR_distr -mulRA.
-    rewrite exchange_big //=; under eq_bigr => a0 _ do rewrite exchange_big.
-     under eq_bigr => a0 _ do under eq_bigr => b _ do rewrite -rsum_pred_demote big_pred1_eq //=.
-    move=>//=.
-    rewrite eqb_id; under eq_bigr => a0 _ do under eq_bigr => b _ do rewrite eq_sym !eqb_id.
+    comp_normalize; comp_simplify.
     have Hallleq: all
                     (fun hsh : FixedList.fixlist [eqType of hash_keytype * hash_valuetype] n =>
                        FixedList.fixlist_length hsh + 1 <= n) hashes.
@@ -888,9 +880,7 @@ Section BloomFilter.
     move: (@hash_vec_contains_value_base _ _ value hashes inds Hallleq) => Hcontains'.
     move: (@bloomfilter_add_multiple_find_preserve value inds (Tuple (hash_vec_insert_length value hashes inds)) hshs' bf bf' values Hcontains' Hzro) => Hcontains''.
     under eq_bigr => a0 _ do under eq_bigr => b _ do rewrite (@hash_vec_find_simpl n k value hshs' _ inds _ Hcontains'') //=.
-    under eq_bigr => a0 _ do under eq_bigr => b _ do rewrite mulRC andbC boolR_distr -!mulRA.
-    under eq_bigr => a0 _ do rewrite -rsum_pred_demote big_pred1_eq.
-      by rewrite -rsum_pred_demote big_pred1_eq.
+    by under eq_bigr => ? ? do under eq_bigr => ? ? do rewrite boolR_distr; comp_simplify; rewrite eq_sym.
   Qed.
 
   Lemma bloomfilter_add_multiple_unwrap_base 
