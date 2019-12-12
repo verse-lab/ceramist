@@ -26,7 +26,7 @@ From ProbHash.CountingBloomFilter
      Require Import Definitions.
 
 From ProbHash.Utils
-     Require Import InvMisc  seq_ext seq_subset rsum_ext.
+     Require Import InvMisc  seq_ext seq_subset rsum_ext tactics.
 
 Section CountingBloomFilter.
   (*
@@ -49,26 +49,16 @@ Section CountingBloomFilter.
   Proof.
     elim: vals l m hsh bf  => [| val vals IHvals] [|l] m hsh bf Hltn Hlen //=.
     - {
-        rewrite FDist1.dE xpair_eqE //=.
-        case Hand: (_ && _) => /eqP //= _; move/andP: Hand => [].
-        move=>/eqP _ /eqP ->.
+        comp_normalize =>/bool_neq0_true; rewrite xpair_eqE =>/andP[_ /eqP ->].
         apply countingbloomfilter_new_capacity.
           by move: Hltn; rewrite mul1n.
       }
     - {
-        rewrite FDistBind.dE.
-        move=>/eqP/ prsumr_ge0 []; first by intros;dispatch_Rgt.
-        move=> [hsh' bf'] /RIneq.Rgt_not_eq/eqP.
-        rewrite mulR_neq0' =>/andP [H1 H2].
+        comp_normalize; comp_simplify; comp_possible_decompose.
+        move=> hsh' bf' hsh2 H1 H2 /bool_neq0_true/eqP ->.
         have H3: (length vals) == l; first by move/eqP: Hlen => //= [->].
         have H4: (l.+1 * k + (m + k) < n); first by move: Hltn; rewrite mulSnr -addnA [k + m]addnC.
         move: (IHvals l (m + k) hsh' bf' H4 H3 H1) => Hpref; clear IHvals H4 H3 H1.
-        move: H2 => //=; rewrite FDistBind.dE.
-        move=>/eqP/ prsumr_ge0 []; first by intros;dispatch_Rgt.
-        move=> [hsh2 bf2] /RIneq.Rgt_not_eq/eqP.
-        rewrite mulR_neq0' =>/andP [H4]  //=; rewrite FDist1.dE xpair_eqE.
-        case Hand: (_ && _) => /eqP //= _.
-        move/andP:Hand => [_ /eqP ->].
         eapply  countingbloomfilter_add_capacity_change.
         - by rewrite -length_sizeP size_tuple.
           by rewrite [k + m]addnC.
@@ -90,14 +80,11 @@ Section CountingBloomFilter.
       under eq_bigr => a _ do under eq_bigr => b _ do rewrite FDist1.dE eq_sym eqb_id.
       elim: values l => [| val vals  IHval] [|l] Hltn Hval //=.
       - {
-          under eq_bigr => a _ do under eq_bigr => b _ do rewrite FDist1.dE xpair_eqE andbC boolR_distr -!mulRA.
-          under eq_bigr => a _ do rewrite -rsum_pred_demote big_pred1_eq.
-          rewrite -rsum_pred_demote big_pred1_eq mul0n.
-          by rewrite countingbloomfilter_new_empty_bitcount.
+          by comp_normalize; comp_simplify; rewrite countingbloomfilter_new_empty_bitcount.
         }
       - {
-          under eq_bigr => a _ do under eq_bigr => b _ do rewrite FDistBind.dE rsum_Rmul_distr_r.
-          (under eq_bigr => a _ do rewrite exchange_big); rewrite exchange_big rsum_split //=.
+          comp_normalize.
+          comp_simplify_n 2.
           erewrite <- (IHval l) => //=.
           apply eq_bigr=> hsh1 _; apply eq_bigr=> bf1 _.
           under eq_bigr => hsh2 _ do  under eq_bigr => bf2 _ do rewrite  mulRC -mulRA.
@@ -107,17 +94,7 @@ Section CountingBloomFilter.
           - by move/eqP: Hzr0 ->; rewrite !mul0R.
           - {
               apply f_equal.
-              under eq_bigr => hsh2 _ do under eq_bigr => bf2 _ do rewrite FDistBind.dE.
-              under eq_bigr => hsh2 _ do under eq_bigr => bf2 _ do rewrite rsum_Rmul_distr_r rsum_split //=.
-              under eq_bigr => hshs2 _ do rewrite exchange_big; under eq_bigr => hshs3 _ do rewrite exchange_big //=.
-              rewrite exchange_big; under eq_bigr => hshs3 _ do rewrite exchange_big//=.
-              under eq_bigr => ? _ do under eq_bigr => inds _ do under eq_bigr => hshs2 _ do under eq_bigr => bf2 _ do
-                    rewrite mulRA mulRC FDist1.dE xpair_eqE andbC boolR_distr -!mulRA.
-
-              rewrite exchange_big; under eq_bigr => ? _ do (rewrite exchange_big; under eq_bigr => ? _ do rewrite exchange_big).
-              under eq_bigr => ? _ do under eq_bigr => inds _ do under eq_bigr => hshs2 _ do rewrite -rsum_pred_demote big_pred1_eq.
-              under eq_bigr => ? _ do (rewrite exchange_big; under eq_bigr => inds _ do rewrite -rsum_pred_demote big_pred1_eq).
-              under eq_bigr => hshs3 _; first under eq_bigr => inds _.
+              under eq_bigr => a _; first under eq_bigr => a0 _.
               rewrite -(@countingbloomfilter_add_internal_incr _ k); first by over.
               - by rewrite -length_sizeP size_tuple eq_refl.
               - {
@@ -128,14 +105,12 @@ Section CountingBloomFilter.
                 }
                 by over.
               - {
-                  under eq_bigr => ? _ do rewrite -rsum_Rmul_distr_l.
-                rewrite -rsum_Rmul_distr_l.
+                  under_all ltac:(rewrite mulRC);
+                  under eq_bigr => ? _ do rewrite -rsum_Rmul_distr_l; rewrite -rsum_Rmul_distr_l.
                 move: (fdist_is_fdist (d[ hash_vec_int val hsh1])) => [_ ]; rewrite rsum_split //= => ->.
                 rewrite mulR1; apply f_equal =>//=.
                   by rewrite mulSnr eqn_add2r.
               }
-
-
             }
           - by move: Hltn; rewrite mulSnr =>/addr_ltn.
         }

@@ -52,6 +52,11 @@ Proof.
     by case: a; case: b => //=; rewrite ?mulR1 ?mul1R ?mulR0 ?mul0R //=.
 Qed.
 
+Lemma bool_neq0_true (v:bool) :
+  (v %R) != BinNums.Z0 -> v = true.
+Proof. by case: v => //=; move=> /eqP //=. Qed.
+
+
 Lemma distbind_dist (A B C: finType) (a : dist A) (c : A -> B) (g: B -> dist C)  :
   FDistBind.d a (fun x => FDistBind.d (@FDist1.d _ (c x)) g) = FDistBind.d a (fun x =>  g (c x) ).
 Proof.

@@ -38,9 +38,6 @@ Proof idea
  *)
 Open Scope R_scope.
 
-Lemma bool_neq0_true (v:bool) :
-  (v %R) != BinNums.Z0 -> v = true.
-Proof. by case: v => //=; move=> /eqP //=. Qed.
 
 
 
@@ -1047,7 +1044,6 @@ Section BloomFilter.
     by over.
       by apply undup_uniq.
       move=>//=.
-      
       move:  ( bloomfilter_second_stirling_number_sum l k Hash_size
                                          (fun len => (((len %R) *R* Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ k))
              ) => //= ->.
