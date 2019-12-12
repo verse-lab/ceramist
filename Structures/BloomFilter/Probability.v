@@ -825,35 +825,8 @@ Section BloomFilter.
      ((((inds \subseteq i) == true) %R) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k)).
   Proof.
     have H x1 y1 z1: y1 = (0 %R) -> x1 = z1 -> x1 +R+ y1 = z1; first by move=> -> ->; rewrite addR0.
-    rewrite //= FDistBind.dE => Hb Hlen Hfree Huns Huniq Hall.
-    under eq_bigr => a _ do rewrite FDistBind.dE //= !rsum_Rmul_distr_r //=.
-    under eq_bigr => a _ do rewrite  ?rsum_Rmul_distr_r //=.
-    rewrite rsum_split //=.
-    under eq_bigr => a _ do under eq_bigr => b0 _  do rewrite FDist1.dE eq_sym.
-    under eq_bigr => a _  do rewrite exchange_big.
-    rewrite exchange_big rsum_split//=.
-    under eq_bigr => a _ do under eq_bigr => b0 _ do under eq_bigr => i _ do under eq_bigr => i0 _ do rewrite FDist1.dE xpair_eqE.
-    under eq_bigr => a _ do under eq_bigr => b0 _ do rewrite (bigID (fun i => i == a)) big_pred1_eq //=.
-    under eq_bigr => a _ do rewrite addRA_rsum.
-    rewrite addRA_rsum.
-    erewrite H; last by []; last first.
-    {
-      do 2!(apply prsumr_eq0P; intros; first by intros; dispatch_Rgt).
-      apply prsumr_eq0P => i /Bool.negb_true_iff ->; first by intros; dispatch_Rgt.
-      apply prsumr_eq0P; intros; first by intros; dispatch_Rgt.
-        by rewrite //= !mulR0.
-    }
-    under eq_bigr => i _  do under eq_bigr => i0 _  do rewrite (bigID (fun j => j == (bloomfilter_add_internal i0 bf))) big_pred1_eq //=.
-    under eq_bigr => i _ do rewrite addRA_rsum //=.
-    rewrite addRA_rsum.
-    erewrite H; last by []; last first.
-    {
-      do 2!(apply prsumr_eq0P; intros; first by intros; dispatch_Rgt).
-      apply prsumr_eq0P => i /Bool.negb_true_iff ->; first by intros; dispatch_Rgt.
-        by rewrite Bool.andb_false_r //= !mulR0.
-    }
-    under eq_bigr => i _  do under eq_bigr => i0 _ do rewrite !eq_refl //= mulR1.
-    under eq_bigr => i _  do under eq_bigr => i0 _ do rewrite ?mulR1.
+    move =>  //= Hb Hlen Hfree Huns Huniq Hall.
+    comp_normalize; comp_simplify.
     rewrite exchange_big //=.
     under eq_bigr => i0 _ do rewrite (bigID (fun i => i == Tuple (hash_vec_insert_length value hashes i0))) big_pred1_eq //=.
     rewrite addRA_rsum.
@@ -872,7 +845,7 @@ Section BloomFilter.
                                         first by move/allP: Hall => /(_ ind Hinds) .
         by rewrite HinI.
     }
-    under eq_bigr => i _ do rewrite Hpred_eq //=.
+    under eq_bigr => i _ do rewrite Hpred_eq eq_sym //=.
       by [].
   Qed.
 
