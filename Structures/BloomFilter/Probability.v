@@ -897,15 +897,12 @@ Section BloomFilter.
   Proof.
     elim: l others values inds => [//=| l IHl] others [//=|//= value values] inds Huniq Hlen Hfree Hunseen.
     - {
-        under eq_bigr => a _ do rewrite FDist1.dE.
-        rewrite -rsum_pred_demote big_pred1_eq //=.
-        rewrite mul0n rsum_empty //= mulR1.
+        comp_normalize; comp_simplify; rewrite mulR1 //=.
         rewrite eqb_id RIneq.INR_IZR_INZ; do?apply f_equal.
         apply eq_in_all => ind _; clear.
         case Hin: (ind \in others) => //=.
           by apply bloomfilter_add_internal_hit => //=.
-          apply/Bool.negb_true_iff.
-          apply bloomfilter_add_internal_miss => //=.
+          apply/Bool.negb_true_iff; apply bloomfilter_add_internal_miss => //=.
             by apply bloomfilter_new_empty_bits.
               by move/Bool.negb_true_iff: Hin.
       }
@@ -925,34 +922,15 @@ Section BloomFilter.
               rewrite/hash_has_free_spaces addnS => /ltnW.
               by move/andP:Hunseen => [].
         }
-        under eq_bigr => a _ do rewrite FDistBind.dE rsum_Rmul_distr_r rsum_split //=.
-        under eq_bigr => a _ do under eq_bigr => a0 _ do under eq_bigr => b _ do rewrite FDistBind.dE !rsum_Rmul_distr_l rsum_split //=.
-        under eq_bigr => a _ do under eq_bigr => a0 _ do under eq_bigr => b _ do under eq_bigr => a1 _ do under eq_bigr => b0 _ do rewrite FDist1.dE.
-        rewrite exchange_big.
-          under eq_bigr => a0 _ do rewrite exchange_big.
-          under eq_bigr => a0 _ do under eq_bigr => b _ do rewrite exchange_big.
-          under eq_bigr => a0 _ do under eq_bigr => b _ do under eq_bigr => a1 _ do rewrite exchange_big.
-          under eq_bigr => a0 _ do under eq_bigr => b _ do under eq_bigr => a1 _ do 
-          (under eq_bigr => a _ do under eq_bigr => c _ do
-                 rewrite mulRA mulRC mulRA mulRC mulRA mulRC mulRA mulRA mulRC -mulRA).
-          under eq_bigr => a0 _ do under eq_bigr => b _ do under eq_bigr => a1 _ do 
-          under eq_bigr => b0 _ do rewrite -rsum_pred_demote big_pred1_eq.
-        under eq_bigr => a0 _ do under eq_bigr => b _ do rewrite exchange_big.
-        under eq_bigr => a0 _ do rewrite exchange_big.
-        rewrite exchange_big.
-        apply eq_bigr => b _ .
-        rewrite rsum_Rmul_distr_l rsum_split //= [\sum_(a in _) (\sum_(b in _) (_ *R* _))]exchange_big.
-        rewrite [\sum_(i in [finType of k.-tuple (HashState n)]) (\sum_(i0 in [finType of BloomFilter]) _)]exchange_big ; apply eq_bigr => bf' _.
-        apply eq_bigr => hshs' _.
-        rewrite -!rsum_Rmul_distr_l.
-        rewrite mulRC -mulRA  mulRC -mulRA mulRC.
-        apply Logic.eq_sym => //=.
-        rewrite  -mulRA  mulRC -mulRA mulRC -mulRA.
-        rewrite  bloomfilter_add_multiple_cat; apply f_equal.
+        comp_normalize; comp_simplify_n 2.
+        apply Logic.eq_sym; under eq_bigr => ? ? do rewrite rsum_Rmul_distr_l; rewrite exchange_big //=.
+        comp_normalize; apply eq_bigr => hshs' _ ; apply eq_bigr => bf' _.
+        rewrite exchange_big; apply eq_bigr => inds' _; rewrite mulRC -!mulRA; apply Logic.eq_sym.
+        under eq_bigr => i ? do rewrite mulRC  -!mulRA; rewrite -rsum_Rmul_distr_l.
         case Hzr0: ((d[ bloomfilter_add_multiple hashes bloomfilter_new values]) (hshs', bf') == 0);
-          first by move/eqP: Hzr0 ->;rewrite mulR0 mul0R //=.
+          first by move/eqP: Hzr0 ->;rewrite ?mulR0 ?mul0R //=.
         move/Bool.negb_true_iff: Hzr0 => Hzr0.
-        rewrite mulRC; apply f_equal; apply Logic.eq_sym.
+        apply f_equal.
         clear IHl.
         have H1:   (uniq (value :: values)); first by [].
         have H2: length values == l; first by move: Hlen =>/eqP [->].
@@ -963,8 +941,7 @@ Section BloomFilter.
                  values l 0 hashes hshs' bloomfilter_new bf'
                  H1 H2 H3 H4 Hzr0
               ) => /andP [Hfree' Huns'].
-        move: (@hash_vec_simpl n k hshs' value b (fun _ => 1) Huns')=> //=.
-        (under eq_bigr => a _ do rewrite mulR1); by move=>->; rewrite mulR1 //=.
+        by rewrite hash_vec_simpl => //=; rewrite mulRC bloomfilter_add_multiple_cat //=.
       }
   Qed.
 
