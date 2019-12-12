@@ -202,3 +202,43 @@ Ltac comp_possible_decompose  :=
             move=> name; comp_possible_decompose; move:name)
     || ( move=>/eqP name; comp_possible_decompose; move: name )                                                          | _ => idtac
   end.
+
+
+(* simplifies a  impossibility statement i.e (c1 * c2 * c3 = 0)
+by automatically solving any cases with booleans and introducing
+them into the context:
+i.e (i == g (y)) * f = 0  -> i = g(y) -> f = 0
+intended to be used internally by comp impossible_decompose
+ *)
+Ltac comp_impossible_simpl :=
+  move=>//=;
+      match goal with
+      | [ |- context [(true == _)] ] => rewrite eq_sym; comp_impossible_simpl
+      | [ |- context [(_ == true)] ] => rewrite eqb_id; comp_impossible_simpl
+      | [ |- context [(_ && _)]] => rewrite boolR_distr; comp_impossible_simpl
+      | [ |- context [((_,_) == (_,_))]] => rewrite xpair_eqE; comp_impossible_simpl
+      | [ |- context [(nat_of_bool ?X %R)]] =>
+        let tmp := fresh "tmp" in 
+        let name := fresh "P" in case tmp: X; move: tmp => name; rewrite //= ?(mulR0,mul0R,mulR1,mul1R); try (by []);
+                                                           comp_impossible_simpl;
+                                                           move: name
+      | [ |- ?X ] => idtac
+      end.
+
+
+(*
+ automatically decomposes an impossibility statement (\sum_{v1} ... \sum_{vn} P[c1 = v1] * ... *  P[ cn = vn ] = 0)
+ into properties about its component parts (forall v1,..,vn, P[c1 = v1] * ... * P[cn = vn] = 0)
+ *)
+Ltac comp_impossible_decompose  :=
+  match goal with
+  | [ |- ( ?X = _) ] =>
+    let value_name := fresh "value" in
+    let hyp_name := fresh "P_value" in
+    apply prsumr_eq0P => value_name hyp_name; first (by do?dispatch_eq0_obligations);
+                         comp_impossible_decompose;
+                         move: value_name hyp_name
+
+  | _ => idtac 
+  end;
+  comp_impossible_simpl.

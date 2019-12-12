@@ -522,25 +522,16 @@ Section BloomFilter.
             }
         }
   Qed.
-  
-  
+
 
   Lemma bloomfilter_addn_Nuns  ind bf (hashes: hash_vec) x :
     bloomfilter_get_bit ind bf ->
     (d[ res <-$ bloomfilter_add x hashes bf;
           (let '(_, bf') := res in ret ~~ bloomfilter_get_bit ind bf')]) true = (0 %R).
   Proof.
-    move=> Htnth //=.
-    rewrite FDistBind.dE; apply prsumr_eq0P => a _ ; first by dispatch_Rgt.
-    move: a => [hashes' bf'].
-    rewrite FDistBind.dE rsum_Rmul_distr_r; apply prsumr_eq0P => a _; first by dispatch_Rgt.
-    move: a => [hashes'' hvec] //=.
-    rewrite !FDist1.dE xpair_eqE.
-    case Hgth: (_ == _) => //=; rewrite ?mul1R; last by rewrite !mul0R.
-    case Hhashes: (_ == _) => //=; rewrite ?Bool.andb_true_l; last by rewrite !mulR0.
-    case Hbf: (_ == _) => //=; rewrite ?mulR1; last by rewrite mulR0.
-    move/eqP: Hgth.
-    move/eqP: Hbf ->.
+    move=> Htnth; comp_normalize.
+    comp_impossible_decompose => hashes' _ bf' _ hashes'' _ hvec _ Hnbit /eqP <- /eqP Hbf; clear hashes''.
+    move: Hbf Hnbit => ->; clear bf'.
     rewrite/bloomfilter_get_bit.
       by rewrite bloomfilter_add_internal_preserve //=.
   Qed.
@@ -557,32 +548,27 @@ Section BloomFilter.
           (let '(_, bf') := res in ret ~~ bloomfilter_get_bit ind bf')]) true =
     ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ (k * l)).
     elim: l ind bf values hashes => [|l IHl] ind bf values hashes0 .
-    - case: values => //= _ _ _ _ Htnth; rewrite muln0 //= FDistBind.dE rsum_split //=.
-      transitivity (
-          \sum_(a in [finType of k.-tuple (HashState n)])
-           \sum_(b in [finType of BloomFilter])
-           (((a == hashes0) &&  (b == bf) %R) *R* (FDist1.d (~~ bloomfilter_get_bit ind b)) true)
-        ).
-        by apply eq_bigr => a _; apply eq_bigr => b _; rewrite !FDist1.dE //= xpair_eqE.
-        transitivity ((true == (~~ bloomfilter_get_bit ind bf) %R)).   
-        rewrite (bigID (fun a => a == hashes0)) //= big_pred1_eq.
-        have H x y z: y = (0 %R) -> x = z -> x +R+ y = z. by move=> -> ->; rewrite addR0.
-        apply H.
-    - apply prsumr_eq0P => i /Bool.negb_true_iff -> //=; first by dispatch_Rgt.
-      apply prsumr_eq0P => b _; first by dispatch_Rgt.
-        by rewrite mul0R.
-        rewrite (bigID (fun b => b == bf)) //= big_pred1_eq.
-        apply H.
-    - apply prsumr_eq0P => i /Bool.negb_true_iff -> //=; first by dispatch_Rgt.
-        by rewrite Bool.andb_false_r //= mul0R.
-          by rewrite !eq_refl //= mul1R FDist1.dE.
-            by rewrite Htnth.
+    {
+      case: values => //= _ _ _ _ Htnth; rewrite muln0; comp_normalize.
+      - by comp_simplify; rewrite eq_sym eqb_id; rewrite Htnth.
+    }
+    {
     - rewrite mulnS.
       case: values => [//= | x xs] Hlen Hfree Huns Huniq Hnb.
       rewrite bloomfilter_add_multiple_unfold.
       rewrite RealField.Rdef_pow_add.
       erewrite <- (IHl ind bf xs hashes0) => //=.
-      rewrite mulRC //= !FDistBind.dE rsum_Rmul_distr_r; apply eq_bigr => [[hshs' bf']] _.
+      rewrite mulRC; comp_normalize.
+
+      exchange_big_outwards 2 => //=; exchange_big_outwards 3 => //=.
+      comp_simplify_n 1.
+      exchange_big_outwards 2 => //=; exchange_big_outwards 2 => //=.
+      apply eq_bigr => hshs' _; apply eq_bigr => bf' _.
+
+      under eq_bigr => i _ do (under eq_bigr
+                               => i0 _ do
+                                     rewrite -rsum_Rmul_distr_l;
+                                  rewrite -rsum_Rmul_distr_l); rewrite -rsum_Rmul_distr_l.
       case Hnz: (d[ bloomfilter_add_multiple hashes0 bf xs ] (hshs', bf') == (0 %R));
         first by move/eqP: Hnz ->; rewrite !mul0R mulR0.
       move/Bool.negb_true_iff: Hnz => Hnz.
@@ -593,11 +579,11 @@ Section BloomFilter.
       case Htnth': (~~ bloomfilter_get_bit ind bf').
     - have <-: (Rdefinitions.IZR 1) = (BinNums.Zpos BinNums.xH); first by [].
       erewrite <-  (@bloomfilter_addn hshs' ind bf' x) => //=.
-    - by rewrite FDist1.dE //= mul1R !FDistBind.dE //=; apply eq_bigr => [[hshs'' bf'']] _.
+      by apply Logic.eq_sym; comp_normalize; comp_simplify_n 2; apply Logic.eq_sym; comp_simplify_n 1.
     - move: Hfree'; rewrite /hashes_not_full/hash_has_free_spaces => /allP Hlt; apply/allP => cell Hcell; rewrite /hash_not_full.
         by move: (Hlt cell Hcell); rewrite addn1 //=.
-    - move /Bool.negb_false_iff: Htnth' => Htnth'; rewrite FDist1.dE // mul0R.
-        by rewrite bloomfilter_addn_Nuns //=.
+    - move /Bool.negb_false_iff: Htnth' => Htnth'; rewrite FDist1.dE // mul0R; comp_simplify.
+        by move: (@bloomfilter_addn_Nuns ind bf' hshs' x Htnth'); comp_normalize; comp_simplify.
         move/allP: Hfree => Hfree; apply/allP => cell Hcell.        
         move: (Hfree cell Hcell); rewrite /hash_has_free_spaces.
           by rewrite addnS => /ltnW.
@@ -605,11 +591,8 @@ Section BloomFilter.
           apply Huns => //=.
             by rewrite in_cons Hx' Bool.orb_true_r.
               by move: Huniq => //= /andP [].
+    }
   Qed.
-  
-  (* TODO: No False Negatives *)
-
-
   
 
   Lemma bloomfilter_add_internal_indep l bf' x xs :
