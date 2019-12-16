@@ -242,3 +242,19 @@ Ltac comp_impossible_decompose  :=
   | _ => idtac 
   end;
   comp_impossible_simpl.
+
+
+Ltac comp_possible_exists  :=
+  match goal with
+  | [ |- context [((?X ->- ?Y))]  ] =>
+    apply/RIneq.Rgt_not_eq; comp_possible_exists
+  | [ |- context [ (?X <> ?Y) ] ] =>
+    apply/eqP; comp_possible_exists
+  | [ |- context [(?X != ?Y)] ] =>
+    let value_name := fresh "value" in
+     rewrite prsumr_neq0_eq; last (by do?dispatch_eq0_obligations);
+     under eq_existsb => value_name do comp_possible_exists
+  | _ => idtac 
+  end;
+  move=>//=.
+

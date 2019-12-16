@@ -475,6 +475,45 @@ Proof.
     }
 Qed.
 
+Lemma prsumr_ge0_strong (A : finType) (f: A -> Rdefinitions.R) : (forall a : A, (0 -<=- f a)) -> \sum_(a in A) f a <> (0 %R) <-> (exists a,  f a <> (0 %R)).
+Proof.
+  have HforalleqP : (forall x, f x = (0 %R)) -> (forall x, (fun _ => true) x -> f x = (0 %R)). by [].
+  have HforallgtP : (forall x, 0 -<=- f x) -> (forall x, (fun _ => true) x -> 0 -<=- f x). by [].
+  move=> Hgt0.
+  split.
+  - {
+      move=>/eqP/negP Rsumr0. 
+      case Heq0: (~~ [exists a, (gtRb (f a) (0 %R))]).
+      - {
+          move/negP/negP:Heq0 => Heq0.
+          rewrite negb_exists in Heq0.
+          have Hforalleq: (forall x, ~~ (geRb (f x)  (0 %R))) -> (forall x, ~ (geRb (f x) 0)).
+           {
+               - by move=> Hb x; move/negP: (Hb x) => Hbool //=.
+           }
+           move/forallP: Heq0 => Heq0.
+           have: (forall x:A, ~ (f x) ->- 0).
+           { by move=> x; apply/gtRP. }
+           move/(prsum_nge0p Hgt0) => H.
+           have: False => //=.
+          - {
+           apply Rsumr0; apply/eqP.
+           transitivity (\sum_(a in A) (0 %R)).
+                by apply eq_bigr=> a _; rewrite H.
+                  by rewrite (bigsum_card_constE A) mulR0.              
+             }
+        }
+      - by move/negP/negP/existsP: Heq0 => [x Hx]; split with x;  move/gtRP: Hx =>/RIneq.Rgt_not_eq.          
+    }
+  - {
+      move=>[a  Ha].
+      move=>/prsumr_eq0P H.
+      have: (forall a: A, a \in A -> 0 -<=- f a); first by move=> a' _; apply Hgt0.
+        by move=>/H H'; move: Ha; rewrite H' //= => /RIneq.Rgt_irrefl.
+    }
+Qed.
+
+
 Lemma prsum_multeq0 (A B: finType) (pr1 :  A -> Rdefinitions.R) (pr2 : B -> Rdefinitions.R):
   (forall (a : A) (b: B), (pr1 a) *R* (pr2 b) = Rdefinitions.IZR 0) ->
   (\sum_(a in A) (pr1 a) *R* \sum_(b in B) (pr2 b)) = Rdefinitions.IZR 0.
@@ -679,3 +718,32 @@ Proof.
         }
     }
 Qed.
+
+    Lemma eq_rsum_ne0 (A: finType) P (f g' g: A -> Rdefinitions.R):
+      (forall a, f a != 0 -> g a = g' a) ->
+      \sum_( a | P a) (f a *R* g a) =
+      \sum_( a | P a) (f a *R* g' a).
+    Proof.
+      move=> Haneq0.
+      rewrite (bigID (fun x => f x == 0)) //=.
+      under eq_bigr => a /andP [Ha /eqP ->] do rewrite mul0R.
+      rewrite bigsum_card_constE mulR0 add0R.
+      under eq_bigr => a /andP [Ha Hb] do rewrite (Haneq0 _ Hb).
+      apply Logic.eq_sym.
+      rewrite (bigID (fun x => f x == 0)) //=.
+      under eq_bigr => a /andP [Ha /eqP ->] do rewrite mul0R.
+      by rewrite bigsum_card_constE mulR0 add0R.
+    Qed.
+    
+
+
+
+    Lemma prsumr_neq0_eq (A:finType) (f: A -> Rdefinitions.R):
+      (forall a : A, 0 -<=- f a) -> \sum_(a in A) f a != (0 %R) =  [exists a:A,  f a != (0 %R)].
+      Proof.
+        move=> Hf.
+        case Hex: [exists a, _].
+        - by apply /eqP; apply prsumr_ge0_strong => //=; move: (Hex) => /existsP[x /eqP Hx]; exists x.
+        - by move/Bool.negb_true_iff: Hex; rewrite negb_exists => /forallP Hx; apply/eqP; apply prsumr_eq0P
+          => //= x; move: (Hx x); rewrite Bool.negb_involutive => /eqP -> //=.
+      Qed.

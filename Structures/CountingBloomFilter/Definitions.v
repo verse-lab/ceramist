@@ -20,6 +20,8 @@ From ProbHash.Computation
 From ProbHash.Core
      Require Import Hash HashVec FixedList.
 
+From ProbHash.BloomFilter
+     Require Import Definitions.
 
 Section CountingBloomFilter.
   (*
@@ -33,11 +35,15 @@ Section CountingBloomFilter.
     n - maximum number of hashes supported
    *)
   Variable n: nat.
+
+  Lemma Hngt0: n.+1 > 0.
+  Proof. by []. Qed.
+  
   Variable Hkgt0: k >0.
   (*
      list of hash functions used in the bloom filter
    *)
-  Definition CountVector := (Hash_size.+1).-tuple 'I_n.
+  Definition CountVector := (Hash_size.+1).-tuple 'I_n.+1.
 
   Record CountingBloomFilter := mkCountingBloomFilter {
                                     counting_bloomfilter_state: CountVector
@@ -77,10 +83,10 @@ Section CountingBloomFilter.
   Canonical countingbloomfilter_finType :=
     Eval hnf in FinType CountingBloomFilter  countingbloomfilter_finMixin.
 
-  Definition incr_bit (value: 'I_n) : 'I_n :=
-    (if value.+1 < n as b return ((value.+1 < n) = b -> 'I_n)
+  Definition incr_bit (value: 'I_n.+1) : 'I_n.+1 :=
+    (if value.+1 < n.+1 as b return ((value.+1 < n.+1) = b -> 'I_n.+1)
      then (fun b0 => Ordinal b0)
-     else (fun _ => value)) (erefl (value.+1 < n)).
+     else (fun _ => value)) (erefl (value.+1 < n.+1)).
   
   Definition countingbloomfilter_set_bit (value: 'I_(Hash_size.+1)) bf : CountingBloomFilter :=
     mkCountingBloomFilter
@@ -116,9 +122,9 @@ Section CountingBloomFilter.
     (foldr (fun a b => (nat_of_ord a) + b) 0 (tval (counting_bloomfilter_state bf))).
 
   Definition countingbloomfilter_free_capacity (bf: CountingBloomFilter) l :=
-    all (fun a => (nat_of_ord a) + l < n) (tval (counting_bloomfilter_state bf)).
+    all (fun a => (nat_of_ord a) + l < n.+1) (tval (counting_bloomfilter_state bf)).
 
-  Definition countingbloomfilter_new (Hngt0 : n > 0):  CountingBloomFilter.
+  Definition countingbloomfilter_new :  CountingBloomFilter.
     apply mkCountingBloomFilter.
     apply Tuple with (nseq Hash_size.+1 (Ordinal Hngt0)).
       by rewrite size_nseq.
@@ -131,12 +137,34 @@ Section CountingBloomFilter.
                 let (hsh, bf) := res_1 in
                 countingbloomfilter_add val hsh bf) (ret (hsh_0, bf_0)) values.
   
-  Lemma countingbloomfilter_new_empty_bitcount (Hngt0: n > 0):
-    countingbloomfilter_bitcount (countingbloomfilter_new Hngt0) = 0.
+  Lemma countingbloomfilter_new_empty_bitcount (Hngt0: n.+1 > 0):
+    countingbloomfilter_bitcount (countingbloomfilter_new) = 0.
   Proof.
     rewrite/countingbloomfilter_bitcount //=; rewrite add0n.
       by elim: Hash_size => [//=| m IHm] //=.
   Qed.
+
+  Lemma incr_bit_valid ind (Hngt0: n > 0):
+    0 < incr_bit ind.
+  Proof.
+    rewrite /incr_bit.
+    move: n  ind Hngt0 => [//=[]//=|//= ];clear n.
+    move=> n [m Hm].
+    move: (erefl _ ) => //=.
+    case Hltn: (m < n.+1).
+    - {
+        have Hltn': (m.+1 < n.+2); first by apply InvMisc.ltn_SnnP.
+          by rewrite {2 3}Hltn' //=.
+      }
+    - {
+        have Hltn': (m.+1 < n.+2) = false;
+        first by case Hltn'': (_ < _) => //=;move/InvMisc.ltn_SnnP: Hltn'' Hltn ->.
+        rewrite {2 3}Hltn' //= => _.
+        move/Bool.negb_true_iff: Hltn; rewrite leqNgt Bool.negb_involutive => Hn.
+          by move: (InvMisc.ltnSn_eq _ _ Hm Hn)=>/eqP ->.
+      }
+  Qed.
+  
   
   Lemma countingbloomfilter_bitcount_incr l bf ind:
     countingbloomfilter_free_capacity bf l.+1 ->
@@ -229,7 +257,7 @@ Section CountingBloomFilter.
   Lemma countingbloomfilter_add_capacity_decr l bf ind val:
     countingbloomfilter_free_capacity bf l.+1 ->
     val \in counting_bloomfilter_state (countingbloomfilter_set_bit ind bf) ->
-            val + l < n.
+            val + l < n.+1.
   Proof.
     case: bf; rewrite/CountVector=> bf; case: ind => ind Hind.
     rewrite/countingbloomfilter_free_capacity/counting_bloomfilter_state/countingbloomfilter_set_bit//.
@@ -375,8 +403,8 @@ Section CountingBloomFilter.
       }
   Qed.        
 
-  Lemma countingbloomfilter_new_capacity l (Hngt0: n > 0):
-    l < n -> countingbloomfilter_free_capacity (countingbloomfilter_new Hngt0) l.
+  Lemma countingbloomfilter_new_capacity l :
+    l < n.+1 -> countingbloomfilter_free_capacity (countingbloomfilter_new ) l.
   Proof.
     move=> Hlen; rewrite/countingbloomfilter_new/countingbloomfilter_free_capacity//=.
     rewrite add0n; apply/andP; split => //=.
@@ -403,5 +431,73 @@ Section CountingBloomFilter.
             by rewrite /countingbloomfilter_free_capacity//=.
       }
   Qed.
-  
+
+  Section OfBloomFilter.
+
+    Variable Hngt0 : n > 0.
+
+    Definition toBitVector (vec: CountVector) : BitVector.
+      generalize vec; unfold CountVector; intro vec'.
+      apply (map_tuple (fun (cnt:'I_n.+1) => cnt > 0) vec').
+    Defined.
+
+    Definition toBloomFilter (cbf: CountingBloomFilter) : BloomFilter :=
+      mkBloomFilter (toBitVector (counting_bloomfilter_state cbf)).
+
+    Lemma countingbloomfilter_bloomfilter_query_eq cbf inds :
+      countingbloomfilter_query_internal inds cbf = bloomfilter_query_internal  inds (toBloomFilter cbf).
+    Proof.
+      rewrite/countingbloomfilter_query_internal/bloomfilter_query_internal.
+      apply eq_in_all => ind Hind.
+      rewrite /countingbloomfilter_get_bit/bloomfilter_get_bit/toBloomFilter.
+        by rewrite tnth_map.
+    Qed.
+
+
+
+    Lemma countingbloomfilter_bloomfilter_set_bitC cbf ind:
+      toBloomFilter (countingbloomfilter_set_bit ind cbf) = bloomfilter_set_bit ind (toBloomFilter cbf).
+    Proof.
+      rewrite/toBloomFilter/bloomfilter_set_bit; apply f_equal.
+      apply eq_from_tnth => ind'; rewrite tnth_map.
+      case Heqind': (ind' == ind).
+      - rewrite tnth_set_nth_eq //= /countingbloomfilter_set_bit/countingbloomfilter_set_bit.
+        rewrite tnth_set_nth_eq //=.
+          by apply incr_bit_valid.
+      - move/Bool.negb_true_iff:Heqind' =>Heqind'; rewrite tnth_set_nth_neq //=.
+        rewrite /countingbloomfilter_set_bit/countingbloomfilter_set_bit tnth_set_nth_neq //=.
+          by rewrite tnth_map //=.
+    Qed.
+    
+
+    
+    Lemma countingbloomfilter_bloomfilter_add_internalC cbf inds :
+      toBloomFilter (countingbloomfilter_add_internal inds cbf) =
+      (bloomfilter_add_internal inds (toBloomFilter cbf)).
+    Proof.
+      elim: inds cbf => [//=| ind inds Hinds cbf //=].
+      rewrite Hinds; apply f_equal => //=; clear Hinds inds.
+        by rewrite countingbloomfilter_bloomfilter_set_bitC.
+    Qed.
+    
+
+
+    Lemma counting_bloomfilter_new_bloomfilter_eq:
+      (toBloomFilter (countingbloomfilter_new)) = bloomfilter_new.
+    Proof.
+      rewrite/toBloomFilter/countingbloomfilter_new/bloomfilter_new //=; apply f_equal.
+      rewrite/toBitVector //=.
+      move: (eq_ind_r _ _ _) (eq_ind_r _ _ _) => //= H1 H2.
+      rewrite/map_tuple; move: (map_tupleP _ _ ) => //=.
+      rewrite map_nseq.
+      have ->: ((0 < Ordinal (Hngt0))) = false; first by []; move=>H3.
+        by rewrite (proof_irrelevance _ H1 H3).
+    Qed.
+    
+    
+
+  End OfBloomFilter.
+
 End CountingBloomFilter.
+
+

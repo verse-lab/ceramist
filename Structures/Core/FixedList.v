@@ -61,7 +61,7 @@ Proof.
   {
     move=>//=; rewrite (tuple_eta (Tuple Hvvs)) => //=; rewrite Hthead //=. 
     rewrite!/[tuple of _ :: _] //=; move: (valP _ ) (valP _) => //= H1 H2;
-                                                                rewrite (proof_irrelevance _ H1 H2) //=.
+                                                                  rewrite (proof_irrelevance _ H1 H2) //=.
   }
   move=> ->; rewrite /ntuple_cons //=; clear Hthead.
     by move: Hvvs (eq_ind _ _ _ _ _ ) =>//= H1 H2; rewrite (proof_irrelevance _ H1 H2).
@@ -136,10 +136,10 @@ Lemma fixedlist_set_nthC (A:eqType) l (vec: l.-tuple A) (ind: 'I_l) (ind': 'I_l)
   set_tnth (set_tnth vec a ind') a ind.
 Proof.
   elim: l ind ind' vec => [|l IHl] [ind Hind] [ind' Hind'] vec;
-                           first by rewrite !tuple0 //=.
+                            first by rewrite !tuple0 //=.
   - {
       case: ind' Hind' => [|ind'] Hind'; case: ind Hind => [|ind] Hind //=; case: vec => [[| v vs] Hvs];
-                                                                                      rewrite ?ntuple_tailE /ntuple_head ?theadE //=.
+                                                                                         rewrite ?ntuple_tailE /ntuple_head ?theadE //=.
       - {
           have ->: (thead (Tuple Hvs)) = v; first by [].
           rewrite/ntuple_tail//=.
@@ -159,6 +159,24 @@ Proof.
         }  
     }
 Qed.
+
+
+Lemma map_tuple_cons (p:nat) (T rT: Type) (f: (T -> rT)) (t:T) (ts: p.-tuple T):
+  map_tuple f [tuple of t :: ts] = [tuple of (f t) :: map_tuple f ts].
+Proof.
+  move=>//=.
+  rewrite cons_tuple_eq_tuple.
+  rewrite/map_tuple; move:(map_tupleP _ _) => Htuple.
+  rewrite (tuple_eta (Tuple Htuple)) //=.
+  have ->:  thead (Tuple Htuple) = f t; first by [].
+  rewrite !/[tuple of _] //=.
+    by move:  (valP _) (valP _) => //= H1 H2; rewrite (proof_irrelevance _ H1 H2).
+Qed.
+
+
+
+
+
 Section fixlist.
   Variable A : eqType.
   Definition fixlist n := n.-tuple (option A).
@@ -193,9 +211,9 @@ Section fixlist.
                 end H) m list.
   Definition fixlist_unwrap (m : nat) (list : fixlist m) : seq A :=
     flatten (map (fun o_value => match o_value with
-                              | Some value => [:: value]
-                              | None => [::]
-                              end) list).
+                                 | Some value => [:: value]
+                                 | None => [::]
+                                 end) list).
   (* remove will remove the nth index of the list *)
   Fixpoint fixlist_remove (m : nat) (list : fixlist m) (n : nat) : fixlist m.
     move: list.

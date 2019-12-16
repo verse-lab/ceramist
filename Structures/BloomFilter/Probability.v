@@ -41,26 +41,6 @@ Open Scope R_scope.
 
 
 
-Lemma bloomfilter_second_stirling_number_sum: forall l k m (f: nat -> Rdefinitions.R),
-    (\sum_(inds in [finType of (l * k).-tuple 'I_m.+1])
-      ((Rdefinitions.Rinv (m.+1 %R) ^R^ l * k) *R*
-       (f (length (undup inds)))) ) =
-    \sum_(len in [finType of 'I_(m.+2)])
-     (f(len) *R*
-      ( ('C ((m.+1), len) %R) *R*
-        (Factorial.fact len %R) *R* (stirling_no_2 (l * k) len) *R*
-        (Rdefinitions.Rinv (m.+1 %R) ^R^ (l * k))
-     )).
-Proof.
-  move=> l k m f.
-  rewrite -rsum_Rmul_distr_l.
-  under [\sum_(len in [finType of 'I_m.+2]) _]eq_bigr => inds Hinds do rewrite mulRA mulRC -!mulRA.  
-  rewrite -rsum_Rmul_distr_l; apply f_equal.
-  rewrite second_stirling_number_sum addn2.
-  apply eq_bigr => ind Hind.
-  by rewrite -mulRA; apply f_equal; rewrite mulRC.
-Qed.
-
 
 Section BloomFilter.
   (*
@@ -1044,7 +1024,7 @@ Section BloomFilter.
     by over.
       by apply undup_uniq.
       move=>//=.
-      move:  ( bloomfilter_second_stirling_number_sum l k Hash_size
+      move:  ( second_stirling_number_sum_normalized l k Hash_size
                                          (fun len => (((len %R) *R* Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ k))
              ) => //= ->.
       have H len: ((((len %R) *R* Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ k) *R*

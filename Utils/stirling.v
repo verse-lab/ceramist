@@ -581,6 +581,28 @@ Section stirling_second_number.
       by apply eq_bigr => y Hy //=; move/eqP:Hi =>->; rewrite -!mulRA; apply f_equal; rewrite mulRC.
   Qed.
 
+
+  Lemma second_stirling_number_sum_normalized: forall l k m (f: nat -> Rdefinitions.R),
+      (\sum_(inds in [finType of (l * k).-tuple 'I_m.+1])
+        ((Rdefinitions.Rinv (m.+1 %R) ^R^ l * k) *R*
+         (f (length (undup inds)))) ) =
+      \sum_(len in [finType of 'I_(m.+2)])
+       (f(len) *R*
+        ( ('C ((m.+1), len) %R) *R*
+          (Factorial.fact len %R) *R* (stirling_no_2 (l * k) len) *R*
+          (Rdefinitions.Rinv (m.+1 %R) ^R^ (l * k))
+       )).
+  Proof.
+    move=> l k m f.
+    rewrite -rsum_Rmul_distr_l.
+    under [\sum_(len in [finType of 'I_m.+2]) _]eq_bigr => inds Hinds do rewrite mulRA mulRC -!mulRA.  
+    rewrite -rsum_Rmul_distr_l; apply f_equal.
+    rewrite second_stirling_number_sum addn2.
+    apply eq_bigr => ind Hind.
+      by rewrite -mulRA; apply f_equal; rewrite mulRC.
+  Qed.
+
+
   About second_stirling_number_sum.
   
 
