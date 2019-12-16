@@ -8,14 +8,15 @@
 
 Computation/Comp.v
 Computation/Notationv1.v
-Structures/BloomFilter/Definitions.v
-Structures/BloomFilter/Probability.v
+Structures/BloomFilter/BloomFilter_Definitions.v
+Structures/BloomFilter/BloomFilter_Probability.v
 Structures/Core/FixedList.v
 Structures/Core/FixedMap.v
 Structures/Core/Hash.v
 Structures/Core/HashVec.v
-Structures/CountingBloomFilter/Definitions.v
-Structures/CountingBloomFilter/Probability.v
+Structures/CountingBloomFilter/CountingBloomFilter_Definitions.v
+Structures/CountingBloomFilter/CountingBloomFilter_Probability.v
+Structures/QuotientFilter/QuotientFilter_Definitions.v
 Utils/InvMisc.v
 Utils/tactics.v
 Utils/rsum_ext.v

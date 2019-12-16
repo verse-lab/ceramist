@@ -21,7 +21,13 @@ From ProbHash.Core
      Require Import Hash HashVec FixedList.
 
 From ProbHash.BloomFilter
-     Require Import Definitions.
+     Require Import BloomFilter_Definitions BloomFilter_Probability.
+
+Module CountingBloomFilterDefinitions (Spec:HashSpec).
+
+  Module BloomFilterProbability := (BloomFilterProbability Spec).
+  Export BloomFilterProbability.
+
 
 Section CountingBloomFilter.
   (*
@@ -499,5 +505,5 @@ Section CountingBloomFilter.
   End OfBloomFilter.
 
 End CountingBloomFilter.
-
+End CountingBloomFilterDefinitions.
 

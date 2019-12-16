@@ -29,7 +29,12 @@ Unset Printing Implicit Defensive.
 
 
 
-Section HashVec.
+Module HashVec (Spec: HashSpec).
+  Module Hash := (Hash Spec).
+
+  Export Hash.
+
+  Section HashVec.
   (*
     k - number of hashes
    *)
@@ -63,7 +68,8 @@ Section HashVec.
   
   Lemma Hpredkvld: k.-1 < k.
   Proof.
-      by  apply InvMisc.ltnn_subS.
+       apply InvMisc.ltnn_subS.
+       apply Hkgt0.
   Qed.
 
   Lemma Hltn_leq pos pos' (Hpos: pos < k) (Hpos': pos = pos'.+1) : pos' < k.
@@ -114,7 +120,8 @@ Section HashVec.
        end   
       ) (erefl h) hashes .
 
-End HashVec.
+  End HashVec.
+
 
 Open Scope R_scope.
 
@@ -396,7 +403,7 @@ Proof.
           by rewrite FDistBind.dE FDist1.dE xpair_eqE (eq_sym y).
           rewrite (bigID (fun a => a == y)) big_pred1_eq eq_refl //=.   
           apply H.
-  - apply prsumr_eq0P => i /Bool.negb_true_iff -> //=; first (dispatch_Rgt; move=>_; dispatch_Rgt).
+  - apply prsumr_eq0P => i /Bool.negb_true_iff -> //=; first (by dispatch_Rgt; dispatch_Rgt).
       by rewrite Bool.andb_false_r //= mulR0.
       rewrite eq_refl //= mulR1. 
       transitivity (
@@ -459,7 +466,7 @@ Proof.
                 (apply prsumr_eq0P; intros; first by dispatch_Rgt; intros; dispatch_Rgt)|
                 (apply RIneq.Rmult_eq_0_compat_l)
               ].
-        apply prsumr_eq0P => [[hshs' bf']|] ; first by dispatch_Rgt; case; intros; dispatch_Rgt.  
+        apply prsumr_eq0P => [[hshs' bf']|]; first by intros; dispatch_Rgt.
         move=> [hshs' bf'] _; case Heq: (tval hshs' == ys); last first.
   - apply RIneq.Rmult_eq_0_compat_l => //=; rewrite FDistBind.dE.
     apply prsumr_eq0P => [[hshs'' ind']|[hshs'' ind']] _; first by dispatch_Rgt.
@@ -730,7 +737,7 @@ Proof.
     by rewrite -rsum_pred_demote big_pred1_eq //=.
 Qed.
 
-Section Hash.
+Section Uniform.
 
   Lemma hash_uni n (hash_state: HashState n) value (hash_value: 'I_Hash_size.+1) :
     (hashstate_find _ value hash_state == None) ->
@@ -745,7 +752,7 @@ Section Hash.
         by  rewrite FDistBindp1 Uniform.dE div1R  //=.
   Qed.
 
-End Hash.
+End Uniform.
 
 Module uniform_vec.
 
@@ -777,3 +784,5 @@ Module uniform_vec.
   End definitions.
 
 End uniform_vec.
+End HashVec.
+

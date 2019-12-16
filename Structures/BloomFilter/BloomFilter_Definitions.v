@@ -17,6 +17,11 @@ From ProbHash.Core
 
 
 
+Module BloomFilterDefinitions (Spec: HashSpec).
+
+Module HashVec := (HashVec Spec).
+Export HashVec.
+
 Section BloomFilter.
   (*
    A fomalization of a bloom filter structure and properties
@@ -88,7 +93,7 @@ Section BloomFilter.
     end.
 
   Definition bloomfilter_add (value: hash_keytype) (hashes: k.-tuple (HashState n)) (bf: BloomFilter) : Comp [finType of (k.-tuple (HashState n)) * BloomFilter] :=
-    hash_res <-$ (hash_vec_int value hashes);
+    hash_res <-$ (HashVec.hash_vec_int value hashes);
       let (new_hashes, hash_vec) := hash_res in
       let new_bf := bloomfilter_add_internal (tval hash_vec) bf in
       ret (new_hashes, new_bf).
@@ -97,7 +102,7 @@ Section BloomFilter.
     all (fun h => bloomfilter_get_bit h bf) items.
 
   Definition bloomfilter_query (value: hash_keytype) (hashes: k.-tuple (HashState n)) (bf: BloomFilter) : Comp [finType of (k.-tuple (HashState n)) * bool ] :=
-    hash_res <-$ (hash_vec_int value hashes);
+    hash_res <-$ (HashVec.hash_vec_int value hashes);
       let (new_hashes, hash_vec) := hash_res in
       let qres := bloomfilter_query_internal (tval hash_vec) bf in
       ret (new_hashes, qres).
@@ -254,3 +259,4 @@ Section BloomFilter.
   
   
 End BloomFilter.
+End BloomFilterDefinitions.

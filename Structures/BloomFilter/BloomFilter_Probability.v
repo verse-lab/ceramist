@@ -16,9 +16,6 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-From ProbHash.BloomFilter
-     Require Import Definitions.
-
 From ProbHash.Computation
      Require Import Comp Notationv1.
 
@@ -27,6 +24,11 @@ From ProbHash.Core
 
 From ProbHash.Utils
      Require Import InvMisc seq_ext seq_subset rsum_ext stirling tactics.
+
+From ProbHash.BloomFilter
+     Require Import BloomFilter_Definitions.
+
+
 (*
 Proof idea
 ----------
@@ -41,8 +43,12 @@ Open Scope R_scope.
 
 
 
+Module BloomFilterProbability (Spec: HashSpec).
 
-Section BloomFilter.
+  Module BloomfilterDefinitions := (BloomFilterDefinitions Spec).
+  Export BloomfilterDefinitions.
+
+  Section BloomFilter.
   (*
     k - number of hashes
    *)
@@ -252,7 +258,7 @@ Section BloomFilter.
           case Hind: (ind \in exp_hashes).              
           {
             - rewrite !bloomfilter_add_internal_hit //= mulR0.
-              apply prsumr_eq0P => hshs' _; first by dispatch_Rgt; move=> [] //=.
+              apply prsumr_eq0P => hshs' _; first (by do ?dispatch_eq0_obligations).
                 by rewrite bloomfilter_add_internal_hit //= mul0R.
           }
           case Hres: (result == ind).
@@ -1076,6 +1082,8 @@ Section BloomFilter.
 End BloomFilter.
 
 Print Assumptions  bloomfilter_collision_prob.
+
+End BloomFilterProbability.
 (* Local Variables: *)
 (* company-coq-local-symbols: (("\\subseteq" . ?⊆)) *)
 (* End: *)

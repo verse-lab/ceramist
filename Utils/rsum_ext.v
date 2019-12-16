@@ -18,14 +18,15 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 From ProbHash.Utils
-     Require Import  InvMisc   seq_ext seq_subset.
+     Require Import  InvMisc seq_ext seq_subset.
 From ProbHash.Computation
      Require Import Comp Notationv1.
 From ProbHash.Core
      Require Import Hash.
 
 
-Ltac dispatch_Rgt :=  do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply fdist_ge0_le1=>//=; try apply leR0n; try rewrite card_ord -add1n; move: (prob_invn Hash_size).
+
+Ltac dispatch_Rgt :=  do ?(apply rsumr_ge0; intros); do ?apply  RIneq.Rmult_le_pos => //=; try apply fdist_ge0_le1=>//=; try apply leR0n; try rewrite card_ord -add1n.
 
 Open Scope R_scope.
 
