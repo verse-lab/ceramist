@@ -56,13 +56,25 @@ Module QuotientFilterDefinitions (Spec: QuotientFilterSpec).
 
     Lemma Hash_size_unwrap : Hash_size = (q.+1 * r.+1).-1.
     Proof. by []. Qed.
+
   End QuotientHash.
 
   Module HashVec := (HashVec QuotientHash).
 
   Export HashVec.
+
+
+  Definition hash_value_coerce (value: hash_valuetype) : 'I_(q.+1 * r.+1).
+      move: value; rewrite/hash_valuetype Hash_size_unwrap //=.
+  Defined.
+
+  Lemma hash_value_coerce_eq x y: (hash_value_coerce x) = (hash_value_coerce y) -> x = y.
+  Proof.
+    rewrite/hash_value_coerce/eq_rect_r.
+    by rewrite -eq_rect_eq.
+  Qed.
   
-  
+
   Record QuotientFilter := mkQuotientFilter
                              {
                                quotientfilter_state:
@@ -148,9 +160,6 @@ Module QuotientFilterDefinitions (Spec: QuotientFilterSpec).
     mkQuotientFilter
       (set_tnth (quotientfilter_state qf) quotient_list' quotient).
 
-    Definition hash_value_coerce (value: hash_valuetype) : 'I_(q.+1 * r.+1).
-      move: value; rewrite/hash_valuetype Hash_size_unwrap //=.
-    Defined.
 
   Definition quotientfilter_add (value: hash_keytype) (hashes: HashState n) (qf: QuotientFilter) :
     Comp [finType of HashState n * QuotientFilter ] :=

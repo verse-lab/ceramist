@@ -255,3 +255,9 @@ Lemma tuple_split_valid (A: finType) (m l:nat) :  bijective (fun (x: [finType of
         by rewrite (proof_irrelevance _ H3 H4).
     }
 Qed.
+
+Lemma tnth_nseq_eq (A: Type)  l a ind:
+    tnth (@nseq_tuple l A a) ind = a.
+Proof.
+    by rewrite/nseq_tuple/tnth; rewrite nth_nseq; case: ind => [ m Hm] //=; rewrite Hm.
+Qed.

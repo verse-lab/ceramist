@@ -23,7 +23,7 @@ From ProbHash.Core
      Require Import Hash HashVec FixedList FixedMap.
 
 From ProbHash.BloomFilter
-     Require Import Probability Definitions.
+     Require Import BloomFilter_Probability BloomFilter_Definitions.
 
 From ProbHash.CountingBloomFilter
      Require Import CountingBloomFilter_Definitions.

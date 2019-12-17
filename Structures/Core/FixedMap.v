@@ -30,12 +30,12 @@ Section fixmap.
     match n as n0 return (n = n0 -> fixmap n0 -> option V) with
     | 0 => fun (_ :n = 0) (map: fixmap 0) => None
     | n0.+1 => fun (H: n = n0.+1) (map: fixmap n0.+1) =>
-                match ntuple_head map with
-                | Some (k',v') => if k' == k
-                                 then Some v'          
-                                 else fixmap_find k (ntuple_tail map)
-                | None         => fixmap_find k (ntuple_tail map)
-                end
+                 match ntuple_head map with
+                 | Some (k',v') => if k' == k
+                                   then Some v'          
+                                   else fixmap_find k (ntuple_tail map)
+                 | None         => fixmap_find k (ntuple_tail map)
+                 end
     end (erefl n) map.
   
   Fixpoint fixmap_find_ind'  (acc: nat) (k : K) (n : nat) (map : fixmap n) : option nat.
@@ -56,12 +56,12 @@ Section fixmap.
     match n as n0 return (n = n0 -> fixmap n0 -> fixmap n0) with
     | 0 => fun (_ : n = 0) (map : fixmap 0) => map
     | n0.+1 => fun (Hn: n = n0.+1) (map: fixmap n0.+1) =>
-                match ntuple_head map with
-                | Some (k',v') => if k' == k
-                                 then ntuple_cons (Some (k,v)) (ntuple_tail map)
-                                 else ntuple_cons (Some (k',v')) (fixmap_put k v (ntuple_tail map))
-                | None         =>  ntuple_cons (Some (k,v)) (ntuple_tail map)
-                end                                                                   
+                 match ntuple_head map with
+                 | Some (k',v') => if k' == k
+                                   then ntuple_cons (Some (k,v)) (ntuple_tail map)
+                                   else ntuple_cons (Some (k',v')) (fixmap_put k v (ntuple_tail map))
+                 | None         =>  ntuple_cons (Some (k,v)) (ntuple_tail map)
+                 end                                                                   
     end (erefl n) map.                
 
 
@@ -156,6 +156,31 @@ Section fixmap.
         by case Hput: (fixmap_put _) => [ms Hms] //=; move: IHl';rewrite Hput.
   Qed.
 
+
+  Lemma fixmap_find_eq  (n:nat) (map: fixmap n) (x y: K) (v v_prime: V):
+    x != y -> fixmap_find x map == Some v -> fixmap_find x (fixmap_put y v_prime map) == Some v.
+  Proof.
+    elim: n map x y v => [//=| n IHn] map x y v Hxneq  //=.
+    case_eq (ntuple_head map) => [[k' v'] |//=] Heq; rewrite Heq //=.
+    - {
+        case Hk'eq: (k' == y) => //=.
+        - {
+            move/Bool.negb_true_iff: (Hxneq); rewrite eq_sym => ->.
+            have ->: (k' == x = false); first by move/eqP:Hk'eq ->; move/Bool.negb_true_iff: Hxneq; rewrite eq_sym.
+            rewrite/ntuple_tail; move: (behead_tupleP _)  => //= H1; move:(behead_tupleP _) => //= H2.
+              by rewrite (proof_irrelevance _ H1 H2).
+          }
+          rewrite /ntuple_head ntuple_head_consE ntuple_tail_consE.
+          case: (k' == x); first by [].
+          move =>/ (IHn (ntuple_tail map) x y v Hxneq) //=.
+      }
+    - {
+        move/Bool.negb_true_iff:(Hxneq); rewrite eq_sym => -> //=.
+        rewrite/ntuple_tail; move: (behead_tupleP _)  => //= H1; move:(behead_tupleP _) => //= H2.
+          by rewrite (proof_irrelevance _ H1 H2).
+      }
+  Qed.
+  
 End fixmap. 
 
 Section fin_fixmap.

@@ -28,29 +28,8 @@ From ProbHash.Utils
 From ProbHash.QuotientFilter
      Require Import QuotientFilter_Definitions.
 
-Lemma fixmap_find_eq (K V: eqType) (n:nat) (map: fixmap K V n) (x y: K) (v v_prime: V):
-x != y -> fixmap_find x map == Some v -> fixmap_find x (fixmap_put y v_prime map) == Some v.
-Proof.
-  elim: n map x y v => [//=| n IHn] map x y v Hxneq  //=.
-  case_eq (ntuple_head map) => [[k' v'] |//=] Heq; rewrite Heq //=.
-  - {
-      case Hk'eq: (k' == y) => //=.
-      - {
-          move/Bool.negb_true_iff: (Hxneq); rewrite eq_sym => ->.
-          have ->: (k' == x = false); first by move/eqP:Hk'eq ->; move/Bool.negb_true_iff: Hxneq; rewrite eq_sym.
-          rewrite/ntuple_tail; move: (behead_tupleP _)  => //= H1; move:(behead_tupleP _) => //= H2.
-          by rewrite (proof_irrelevance _ H1 H2).
-        }
-        rewrite /ntuple_head ntuple_head_consE ntuple_tail_consE.
-        case: (k' == x); first by [].
-        move =>/ (IHn (ntuple_tail map) x y v Hxneq) //=.
-    }
-  - {
-      move/Bool.negb_true_iff:(Hxneq); rewrite eq_sym => -> //=.
-      rewrite/ntuple_tail; move: (behead_tupleP _)  => //= H1; move:(behead_tupleP _) => //= H2.
-          by rewrite (proof_irrelevance _ H1 H2).
-    }
-Qed.
+  
+
   
   
 
@@ -149,6 +128,54 @@ Module QuotientFilterProbability (Spec:  QuotientFilterSpec).
         }
   Qed.
 
+  Lemma quotientfilter_add_multiple_find_neq_preserve values hshs hshs' qf qf' value
+        (Huniq: uniq (value :: values))
+        (Hcontains:  hashstate_find n value hshs == None)
+    : ((d[ @quotientfilter_add_multiple hshs qf values]) (hshs', qf') != (0 %R)) ->
+     (hashstate_find n value hshs' == None).
+  Proof.
+    elim:  values qf qf' hshs hshs' Hcontains Huniq => [//=| x xs Hxs] qf qf' hshs hshs' Hcontains Huniq.
+    - by comp_normalize => /bool_neq0_true; rewrite xpair_eqE=>/andP[/eqP -> _]; rewrite Hcontains.
+    - move: Huniq => //= /andP[];rewrite in_cons Bool.negb_orb=>/andP[Hneq Hnin] /andP[Hninxs Huniqxs].
+      comp_normalize.
+      exchange_big_outwards 2 => //=; comp_simplify_n 1.
+      comp_possible_decompose.
+      move=> hshs'' qf'' value' Haddm Hhash /bool_neq0_true/eqP Hqf.
+
+      have H1: uniq (value :: xs); first by move=> //=; rewrite Hnin Huniqxs.
+      move: Hhash (Hxs qf qf'' hshs hshs'' Hcontains H1 Haddm) ; clear H1 Hxs.
+      rewrite/hash; case: (hashstate_find n x hshs'') => [v|] //=; comp_normalize.
+      by move=> /bool_neq0_true; rewrite xpair_eqE =>/andP[/eqP ->] //=.
+      comp_simplify; comp_possible_decompose => ind /bool_neq0_true; rewrite xpair_eqE => /andP[/eqP -> _] _.
+      rewrite/hashstate_find/hashstate_put.
+      by apply fixmap_find_neq.
+  Qed.
+
+  Lemma quotientfilter_add_multiple_properties_preserve values l m qf qf' hshs hshs'
+        (Huniq: uniq values)
+        (Hlen: length values == l) 
+        (Hfree: quotientfilter_has_free_spaces  ((l+m))  qf)
+        (Hvalid:   quotientfilter_valid qf)
+    : ((d[ @quotientfilter_add_multiple hshs qf values]) (hshs', qf') != (0 %R)) ->
+  quotientfilter_valid qf' &&  quotientfilter_has_free_spaces m qf'.
+  Proof.
+
+    move/eqP:Hlen Hfree => <-; clear l => Hfree .
+    elim:  values m qf qf' hshs hshs'  Hvalid Hfree Huniq => [//=| x xs Hxs] m qf qf' hshs hshs' Hvalid Hfree Huniq.
+    - by comp_normalize => /bool_neq0_true; rewrite xpair_eqE=>/andP[_ /eqP ->]; rewrite Hvalid //=.
+    - comp_normalize.
+      exchange_big_outwards 2 => //=; comp_simplify_n 1.
+      comp_possible_decompose.
+      move=> hshs'' qf'' value' Haddm Hhash /bool_neq0_true/eqP Hqf.
+      have H1: quotientfilter_has_free_spaces (length xs + m.+1) qf; first
+        by move: Hfree; rewrite/quotientfilter_has_free_spaces => /allP Hfree; apply/allP
+        => v Hv; move: (Hfree v Hv) => //=; rewrite addSn -addnS.
+      have H2: uniq xs; first by move: Huniq => //= /andP[].
+      move: (Hxs m.+1 qf qf'' hshs hshs'' Hvalid H1 H2 Haddm) => /andP [Hvalid' Hfree']; clear H1 H2.
+      have H1: (0 < m.+1); first by [].
+      move: (@quotientfilter_add_preserve m.+1 H1 qf'' qf' (hash_value_coerce value') Hvalid' Hfree' Hqf) => //=.
+  Qed.
+       
 
   Theorem quotientfilter_collision_prob hashes l value (values: seq B):
     l < n ->
@@ -164,7 +191,7 @@ Module QuotientFilterProbability (Spec:  QuotientFilterSpec).
               res' <-$ quotientfilter_query value hashes2 bf;
                 ret (res'.2)
         ] true =
-      (1 -R- ( 1 -R- Rdefinitions.Rinv (Hash_size.+1)) ^R^ l).
+      (1 -R- (( 1 -R- Rdefinitions.Rinv (Hash_size.+1)) ^R^ l)).
     Proof.
       move=> Hln Hlen Hfree /allP Hall Huniq.
       comp_normalize.
@@ -211,4 +238,113 @@ Module QuotientFilterProbability (Spec:  QuotientFilterSpec).
       move=> //=; comp_simplify_n 2.
       under_all ltac:(rewrite  mulRA mulRC).
       under eq_bigr do (under eq_bigr do rewrite -rsum_Rmul_distr_l;  rewrite -rsum_Rmul_distr_l).
+      suff H i:
+        \sum_(a in hashstate_of_finType n)
+         \sum_(a0 in quotientfilter_finType)
+         ((d[ quotientfilter_add_multiple (hashstate_put n value i hashes) quotientfilter_new values])
+            (a, a0) *R* (quotientfilter_query_internal (hash_value_coerce i) a0 %R)) =
+        (1 -R- ((1 -R- Rdefinitions.Rinv (Hash_size.+1)) ^R^ l)).
+      under eq_bigr do rewrite H.
+      rewrite bigsum_card_constE mulRA mulRV //= ?mul1R //= card_ord -add1n; apply/eqP; apply RIneq.not_0_INR => //=. 
+      under_all ltac:(rewrite mulRC); under eq_bigr do rewrite -rsum_pred_demote; rewrite exchange_big //=.
+      move: (@rsum_pred_inv [finType of QuotientFilter]
+                             ((d[ res <-$ quotientfilter_add_multiple
+                                       (hashstate_put n value i hashes)
+                                       quotientfilter_new values;
+                                     ret res.2 ]))
+                             (fun j => quotientfilter_query_internal (hash_value_coerce i) j)).
+      comp_normalize.
+      under_all ltac:(rewrite mulRC eq_sym); under eq_bigr do under eq_bigr do rewrite -rsum_pred_demote big_pred1_eq.
+      move=> ->; apply f_equal.
+      rewrite rsum_pred_demote; comp_normalize.
+      under_all ltac:(rewrite mulRC [_ *R* (_ == _ %R)]mulRC eq_sym -!mulRA);
+        under eq_bigr do under eq_bigr do rewrite -rsum_pred_demote big_pred1_eq.
+      move/eqP: Hlen Hfree Hln => <-; clear l Hin.
+      move: Huniq => //= /andP [  ]; move/allP: Hall => //= /andP[_ ].
+      elim: values => [//=| x xs IHxs].
+      - intros; comp_normalize; under_all ltac:(rewrite xpair_eqE boolR_distr -!mulRA);
+          under eq_bigr do rewrite -rsum_pred_demote big_pred1_eq.
+        rewrite -rsum_pred_demote big_pred1_eq.
+        suff ->: (quotientfilter_query_internal (hash_value_coerce i) quotientfilter_new = false); first by move=> //=.
+        apply Bool.negb_true_iff.
+        rewrite/quotientfilter_query_internal/quotientfilter_new/fixlist_contains //=.
+        apply/hasPn => x //=.
+        rewrite tnth_nseq_eq.
+        by move: (fixlist_empty_is_empty [eqType of 'I_r.+1] n.+1); rewrite/fixlist_is_empty => /eqP -> //=.
+      - move=> //= /andP [Huns Halluns ]; rewrite in_cons Bool.negb_orb => /andP[Hneq Hnin] /andP[/memPn Hyneq Huniq].
+        move=> Hfree Hlen.
 
+        have Hfree': hash_has_free_spaces (length xs).+1 hashes; first
+          by move: Hfree; rewrite /hash_has_free_spaces; rewrite addnS =>/ltnW.
+        have Hlen': length xs < n; first by move: Hlen => /ltnW.
+        move: (IHxs Halluns Hnin Huniq Hfree' Hlen') => <-.
+        comp_normalize.
+        under_all ltac:(rewrite mulRA mulRC [_ *R* (_ == _ %R)]mulRC xpair_eqE andbC boolR_distr -!mulRA).
+        exchange_big_inwards ltac:(rewrite -rsum_pred_demote big_pred1_eq).
+        exchange_big_inwards ltac:(rewrite -rsum_pred_demote big_pred1_eq).
+        rewrite exchange_big; apply eq_bigr => qf _ //=.
+        rewrite rsum_Rmul_distr_l; apply eq_bigr => hsh _ //=.
+        under_all ltac:(rewrite mulRA mulRC).
+        exchange_big_inwards ltac:(rewrite -rsum_Rmul_distr_l); rewrite -rsum_Rmul_distr_l.
+        apply Logic.eq_sym.
+        rewrite  mulRC -!mulRA.
+        case Haddm: ((d[ quotientfilter_add_multiple (hashstate_put n value i hashes) quotientfilter_new xs]) (hsh, qf) == 0);
+          first by move/eqP: Haddm ->; rewrite !mul0R.
+        move/Bool.negb_true_iff: Haddm => Haddm; apply f_equal.
+
+        have H1: uniq (x :: xs); first by move=> //=; move/memPn: Hyneq => Hyneq; rewrite Hyneq Huniq.
+        have H2: hashstate_find n x (hashstate_put n value i hashes) == None; first
+        by move: Huns; rewrite/hash_unseen/hashstate_find; apply fixmap_find_neq; rewrite eq_sym.
+        move: (@quotientfilter_add_multiple_find_neq_preserve
+                 xs (hashstate_put n value i hashes) hsh
+                 quotientfilter_new qf x
+                 H1 H2 Haddm
+              ); clear H1 H2 Hfree' Hlen'.
+        rewrite/hash =>/eqP ->; apply Logic.eq_sym.
+        comp_normalize.
+
+
+        under_all ltac:(rewrite mulRC -!mulRA xpair_eqE andbC boolR_distr -mulRA).
+        exchange_big_inwards ltac:(rewrite -rsum_pred_demote big_pred1_eq).
+        exchange_big_inwards ltac:(rewrite -rsum_pred_demote big_pred1_eq).
+        under_all ltac:(rewrite mulRA [_ *R* (_ == _ %R)]mulRC -!mulRA).
+        exchange_big_inwards ltac:(rewrite -rsum_pred_demote big_pred1_eq).
+
+        rewrite (bigID (fun i0 => i0 == i)) big_pred1_eq //= addRC.
+
+
+        have H1: (length xs == length xs); first by [].
+        have H2: (quotientfilter_has_free_spaces (length xs + (n - length xs)) quotientfilter_new); first
+          by rewrite subnKC; first (by apply quotientfilter_new_free_spaces);
+          move: Hlen; rewrite -addn1 => /addr_ltn/ltnW.
+
+        move: (@quotientfilter_add_multiple_properties_preserve
+                 xs  (length xs) (n - (length xs)) quotientfilter_new qf
+                 (hashstate_put n value i hashes) hsh Huniq H1 H2 quotientfilter_new_valid Haddm
+              ) => /andP[ Hvalid' Hfree' ]; clear H1 H2.
+        rewrite (@quotientfilter_add_query_base (n - length xs)); first rewrite  //= mulR0 //= addR0; try (by []); last first.
+
+        have H i0: i0 != i ->
+                   quotientfilter_query_internal
+                     (hash_value_coerce i) (quotientfilter_add_internal (hash_value_coerce i0) qf) = 
+                   quotientfilter_query_internal (hash_value_coerce i) qf.
+        {
+          move=> Hi0; case Hquery : (quotientfilter_query_internal (hash_value_coerce i) qf).
+            by move: (@quotientfilter_add_query_preserve qf (hash_value_coerce i) (hash_value_coerce i0) Hquery) ->; move=> //=.
+            move/Bool.negb_true_iff: Hquery => Hnequery.
+            case Hquery : (quotientfilter_query_internal _ _) => //=.
+            move: (quotientfilter_add_query_eq Hnequery Hquery)=> Heq; move:  Heq Hi0.
+              by move=>/hash_value_coerce_eq -> /Bool.negb_true_iff; rewrite eq_refl => ->.
+        }
+        under eq_bigr => i0 Hi0 do rewrite (@H i0 Hi0).
+        rewrite -big_distrl //= mulRC; apply f_equal.
+        move: (@rsum_pred_inv
+                 [finType of 'I_Hash_size.+1]
+                 (Uniform.d (card_ord Hash_size.+1))
+                 (fun i0 => i0 != i)
+              ); under eq_bigr do rewrite Uniform.dE; move  => -> //=.
+        under eq_bigl do rewrite Bool.negb_involutive; rewrite big_pred1_eq Uniform.dE card_ord//= .
+        by do?(apply f_equal); rewrite RIneq.INR_IZR_INZ //=.
+    Qed.
+    
+End QuotientFilterProbability.
