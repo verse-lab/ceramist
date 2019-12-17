@@ -20,28 +20,37 @@ From ProbHash.Computation
 From ProbHash.Core
      Require Import Hash HashVec FixedList.
 
-Module QuotientFilter.
+
+Module Type QuotientFilterSpec.
+
+  (*
+   q - the number of elements in the quotient - 1
+   *)
+  Parameter q:nat.
+  (*
+   r - the number of elements in the remainder - 1
+  *)
+  Parameter  r:nat.
+  (*
+   n - maximum number of elements a single fingerprint can hold
+  *)
+  Parameter  n:nat.
+
+  (* type being hashed in the quotient filter *)
+  Parameter  B:finType.
+
+End QuotientFilterSpec.
+
+Module QuotientFilterDefinitions (Spec: QuotientFilterSpec).
 
   (*
    A fomalization of a simplified form of the quotientfilter structure.
   *)
 
-  (*
-   q - the number of elements in the quotient
-   *)
-  Variable q:nat.
-  (*
-   r - the number of elements in the remainder
-  *)
-  Variable r:nat.
-  (*
-   n - maximum number of elements a single fingerprint can hold
-  *)
-  Variable n:nat.
-
+  Export Spec.
   Module QuotientHash <: HashSpec.
 
-    Variable B:finType.
+    Definition B := B.
 
     Definition Hash_size := (q.+1 * r.+1).-1.
 
@@ -304,7 +313,7 @@ Module QuotientFilter.
 
     End Theorems.
 
-End QuotientFilter.
+End QuotientFilterDefinitions.
 
 
 
