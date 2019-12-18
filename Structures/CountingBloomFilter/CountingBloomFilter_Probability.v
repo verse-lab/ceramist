@@ -70,7 +70,7 @@ Module CountingBloomFilter (Spec: HashSpec).
           have H3: (length vals) == l; first by move/eqP: Hlen => //= [->].
           have H4: (l.+1 * k + (m + k) < n.+1); first by move: Hltn; rewrite mulSnr -addnA [k + m]addnC.
           move: (IHvals l (m + k) hsh' bf' H4 H3 H1) => Hpref; clear IHvals H4 H3 H1.
-          eapply  countingbloomfilter_add_capacity_change.
+          eapply  (@countingbloomfilter_add_capacity_change 0 _  k) => //=.
           - by rewrite -length_sizeP size_tuple.
               by rewrite [k + m]addnC.
         }
@@ -200,7 +200,7 @@ Module CountingBloomFilter (Spec: HashSpec).
               by clear; move=> bf //=; rewrite eq_sym //=.
         }
     Qed.
-    
+
     
     Theorem countingbloomfilter_collision_prob
             hashes l value (values: seq B):
@@ -217,8 +217,8 @@ Module CountingBloomFilter (Spec: HashSpec).
                 ret (res'.2)
         ] true =
       ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l.+1 * k) *R*
-       \sum_(a in ordinal_finType (Hash_size.+2))
-        (((((a %R) ^R^ k) *R* (Factorial.fact a %R)) *R* ('C(Hash_size.+1, a) %R)) *R* stirling_no_2 (l * k) a)).
+       \sum_(i < (Hash_size.+2))
+        (((((i %R) ^R^ k) *R* (Factorial.fact i %R)) *R* ('C(Hash_size.+1, i) %R)) *R* stirling_no_2 (l * k) i)).
     Proof.
       (* simplify proof a bit *)
       move=> Hlen Hfree Hall Huniq.
