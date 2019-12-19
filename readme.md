@@ -1,5 +1,4 @@
-# ProbHash -  Reasoning about Hash-based Probabilistic Algorithms (Bloomfilters etc.)
-
+# ProbHash -  Verified Hash-based Probabilistic Algorithms
 ## Installation
 Use opam to install dependencies
 
