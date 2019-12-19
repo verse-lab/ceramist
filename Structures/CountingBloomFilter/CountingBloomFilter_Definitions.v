@@ -602,7 +602,26 @@ Module CountingBloomFilterDefinitions (Spec:HashSpec).
           by move/allP: Hinds' => /(_ v Hv).
         }
     Qed.
-    
+
+    Lemma countingbloomfilter_add_base (cbf:CountingBloomFilter) (inds: seq 'I_(Hash_size.+1)): n > 0 ->
+      countingbloomfilter_query_internal inds (countingbloomfilter_add_internal inds cbf).
+    Proof.
+      move=> Hngt0; elim: inds cbf => [//=|ind inds Hinds] cbf //=.
+      rewrite Hinds Bool.andb_true_r countingbloomfilter_add_internal_set_exchange.
+      rewrite/countingbloomfilter_get_bit/countingbloomfilter_set_bit.
+      by rewrite tnth_set_nth_eq //=; apply incr_bit_valid.
+    Qed.
+
+
+    Lemma countingbloomfilter_add_exchange (cbf: CountingBloomFilter) inds inds':
+        countingbloomfilter_add_internal inds (countingbloomfilter_add_internal inds' cbf) =
+        countingbloomfilter_add_internal inds' (countingbloomfilter_add_internal inds cbf).
+    Proof.
+      elim: inds inds' cbf => [| ind inds Hinds] inds' cbf //=.
+        by rewrite !countingbloomfilter_add_internal_set_exchange Hinds.
+    Qed.
+           
+
     Section OfBloomFilter.
 
       Variable Hngt0 : n > 0.
