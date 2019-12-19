@@ -60,30 +60,31 @@ NO AXIOMS!
 To simplify reasoning about probabilistic computations, we provide a few helper tactics under `ProbHash.Utils`:
 
 - `comp_normalize` - is a tactic which normalizes  probabilistic computations in the goal to a standard
-form consisting of a nested summation with a summand which is the product of each individual statement:
-For example, if our goal contains a term of the form:
+   form consisting of a nested summation with a summand which is the product of each individual statement:
+   For example, if our goal contains a term of the form:
 ```
 d[ res <-$ hash n v hsh;
 x <- fst res;
 ret x ] value
 ```
-applying `comp_normalize` normalizes it to:
+    applying `comp_normalize` normalizes it to:
 ```
 \sum_(i in HashState n) 
 \sum_(i0 in 'I_Hash_size.+1) 
 ((d[ hash n v hsh]) (i, i0) *R* 
 ((value == i0) %R))
 ``` 
-This tactic works by simply recursively descending the computation and expanding the
-definition of the distribution.
+    This tactic works by simply recursively descending the computation and expanding the
+    definition of the distribution.
+
 - `comp_simplify` - is a tactic which effectively applies beta
    reduction to the normalized form, substituting any `ret x` (which
    have been normalized to a factor of the form `(x == ...)` by the previous tactic)
    statements into the rest of the computation - applying it to the previous example would result in:
-   ```
+```
 \sum_(i in HashState n) 
 (d[ hash n v hsh]) (i, value)
-   ```
+```
 - `comp_simplify_n n` - is a variant of the previous one which applies
    the reduction a fixed number `n` of times as sometimes the previous
    tactic may loop.
