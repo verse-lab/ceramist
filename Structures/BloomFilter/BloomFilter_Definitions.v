@@ -21,7 +21,7 @@ Module BloomFilterDefinitions (Spec: HashSpec).
 
 Module HashVec := (HashVec Spec).
 Export HashVec.
-h
+
 Section BloomFilter.
   (*
    A fomalization of a bloom filter structure and properties
