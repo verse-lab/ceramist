@@ -643,8 +643,6 @@ Module CountingBloomFilterDefinitions (Spec:HashSpec).
           by rewrite tnth_map.
       Qed.
 
-
-
       Lemma countingbloomfilter_bloomfilter_set_bitC cbf ind:
         toBloomFilter (countingbloomfilter_set_bit ind cbf) = bloomfilter_set_bit ind (toBloomFilter cbf).
       Proof.
@@ -659,8 +657,6 @@ Module CountingBloomFilterDefinitions (Spec:HashSpec).
             by rewrite tnth_map //=.
       Qed.
       
-
-      
       Lemma countingbloomfilter_bloomfilter_add_internalC cbf inds :
         toBloomFilter (countingbloomfilter_add_internal inds cbf) =
         (bloomfilter_add_internal inds (toBloomFilter cbf)).
@@ -670,8 +666,6 @@ Module CountingBloomFilterDefinitions (Spec:HashSpec).
           by rewrite countingbloomfilter_bloomfilter_set_bitC.
       Qed.
       
-
-
       Lemma counting_bloomfilter_new_bloomfilter_eq:
         (toBloomFilter (countingbloomfilter_new)) = bloomfilter_new.
       Proof.
@@ -683,8 +677,6 @@ Module CountingBloomFilterDefinitions (Spec:HashSpec).
         have ->: ((0 < Ordinal (Hngt0))) = false; first by []; move=>H3.
           by rewrite (proof_irrelevance _ H1 H3).
       Qed.
-      
-      
 
     End OfBloomFilter.
 
