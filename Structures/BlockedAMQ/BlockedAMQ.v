@@ -24,6 +24,12 @@ From ProbHash.Computation
 From ProbHash.Core
      Require Import Hash HashVec FixedList FixedMap.
 
+Lemma index_enum_simpl y: ((index_enum y)) = (index_enum [finType of y]).
+Proof.
+    by rewrite /index_enum //= /[finType of _] //=; case: y => //=.
+Qed.
+
+
 
 Module Type AMQHASH.
   Parameter AMQHashKey : finType.
@@ -33,21 +39,24 @@ Module Type AMQHASH.
 
   Parameter AMQHashValue : finType.
 
-  (* for some reason this doesn't compute automatically *)
-  Axiom finType_AMQHashValue:  [finType of AMQHashValue] = AMQHashValue.
-  
-
   
   Parameter AMQHashParams: Type.
   Parameter AMQHash : AMQHashParams -> finType.
 
-  (* for some reason this doesn't compute automatically *)
-  Axiom finType_AMQHash: forall p, [finType of AMQHash p ] = AMQHash p.
   
 
   Section AMQHash.
     Variable p: AMQHashParams. 
-    Parameter AMQHash_probability: AMQHashParams -> Rdefinitions.R.
+    Parameter AMQHash_probability:  AMQHashParams -> Rdefinitions.R.
+
+    Section HashProbability.
+
+      Variable h: AMQHashParams.
+
+      Axiom AMQHash_hash_prob_valid:
+        \sum_(v in  AMQHashValue) (AMQHash_probability h) = 1.
+
+    End HashProbability.
 
     (* deterministic pure transformations of hash state  *)
     Parameter AMQHash_hashstate_find : AMQHash p -> AMQHashKey -> option AMQHashValue.
@@ -162,8 +171,6 @@ Module Type AMQ (AMQHash: AMQHASH).
   Parameter AMQStateParams : Type.
   Parameter AMQState : AMQStateParams -> finType.
 
-  (* for some reason this doesn't compute automatically *)
-  Axiom finType_AMQState: forall p, [finType of AMQState p ] = AMQState p.
 
   Section AMQ.
     Variable p: AMQStateParams.
@@ -214,6 +221,9 @@ Module AMQOperations (AmqHash: AMQHASH) (Amq: AMQ AmqHash) .
 
   Export Amq.
   Export AmqHash.
+
+  Module AmqHashProperties := (AMQHashProperties AmqHash).
+  Import AmqHashProperties.
 
   Section Operations.
 
@@ -335,6 +345,202 @@ Module AMQOperations (AmqHash: AMQHASH) (Amq: AMQ AmqHash) .
         apply AMQHash_hashstate_available_capacityW with (n:=m.+1) => //=.
     Qed.
   End HashProperties.
+
+  Section HashProperties.
+    Variable h : AMQHashParams.
+    Variable s: AMQStateParams.
+
+    Variable hashes: AMQHash h.
+    Variable amq: AMQState s.
+
+
+    Lemma AMQ_add_multiple_hash_contains_preserve  ( amq': AMQState s)  x ind xs  inds' l 
+          (Hlen: length xs == l) (Huniq: uniq (x :: xs))
+          (Hfree: AMQHash_hashstate_available_capacity hashes  l)
+          (Hvalid: AMQHash_hashstate_valid hashes)
+          (Huns: all (AMQHash_hashstate_unseen hashes) xs)
+          (Hseen:  AMQHash_hashstate_contains hashes x ind):
+      (P[ AMQ_add_multiple hashes amq xs === (inds', amq')] != 0) ->
+      (AMQHash_hashstate_contains inds' x ind).
+    Proof.
+      move: Hlen Hvalid Huniq Hfree Huns Hseen; move=>/eqP <-; clear l.
+      elim: xs x amq amq' hashes inds' => [| y ys Hxs] x  cbf cbf' hshs hshs' Hvalid Huni Hcap Huns Hcont //=; comp_normalize.
+      - by move=>/bool_neq0_true; rewrite xpair_eqE =>/andP [ /eqP -> _]; move: Hcap Hcont => //=; rewrite add0n => ->/andP[->] //=.
+      - exchange_big_outwards 2 => //=; comp_simplify_n 1; comp_possible_decompose.
+        move=> hsh'' cbf'' y' Haddm Hhash /bool_neq0_true/eqP Hcbf.
+        have H1: uniq (y :: ys); first by move: Huni => //= /andP[ _ -> ].
+        have H1': uniq (x :: ys);
+          first by move: Huni => //= /andP[ ]; rewrite in_cons Bool.negb_orb => /andP[ _ ->] /andP[ _ ->].
+
+        have H2: (AMQHash_hashstate_available_capacity hshs (length ys)). {
+            by move: Hcap => //=; apply AMQHash_hashstate_available_capacityW.          
+        }
+
+        have H3: (all (AMQHash_hashstate_unseen hshs) ys). {
+          by move: Huns => //= /andP[].
+        }
+        move: Hhash (@Hxs x cbf cbf'' hshs hsh'' Hvalid H1' H2 H3 Hcont  Haddm).
+        have Huniys: (uniq (y :: ys)); first by move: Huni => //=.
+        move: Hcap => //= Hcap.
+        move:(@AMQ_add_multiple_hash_properties_preserve h s hshs cbf cbf''  y ys hsh'' (length ys) 1 (eq_refl (length ys)) Huniys);
+          rewrite addn1 =>/(_ Hcap Hvalid Huns Haddm) => /andP[/andP[Hcap' Hunsy] Hvalidhsh'].
+        case Hneq: (hshs' != AMQHash_hashstate_put hsh'' y y').
+        {
+          - move: Huns => //=/andP[Hyun Huns].
+            by move: (AMQHash_hash_unseen_insert_neqE Hunsy  Hneq) -> => /eqP //=.
+        }
+        {
+          - move/Bool.negb_true_iff: Hneq; rewrite Bool.negb_involutive => /eqP -> Hn0 Hcontains.  
+            apply AMQHash_hashstate_add_contains_preserve => //=.
+            by move: Huni => //= /andP []; rewrite in_cons Bool.negb_orb => /andP[].
+        }        
+    Qed.
+
+    End HashProperties.
+
+  Section FalseNegatives.
+    Variable h : AMQHashParams.
+    Variable s: AMQStateParams.
+
+    Theorem AMQ_no_false_negatives (hashes: AmqHash.AMQHash h)  (amq: AMQState s) l x xs:
+      uniq (x :: xs) -> length xs == l ->
+      AMQ_valid amq -> AMQ_available_capacity amq l.+1 ->
+
+      AmqHash.AMQHash_hashstate_valid hashes ->
+      AmqHash.AMQHash_hashstate_available_capacity hashes l.+1 ->
+
+      all (AmqHash.AMQHash_hashstate_unseen hashes) (x::xs) ->
+      (d[ res1 <-$ AMQ_add amq hashes x;
+          let '(hsh1, amq1) := res1 in
+          res2 <-$ AMQ_add_multiple hsh1 amq1 xs;
+            let '(hsh2, amq2) := res2 in
+            res3 <-$ AMQ_query amq2 hsh2 x;
+              ret (snd res3) ] true) = (1 %R).
+    Proof.
+      move=> Huniq Hlen Hamqvalid Hamqavail Hvalid Havail Hall.
+      comp_normalize; comp_simplify_n 2.
+      exchange_big_outwards 5 => //=; comp_simplify_n 1.
+      exchange_big_outwards 4 => //=; comp_simplify_n 1.
+      have ->: ((index_enum (AMQHash h))) = (index_enum [finType of AMQHash h]); first by clear;  rewrite index_enum_simpl //=.
+      move: Hall => //=/andP[Hallx Hall].
+      exchange_big_outwards 2 => //=; exchange_big_inwards ltac:(rewrite AmqHashProperties.AMQHash_hash_unseen_simplE //= mulRA [(AmqHash.AMQHash_probability h) *R* _]mulRC -!mulRA).
+
+      under eq_bigr => hshs' _. {
+        under eq_bigr => amq' _; first under eq_bigr => ind _; first under eq_bigr => hshs'' _;
+        first under eq_rsum_ne0  => ind' Hn0.
+
+        have Hvalidamqin: (AMQ_valid (AMQ_add_internal amq ind)). {
+          apply AMQ_add_valid_preserve=>//=.          
+          by apply AMQ_available_capacityW with (n:=l.+1)=>//=.
+        }
+        have Hvalidin: (AmqHash.AMQHash_hashstate_valid (AmqHash.AMQHash_hashstate_put hashes x ind)).
+        {
+          apply AmqHash.AMQHash_hashstate_add_valid_preserve => //=.
+          by apply AmqHash.AMQHash_hashstate_available_capacityW with (n:=l.+1)=>//=.
+        }
+        have Havailamqin: (AMQ_available_capacity (AMQ_add_internal amq ind) l); first
+          by apply AMQ_add_capacity_decr => //=.
+
+        have Hqueryamqin: (AMQ_query_internal (AMQ_add_internal amq ind) ind). {
+          apply AMQ_add_query_base => //=.
+          by apply AMQ_available_capacityW with (n:=l.+1)=>//=.
+        }
+
+        have Hin: (AMQHash_hashstate_contains hshs' x ind). {
+          eapply (@AMQ_add_multiple_hash_contains_preserve)
+            with (hashes:=(AmqHash.AMQHash_hashstate_put hashes x ind))
+                 (amq:=(AMQ_add_internal amq ind))
+                 (amq':=amq')
+                 (xs:=xs)
+          => //=.
+          {
+            - apply AMQHash_hashstate_available_capacity_decr => //=.
+                by move/eqP: Hlen Havail => ->.
+          }
+          {
+            apply/allP => v Hv.
+            apply AmqHash.AMQHash_hashstate_unseenE with
+                (key':=x) (value':=ind) (hashstate:=hashes) => //=.
+              by move: Huniq => //=/andP[/memPn Hvv _]; move: (Hvv v Hv).
+                by move/allP: Hall => /(_ v Hv).
+          }
+          apply AmqHash.AMQHash_hashstate_add_contains_base => //=.
+            by apply AmqHash.AMQHash_hashstate_available_capacityW with (n:=l.+1).
+        }
+        rewrite (@AmqHash.AMQHash_hash_seen_insertE _ _ _ _ _ _ Hin) => //=.
+        rewrite mulRA [_ *R* (_ && _)]mulRC -!mulRA.
+
+        rewrite -RIneq.INR_IZR_INZ boolR_distr.
+        by over. by over. by over. by over. by over.
+      }
+      comp_normalize.
+      under_all ltac:(rewrite mulRC -!mulRA ).
+      under eq_bigr => i _. {
+        under eq_bigr => i0 _ ; first under eq_bigr => i1 _.
+        rewrite exchange_big => //=; under eq_bigr => i3 _.
+        rewrite -(@rsum_pred_demote [finType of AmqHash.AMQHash h]) big_pred1_eq; over => //=.
+        rewrite index_enum_simpl //=.
+        rewrite -(@rsum_pred_demote [finType of AmqHash.AMQHashValue]) big_pred1_eq.
+        by over. by over. by over.
+      }
+      under_all ltac:(rewrite mulRC [(_ %R) *R* _]mulRC -!mulRA).
+      under eq_bigr => hshs' _. { 
+        under eq_bigr => amq' _; first under eq_rsum_ne0 => ind Hn0.
+        have Hvalidamqin: (AMQ_valid (AMQ_add_internal amq ind)). {
+          apply AMQ_add_valid_preserve=>//=.          
+            by apply AMQ_available_capacityW with (n:=l.+1)=>//=.
+        }
+        have Hvalidin: (AmqHash.AMQHash_hashstate_valid (AmqHash.AMQHash_hashstate_put hashes x ind)).
+        {
+          apply AmqHash.AMQHash_hashstate_add_valid_preserve => //=.
+          by apply AmqHash.AMQHash_hashstate_available_capacityW with (n:=l.+1)=>//=.
+        }
+        have Havailamqin: (AMQ_available_capacity (AMQ_add_internal amq ind) l); first
+          by apply AMQ_add_capacity_decr => //=.
+
+        have Hqueryamqin: (AMQ_query_internal (AMQ_add_internal amq ind) ind). {
+          apply AMQ_add_query_base => //=.
+         by apply AMQ_available_capacityW with (n:=l.+1)=>//=.
+        }
+
+        have Hqueryint: (AMQ_query_internal amq' ind). {
+
+          apply AMQ_add_multiple_query_preserve
+            with (hashes:=(AmqHash.AMQHash_hashstate_put hashes x ind))
+                 (values:= xs)
+                 (amq:=(AMQ_add_internal amq ind))
+                 (amq':=amq')
+                 (inds':=hshs')
+                 (l:=l)
+                 => //=.
+        }
+        rewrite Hqueryint eq_refl //= mul1R.
+
+        by over.
+        by over.
+        by over.
+      }
+      move=>//=.
+
+      exchange_big_outwards 2 => //=.
+      under eq_bigr do under eq_bigr do rewrite -big_distrl //=.
+      under eq_bigr do rewrite -big_distrl //=.
+      under eq_bigr do rewrite mulRC.
+      under eq_bigr => i Hi.
+      rewrite -index_enum_simpl.
+      suff ->:  \sum_(i0 in  AmqHash.AMQHash h)
+         \sum_(i1 in   AMQState s)
+            P[ AMQ_add_multiple
+                 (AmqHash.AMQHash_hashstate_put hashes x i)
+                 (AMQ_add_internal amq i) xs === 
+                 (i0, i1)] = 1;
+        last first; last rewrite mulR1; last by over.
+      by rewrite -rsum_split //=; apply FDist.f1.
+      move=> //=.
+      by rewrite AmqHash.AMQHash_hash_prob_valid.
+    Qed.
+  End FalseNegatives.
+
 End AMQOperations.
 
 Module Type AMQProperties (AmqHash: AMQHASH) (AbstractAMQ: AMQ AmqHash) .
@@ -350,11 +556,17 @@ Module Type AMQProperties (AmqHash: AMQHASH) (AbstractAMQ: AMQ AmqHash) .
     Variable hashes: AMQHash h.
     Variable amq: AMQState s.
 
-    Axiom AMQ_no_false_negatives: forall l x xs,
-      uniq (x :: xs) -> length xs == l ->
-      AMQHash_hashstate_available_capacity hashes l.+1 ->
-      all (AMQHash_hashstate_unseen hashes) (x::xs) ->
-      (d[ res1 <-$ AMQ_add amq hashes x;
+    Axiom AMQ_no_false_negatives:
+      forall (l:nat_eqType) (x:AMQHashKey) (xs: seq AMQHashKey),
+        uniq (x :: xs) -> length xs == l ->
+
+        AMQ_valid amq -> AMQ_available_capacity amq l.+1 ->
+
+        AMQHash_hashstate_valid hashes ->
+        AMQHash_hashstate_available_capacity hashes l.+1 ->
+
+        all (AMQHash_hashstate_unseen hashes) (x::xs) ->
+        (d[ res1 <-$ AMQ_add amq hashes x;
           let '(hsh1, amq1) := res1 in
           res2 <-$ AMQ_add_multiple hsh1 amq1 xs;
             let '(hsh2, amq2) := res2 in
@@ -362,7 +574,11 @@ Module Type AMQProperties (AmqHash: AMQHASH) (AbstractAMQ: AMQ AmqHash) .
               ret (snd res3) ] true) = (1 %R).
 
     Axiom AMQ_false_positives_rate: forall  l value (values: seq _),
-        length values == l -> AMQHash_hashstate_available_capacity hashes (l.+1) ->
+        length values == l ->
+
+        AMQHash_hashstate_valid hashes ->
+        AMQHash_hashstate_available_capacity hashes (l.+1) ->
+
         all (AMQHash_hashstate_unseen hashes) (value::values) ->
         uniq (value::values) ->
         d[ 
@@ -472,7 +688,8 @@ Module AMQPropertyMap (AmqHash: AMQHASH) (A: AMQ AmqHash) (B: AMQ AmqHash) (Map:
                                                  ret (new_hashes, B.AMQ_add_internal bf' hash_vec)]) (hshs',bf) )) => //=.
             move=>-> //=.
             have ->: ((index_enum (AmqHash.AMQHash h))) = (index_enum [finType of AmqHash.AMQHash h]); last by apply f_equal => //=.
-              by clear;  rewrite/index_enum //= -AmqHash.finType_AMQHash //=.
+              by rewrite index_enum_simpl.
+
             }
             under eq_bigr =>  bf' _. {
               rewrite exchange_big //=.
@@ -486,12 +703,12 @@ Module AMQPropertyMap (AmqHash: AMQHASH) (A: AMQ AmqHash) (B: AMQ AmqHash) (Map:
           rewrite -big_distrl //= mulRC.
           rewrite [_ *R* f _ _]mulRC; apply f_equal.
           under eq_bigr => ? ? do rewrite FDistBind.dE; rewrite exchange_big //= rsum_split //=.
-          apply Logic.eq_sym.
+           apply Logic.eq_sym.
           under eq_bigr => bf' _ do (rewrite (@rsum_pred_demote [finType of _]); under eq_bigr => hshs'' _ do rewrite (@rsum_Rmul_distr_l [finType of _])).
           exchange_big_outwards 1 => //=.
           exchange_big_outwards 2 => //=.
-          have ->: ((index_enum (AmqHash.AMQHash h))) = (index_enum [finType of AmqHash.AMQHash h]); first by clear;  rewrite/index_enum //= -AmqHash.finType_AMQHash //=.
-          have ->: ((index_enum (A.AMQState s))) = (index_enum [finType of A.AMQState s]); first by clear;  rewrite/index_enum //= -A.finType_AMQState //=.
+          have ->: ((index_enum (AmqHash.AMQHash h))) = (index_enum [finType of AmqHash.AMQHash h]); first by clear;  rewrite index_enum_simpl //=.
+          have ->: ((index_enum (A.AMQState s))) = (index_enum [finType of A.AMQState s]); first by clear;  rewrite index_enum_simpl //=.
           apply eq_bigr => inds' _; apply eq_bigr => cbf' _. rewrite -eqE.
           under eq_bigr do rewrite mulRC [_ *R* (d[ _ ]) _]mulRC -mulRA.
           rewrite -rsum_Rmul_distr_l; apply Logic.eq_sym.
@@ -520,7 +737,11 @@ Module AMQPropertyMap (AmqHash: AMQHASH) (A: AMQ AmqHash) (B: AMQ AmqHash) (Map:
 
     Theorem AMQ_no_false_negatives (hashes: AmqHash.AMQHash h)  (amq: A.AMQState s) l x xs:
       uniq (x :: xs) -> length xs == l ->
+      A.AMQ_valid amq -> A.AMQ_available_capacity amq l.+1 ->
+
+      AmqHash.AMQHash_hashstate_valid hashes ->
       AmqHash.AMQHash_hashstate_available_capacity hashes l.+1 ->
+
       all (AmqHash.AMQHash_hashstate_unseen hashes) (x::xs) ->
       (d[ res1 <-$ AmqOperations.AMQ_add amq hashes x;
           let '(hsh1, amq1) := res1 in
@@ -529,22 +750,20 @@ Module AMQPropertyMap (AmqHash: AMQHASH) (A: AMQ AmqHash) (B: AMQ AmqHash) (Map:
             res3 <-$ AmqOperations.AMQ_query amq2 hsh2 x;
               ret (snd res3) ] true) = (1 %R).
     Proof.
-      move=> Huniq Hlen Havail Hall.
-      comp_normalize; comp_simplify_n 2.
-      exchange_big_outwards 5 => //=; comp_simplify_n 1.
-      exchange_big_outwards 4 => //=; comp_simplify_n 1.
+      by apply (AmqOperations.AMQ_no_false_negatives).
+    Qed.
 
-      have ->: ((index_enum (AmqHash.AMQHash h))) = (index_enum [finType of AmqHash.AMQHash h]); first by clear;  rewrite/index_enum //= -AmqHash.finType_AMQHash //=.
-      move: Hall => //=/andP[Hallx Hall].
-      exchange_big_outwards 2 => //=; exchange_big_inwards ltac:(rewrite AmqHashProperties.AMQHash_hash_unseen_simplE //= mulRA [(AmqHash.AMQHash_probability h) *R* _]mulRC -!mulRA).
-    Admitted.
-    
+    Theorem AMQ_false_positives_rate
+            (hashes: AmqHash.AMQHash h)  l value (values: seq _):
+
+      length values == l ->
+
+        AmqHash.AMQHash_hashstate_valid hashes ->
+        AmqHash.AMQHash_hashstate_available_capacity hashes (l.+1) ->
 
 
-    Theorem AMQ_false_positives_rate (hashes: AmqHash.AMQHash h)  l value (values: seq _):
-        length values == l -> AmqHash.AMQHash_hashstate_available_capacity hashes (l.+1) ->
-        all (AmqHash.AMQHash_hashstate_unseen hashes) (value::values) ->
-        uniq (value::values) ->
+      all (AmqHash.AMQHash_hashstate_unseen hashes) (value::values) ->
+      uniq (value::values) ->
         d[ 
             res1 <-$ AmqOperations.AMQ_query (A.AMQ_new s) hashes value;
               let (hashes1, init_query_res) := res1 in
@@ -555,7 +774,7 @@ Module AMQPropertyMap (AmqHash: AMQHASH) (A: AMQ AmqHash) (B: AMQ AmqHash) (Map:
           ] true = AMQ_false_positive_probability  l.
       Admitted.
     End PropertyMap.
-  
+
 End AMQPropertyMap.
 
 
