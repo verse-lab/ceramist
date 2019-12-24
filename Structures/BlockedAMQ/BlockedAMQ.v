@@ -182,29 +182,26 @@ Module Type AMQ (AMQHash: AMQHASH).
       Variable amq: AMQState p.
 
       Axiom AMQ_available_capacityW: forall  n m,
-          AMQ_valid amq -> m <= n -> AMQ_available_capacity h amq n -> AMQ_available_capacity h amq m.
+          AMQ_valid amq -> m <= n ->
+          AMQ_available_capacity h amq n ->
+          AMQ_available_capacity h amq m.
 
       Axiom AMQ_add_query_base: forall (amq: AMQState p) inds,
           AMQ_valid amq -> AMQ_available_capacity h amq 1 ->
           AMQ_query_internal (AMQ_add_internal amq inds) inds.
 
+      Axiom AMQ_add_query_preserve: forall (amq: AMQState p) inds inds',
+          AMQ_valid amq -> AMQ_available_capacity h amq 1 ->
+          AMQ_query_internal amq inds ->
+          AMQ_query_internal (AMQ_add_internal amq inds') inds.
+
       Axiom AMQ_add_valid_preserve: forall (amq: AMQState p) inds,
           AMQ_valid amq -> AMQ_available_capacity h amq 1 ->
           AMQ_valid (AMQ_add_internal amq inds).
 
-      Axiom AMQ_add_query_preserve: forall (amq: AMQState p) inds inds',
-          AMQ_valid amq -> AMQ_available_capacity h amq 1 -> AMQ_query_internal amq inds ->
-          AMQ_query_internal (AMQ_add_internal amq inds') inds.
-
       Axiom AMQ_add_capacity_decr: forall (amq: AMQState p) inds l,
           AMQ_valid amq -> AMQ_available_capacity h amq l.+1 ->
           AMQ_available_capacity h (AMQ_add_internal amq inds) l.
-      
-      Axiom AMQ_query_valid_preserve: forall (amq: AMQState p) inds,
-          AMQ_valid amq -> AMQ_valid (AMQ_add_internal amq inds).
-
-      Axiom AMQ_query_capacity_preserve: forall (amq: AMQState p) inds l,
-          AMQ_valid amq -> AMQ_available_capacity h amq l.+1 -> AMQ_available_capacity h (AMQ_add_internal amq inds) l.
 
     End DeterministicProperties.
   End AMQ.
@@ -1684,30 +1681,8 @@ Module QuotientFilterAMQ (QSpec: QuotientFilterSpec).
       Qed.
       
 
-      Lemma AMQ_query_capacity_preserve: forall (amq: AMQState p) inds l,
-          AMQ_valid amq -> AMQ_available_capacity h amq l.+1 -> AMQ_available_capacity h (AMQ_add_internal amq inds) l.
-      Proof.
-        move=> amq' ind l Hvalid Hcap.
-        rewrite /AMQ_available_capacity in Hcap.
-        have Hobv: 0 < h.+1 * l.+1; first by rewrite muln_gt0; apply/andP;split => //=.
-        move: (@quotientfilter_add_preserve
-                 _ Hobv amq'
-                 (quotientfilter_add_internal ind amq')
-                 ind Hvalid Hcap
-                 (Logic.eq_refl
-                    (quotientfilter_add_internal ind amq'))
-              ) => /andP [_ ].
-
-        rewrite/AMQ_available_capacity.
-        rewrite mulnS addnC addnS -pred_Sn.
-        move=>/allP Hvv; apply/allP => v Hv; move: (Hvv v Hv).
-        by rewrite addnA =>/leq_addr_weaken.
-      Qed.
-      
-
 
     End DeterministicProperties.
   End AMQ.
-
-End AMQ.
-
+  End AMQ.
+End QuotientFilterAMQ.
