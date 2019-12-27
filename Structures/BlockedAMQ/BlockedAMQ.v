@@ -54,14 +54,9 @@ Module Type AMQHASH.
     Variable p: AMQHashParams. 
     Parameter AMQHash_probability:  AMQHashParams -> Rdefinitions.R.
 
-    Section HashProbability.
+    Axiom AMQHash_hash_prob_valid:
+        \sum_(v in  AMQHashValue p) (AMQHash_probability p) = 1.
 
-      Variable h: AMQHashParams.
-
-      Axiom AMQHash_hash_prob_valid:
-        \sum_(v in  AMQHashValue h) (AMQHash_probability h) = 1.
-
-    End HashProbability.
 
     Parameter AMQHash_hashstate_put : AMQHash p -> AMQHashKey -> AMQHashValue p -> AMQHash p.
 
@@ -107,7 +102,7 @@ Module Type AMQHASH.
           AMQHash_hashstate_available_capacity hashstate 1 -> 
           AMQHash_hashstate_valid (AMQHash_hashstate_put  hashstate key value).
 
-      Axiom AMQHash_hashstate_unseenE: forall (hashstate': AMQHash p) (key key': AMQHashKey) (value value': AMQHashValue p),
+      Axiom AMQHash_hashstate_unseenE: forall (hashstate': AMQHash p) (key key': AMQHashKey) (value': AMQHashValue p),
           key != key' ->
           AMQHash_hashstate_unseen hashstate key ->
           hashstate' = AMQHash_hashstate_put hashstate key' value' ->
@@ -1079,14 +1074,14 @@ Module BasicHash (Spec:HashSpec) <: AMQHASH.
         
       Lemma AMQHash_hashstate_unseenE: forall
           (hashstate': AMQHash p) (key key': AMQHashKey)
-          (value value': AMQHashValue p),
+          (value': AMQHashValue p),
           key != key' ->
           AMQHash_hashstate_unseen hashstate key ->
           hashstate' = AMQHash_hashstate_put hashstate key' value' ->
           AMQHash_hashstate_unseen hashstate' key.
       Proof.
         rewrite/AMQHashKey/AMQHashValue/AMQHash_hashstate_valid/AMQHash_hashstate_contains/AMQHash_hashstate_find/AMQHash_hashstate_unseen //=.
-        move=> hashstate' key key' ind value' Hkey Hfind ->.
+        move=> hashstate' key key' value' Hkey Hfind ->.
         rewrite /AMQHash_hashstate_put/  Hash.hashstate_find/  Hash.hashstate_put.
         apply fixmap_find_neq => //=.
       Qed.
@@ -1253,13 +1248,13 @@ Module BasicHashVec  (Spec:HashSpec) <: AMQHASH.
       Qed.
         
 
-      Lemma AMQHash_hashstate_unseenE: forall (hashstate': AMQHash p) (key key': AMQHashKey) (value value': AMQHashValue p),
+      Lemma AMQHash_hashstate_unseenE: forall (hashstate': AMQHash p) (key key': AMQHashKey) (value': AMQHashValue p),
           key != key' ->
           AMQHash_hashstate_unseen hashstate key ->
           hashstate' = AMQHash_hashstate_put hashstate key' value' ->
           AMQHash_hashstate_unseen hashstate' key.
       Proof.
-        move=>hsh key key' _ value' Hkneq /allP Hunseen ->//=.
+        move=>hsh key key' value' Hkneq /allP Hunseen ->//=.
         apply/allP => v /mapP [[v' ind']]//=/mem_zip/andP[Hv' Hind']->.
         move: (Hunseen v' Hv').
         apply fixmap_find_neq => //=.
@@ -1686,3 +1681,297 @@ Module QuotientFilterAMQ (QSpec: QuotientFilterSpec).
   End AMQ.
   End AMQ.
 End QuotientFilterAMQ.
+
+
+Module Type BlockedAMQSpec.
+
+  (** number of blocks(amqs) in Blocked AMQ - 1 *)
+  Parameter n:nat.
+  Parameter Hngt0: n > 0.
+
+End BlockedAMQSpec.
+
+Module BlockedAMQHash (Spec:  BlockedAMQSpec) (AmqHash: AMQHASH) <: AMQHASH.
+  Module AmqHashProperties := AMQHashProperties AmqHash.
+
+  Module BasicMetaHashSpec <: HashSpec.
+    Definition B := AmqHash.AMQHashKey.
+    Definition Hash_size := Spec.n.
+  End BasicMetaHashSpec.
+
+  Module BasicMetaHash <: AMQHASH := BasicHash (BasicMetaHashSpec).
+  Module BasicMetaHashProperties := AMQHashProperties BasicMetaHash.
+
+  Definition AMQHashKey := AmqHash.AMQHashKey.
+  Definition AMQHashParams :=
+    (BasicMetaHash.AMQHashParams * AmqHash.AMQHashParams)%type.
+  
+
+  Definition AMQHashValue p :=
+    [finType of (BasicMetaHash.AMQHashValue p.1 * AmqHash.AMQHashValue p.2)%type].
+
+  Definition AMQHash p :=
+    [finType of
+             BasicMetaHash.Hash.HashState p.1 *
+     Spec.n.+1.-tuple (AmqHash.AMQHash p.2)
+    ].
+
+  Section AMQHash.
+    Variable p: AMQHashParams. 
+
+    Definition AMQHash_probability p :=
+      (BasicMetaHash.AMQHash_probability p.1 *R* AmqHash.AMQHash_probability p.2).
+
+    Lemma AMQHash_hash_prob_valid:
+        \sum_(v in  AMQHashValue p) (AMQHash_probability p) = 1.
+    Proof.
+        rewrite/AMQHashValue/AMQHash_probability rsum_split //=.
+        rewrite -big_distrlr //=.
+        rewrite BasicMetaHash.AMQHash_hash_prob_valid mul1R.
+        rewrite AmqHash.AMQHash_hash_prob_valid //=.
+    Qed.
+      
+    Definition AMQHash_hashstate_put
+               (hashstate: AMQHash p) (key: AMQHashKey) (value: AMQHashValue p): AMQHash p :=
+      (BasicMetaHash.AMQHash_hashstate_put hashstate.1 key value.1 ,
+       set_tnth
+         hashstate.2
+         (AmqHash.AMQHash_hashstate_put (tnth hashstate.2 value.1) key value.2)
+         value.1
+      ).
+
+    (* boolean properties of hash states*)
+    Definition AMQHash_hashstate_available_capacity (hashstate: AMQHash p) (l: nat): bool :=
+      BasicMetaHash.AMQHash_hashstate_available_capacity
+        hashstate.1 l
+        && all (fun hsh => AmqHash.AMQHash_hashstate_available_capacity hsh l) hashstate.2.
+                                                         
+    Definition AMQHash_hashstate_valid (hashstate: AMQHash p) : bool :=
+      BasicMetaHash.AMQHash_hashstate_valid
+        hashstate.1 
+        && all (fun hsh => AmqHash.AMQHash_hashstate_valid hsh) hashstate.2.
+
+    Definition AMQHash_hashstate_contains
+               (hashstate: AMQHash p) (key: AMQHashKey) (value: AMQHashValue p) : bool :=
+      (BasicMetaHash.AMQHash_hashstate_contains hashstate.1 key value.1 && 
+         (AmqHash.AMQHash_hashstate_contains (tnth hashstate.2 value.1) key value.2)
+      ).
+
+    Definition AMQHash_hashstate_unseen (hashstate: AMQHash p) (key: AMQHashKey) : bool :=
+      (BasicMetaHash.AMQHash_hashstate_unseen hashstate.1 key && 
+         (all (fun hsh => AmqHash.AMQHash_hashstate_unseen hsh key) hashstate.2)
+      ).
+
+    (* probabilistic hash operation*)
+    Definition AMQHash_hash
+               (hashstate: AMQHash p) (key: AMQHashKey) : Comp [finType of (AMQHash p * AMQHashValue p)] :=
+    res <-$ BasicMetaHash.Hash.hash _ key hashstate.1;
+      let (meta_hash_state',value1) := res in
+      let block_hash_state := tnth hashstate.2 value1 in
+      res' <-$ AmqHash.AMQHash_hash block_hash_state key;
+      let (block_hash_state',ind') := res' in
+      let block_hashes := set_tnth
+                            hashstate.2
+                            block_hash_state'
+                            value1 in
+      let hash_state' := (meta_hash_state', block_hashes) in
+      ret (hash_state', (value1,ind')).
+
+    (* properties of deterministic hash state operations *)
+    Section DeterministicOperations.
+
+      Variable hashstate: AMQHash p.
+
+
+      Lemma AMQHash_hashstate_available_capacityW:
+        forall n m, m <= n ->
+                    AMQHash_hashstate_valid hashstate ->
+                    AMQHash_hashstate_available_capacity hashstate n ->
+                    AMQHash_hashstate_available_capacity hashstate m.
+      Proof.
+        move=> n m Hnm.
+        move=>/andP [H1 H2] /andP[H1' H2']; apply/andP; split.
+        - by apply BasicMetaHash.AMQHash_hashstate_available_capacityW with (n:=n) => //=.
+        - apply /allP => v Hv; move/allP: H2' => /(_ v Hv) H2'; move/allP: H2 => /(_ v Hv) H2.
+          by apply AmqHash.AMQHash_hashstate_available_capacityW with (n:=n) => //=.
+      Qed.
+          
+      Lemma AMQHash_hashstate_available_capacity_decr: forall l key value,
+          AMQHash_hashstate_valid hashstate ->
+          AMQHash_hashstate_available_capacity hashstate l.+1 ->
+          AMQHash_hashstate_available_capacity (AMQHash_hashstate_put hashstate key value) l.
+      Proof.
+        move => l key value.
+        move=> /andP [H1 /allP H2] /andP [H1' /allP H2']; apply/andP;split.
+        - by apply BasicMetaHash.AMQHash_hashstate_available_capacity_decr with (l:=l) => //=.
+        - apply/allP => v /tnthP [ind ->]; clear v.
+          case Hindeq: (ind == value.1).
+          move/eqP:Hindeq ->; rewrite tnth_set_nth_eq //=.
+          apply AmqHash.AMQHash_hashstate_available_capacity_decr => //=.
+          apply H2; apply mem_tnth.
+          apply H2'; apply mem_tnth.
+          rewrite tnth_set_nth_neq; last by move/Bool.negb_true_iff:Hindeq.
+          apply AmqHash.AMQHash_hashstate_available_capacityW with (n:=l.+1) => //=.
+          apply H2; apply mem_tnth.
+          apply H2'; apply mem_tnth.
+      Qed.
+      
+      Lemma  AMQHash_hashstate_add_contains_preserve:
+        forall (key key': AMQHashKey) (value value': AMQHashValue p),
+          AMQHash_hashstate_valid hashstate ->
+          AMQHash_hashstate_available_capacity hashstate 1 -> 
+          key != key' -> AMQHash_hashstate_contains hashstate key value ->
+          AMQHash_hashstate_contains (AMQHash_hashstate_put  hashstate key' value') key value.
+      Proof.
+        move=> key key' value value' /andP[H1 /allP H2] /andP[H1' /allP H2'] Hneq /andP[H1''  H2''].
+        apply/andP;split.
+        - by apply BasicMetaHash.AMQHash_hashstate_add_contains_preserve => //=.
+        - rewrite/AMQHash_hashstate_put.
+          case Hvaleq: (value.1 == value'.1).
+          - rewrite tnth_set_nth_eq //=.
+            apply AmqHash.AMQHash_hashstate_add_contains_preserve => //=.
+            apply H2; apply mem_tnth.
+            apply H2'; apply mem_tnth.
+            by move/eqP:Hvaleq <-.
+          - rewrite tnth_set_nth_neq //=; last by move/Bool.negb_true_iff:Hvaleq.
+      Qed.
+          
+      Lemma  AMQHash_hashstate_add_contains_base: forall (key: AMQHashKey) (value: AMQHashValue p),
+          AMQHash_hashstate_valid hashstate ->
+          AMQHash_hashstate_available_capacity hashstate 1 ->
+          AMQHash_hashstate_contains (AMQHash_hashstate_put  hashstate key value) key value.
+      Proof.
+        move=> key  value /andP[H1 /allP H2] /andP[H1' /allP H2'].
+        apply/andP;split.
+        - by apply BasicMetaHash.AMQHash_hashstate_add_contains_base => //=.
+        - rewrite/AMQHash_hashstate_put.
+          rewrite tnth_set_nth_eq //=.
+          apply AmqHash.AMQHash_hashstate_add_contains_base => //=.
+            apply H2; apply mem_tnth.
+            apply H2'; apply mem_tnth.
+      Qed.
+      
+      Lemma AMQHash_hashstate_add_valid_preserve: forall (key: AMQHashKey) (value: AMQHashValue p), 
+          AMQHash_hashstate_valid hashstate ->
+          AMQHash_hashstate_available_capacity hashstate 1 -> 
+          AMQHash_hashstate_valid (AMQHash_hashstate_put  hashstate key value).
+      Proof.
+        move=> key  value /andP[H1 /allP H2] /andP[H1' /allP H2'].
+        apply/andP;split.
+        - by apply BasicMetaHash.AMQHash_hashstate_add_valid_preserve => //=.
+        - apply/allP => v /tnthP [ind ->]; clear v.
+          case Hindeq: (ind == value.1).
+          move/eqP:Hindeq ->; rewrite tnth_set_nth_eq //=.
+          apply AmqHash.AMQHash_hashstate_add_valid_preserve => //=.
+          apply H2; apply mem_tnth.
+          apply H2'; apply mem_tnth.
+          rewrite tnth_set_nth_neq; last by move/Bool.negb_true_iff:Hindeq.
+          apply H2; apply mem_tnth.
+      Qed.
+      
+
+      Lemma AMQHash_hashstate_unseenE: forall (hashstate': AMQHash p) (key key': AMQHashKey) (value': AMQHashValue p),
+          key != key' ->
+          AMQHash_hashstate_unseen hashstate key ->
+          hashstate' = AMQHash_hashstate_put hashstate key' value' ->
+          AMQHash_hashstate_unseen hashstate' key.
+      Proof.
+        move=> hashstate' key key' value' Hneq /andP[H1 /allP H2]  ->; clear hashstate'.
+        apply/andP;split.
+        - apply BasicMetaHash.AMQHash_hashstate_unseenE with
+              (hashstate := hashstate.1)
+              (key':=key') (value':=value'.1)
+          => //=.
+        - apply/allP => v /tnthP [ind ->]; clear v.
+          case Hindeq: (ind == value'.1).
+          move/eqP:Hindeq ->; rewrite tnth_set_nth_eq //=.
+          apply AmqHash.AMQHash_hashstate_unseenE with
+          (hashstate:=tnth hashstate.2 value'.1) (key':=key') (value':=value'.2)=> //=.
+          apply H2; apply mem_tnth.
+          rewrite tnth_set_nth_neq; last by move/Bool.negb_true_iff:Hindeq.
+          apply H2; apply mem_tnth.
+      Qed.
+
+    End DeterministicOperations.
+
+    
+    Lemma  AMQHash_hash_unseen_insert_eqE:
+      forall (hashstate hashstate': AMQHash p) (key: AMQHashKey) (value: AMQHashValue p),
+        AMQHash_hashstate_unseen hashstate key -> hashstate' = AMQHash_hashstate_put hashstate key value ->
+        d[ AMQHash_hash hashstate key ] (hashstate', value) = AMQHash_probability p.
+    Proof.
+      move=> hs hs' key [value1 value2] /andP[H1 /allP H2] ->; comp_normalize.
+      exchange_big_inwards ltac:(rewrite BasicMetaHashProperties.AMQHash_hash_unseen_simplE; try by []).
+      under_all ltac:(rewrite mulRA [BasicMetaHash.AMQHash_probability p.1 *R* _]mulRC -!mulRA).
+      under eq_bigr => value' _. {
+        move: (H2 _ (mem_tnth value' hs.2)) => H2'.
+        rewrite exchange_big //=; under eq_bigr => value'' _.
+        rewrite index_enum_simpl AmqHashProperties.AMQHash_hash_unseen_simplE; try by [].
+        rewrite mulRA !xpair_eqE !boolR_distr //=.
+        by over. by over.
+      }
+      move=> //=.
+      comp_simplify_n 2.
+      by rewrite !eq_refl //= mul1R mulR1 //=/AMQHash_probability mulRC.
+    Qed.
+    
+
+    Lemma  AMQHash_hash_unseen_insert_neqE:
+      forall (hashstate hashstate': AMQHash p) (key: AMQHashKey) (value: AMQHashValue p),
+        AMQHash_hashstate_unseen hashstate key -> hashstate' != AMQHash_hashstate_put hashstate key value ->
+        d[ AMQHash_hash hashstate key ] (hashstate', value) = 0.
+    Proof.
+      move=> hs hs' key [value1 value2] /andP[H1 /allP H2] Hneq; comp_normalize.
+      exchange_big_inwards ltac:(rewrite BasicMetaHashProperties.AMQHash_hash_unseen_simplE; try by []).
+      under_all ltac:(rewrite mulRA [BasicMetaHash.AMQHash_probability p.1 *R* _]mulRC -!mulRA).
+      under eq_bigr => value' _. {
+        move: (H2 _ (mem_tnth value' hs.2)) => H2'.
+        rewrite exchange_big //=; under eq_bigr => value'' _.
+        rewrite index_enum_simpl AmqHashProperties.AMQHash_hash_unseen_simplE; try by [].
+        rewrite mulRA !xpair_eqE !boolR_distr //=.
+        by over. by over.
+      }
+      comp_simplify_n 2.
+      move: hs' Hneq => [hs'1 hs'2] //=; rewrite/AMQHash_hashstate_put xpair_eqE Bool.negb_andb
+                                    =>/orP[] /Bool.negb_true_iff -> //=;
+      by rewrite ?(mul0R , mulR0).
+    Qed.
+
+    Lemma AMQHash_hash_seen_insertE:
+      forall (hashstate hashstate': AMQHash p) (key: AMQHashKey) (value value': AMQHashValue p),
+        AMQHash_hashstate_contains hashstate key value ->
+        d[ AMQHash_hash hashstate key ] (hashstate', value') =
+        ((hashstate' == hashstate) && (value' == value)).
+    Proof.
+      move=> [hs1 hs2] [hs'1 hs'2] key [value1 value2] [value'1 value'2] //= /andP[ //= H1  H2]; comp_normalize.
+      under_all ltac:(
+        rewrite (@BasicMetaHash.AMQHash_hash_seen_insertE _ _ _ _ value1); try by []
+      ).
+      under_all ltac:(rewrite  -RIneq.INR_IZR_INZ  boolR_distr).
+      comp_simplify_n 2.
+      under_all ltac:(
+        rewrite (@AmqHash.AMQHash_hash_seen_insertE _ _ _ _ value2); try by []
+      ).
+      under_all ltac:(rewrite  -RIneq.INR_IZR_INZ  boolR_distr).
+      comp_simplify_n 2.
+      rewrite !xpair_eqE .
+      rewrite -RIneq.INR_IZR_INZ //=; apply f_equal.
+      apply f_equal.
+      rewrite -!andbA; do ?apply f_equal.
+      rewrite andbC; rewrite [RHS]andbC; do ?apply f_equal; apply Logic.eq_sym.
+      apply eq_from_tnth => ind.
+      case Hvalueq: (ind == value1).
+      rewrite tnth_set_nth_eq => //=; first by move/eqP:Hvalueq ->.
+      rewrite tnth_set_nth_neq => //=; last by move/Bool.negb_true_iff:Hvalueq.
+    Qed.
+  
+  End AMQHash.    
+
+End BlockedAMQHash.
+
+
+
+  
+End BlockedAMQ.
+
+
