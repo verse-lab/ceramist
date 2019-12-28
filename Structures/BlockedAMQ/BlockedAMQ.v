@@ -542,24 +542,27 @@ Module Type AMQProperties (AmqHash: AMQHASH) (AbstractAMQ: AMQ AmqHash) .
     Variable s: AMQStateParams.
 
     Variable hashes: AMQHash h.
-    Variable amq: AMQState s.
 
-    Axiom AMQ_no_false_negatives:
-      forall (l:nat_eqType) (x:AMQHashKey) (xs: seq AMQHashKey),
-        uniq (x :: xs) -> length xs == l ->
+    Section FalseNegatives.
 
-        AMQ_valid amq -> AMQ_available_capacity h amq l.+1 ->
+      Variable amq: AMQState s.
 
-        AMQHash_hashstate_valid hashes ->
-        AMQHash_hashstate_available_capacity hashes l.+1 ->
+      Axiom AMQ_no_false_negatives:
+        forall (l:nat_eqType) (x:AMQHashKey) (xs: seq AMQHashKey),
+          uniq (x :: xs) -> length xs == l ->
 
-        all (AMQHash_hashstate_unseen hashes) (x::xs) ->
-        (d[ res1 <-$ AMQ_add amq hashes x;
-              let '(hsh1, amq1) := res1 in
-              res2 <-$ AMQ_add_multiple hsh1 amq1 xs;
-                let '(hsh2, amq2) := res2 in
-                res3 <-$ AMQ_query amq2 hsh2 x;
-                  ret (snd res3) ] true) = (1 %R).
+          AMQ_valid amq -> AMQ_available_capacity h amq l.+1 ->
+
+          AMQHash_hashstate_valid hashes ->
+          AMQHash_hashstate_available_capacity hashes l.+1 ->
+          all (AMQHash_hashstate_unseen hashes) (x::xs) ->
+          (d[ res1 <-$ AMQ_add amq hashes x;
+                let '(hsh1, amq1) := res1 in
+                res2 <-$ AMQ_add_multiple hsh1 amq1 xs;
+                  let '(hsh2, amq2) := res2 in
+                  res3 <-$ AMQ_query amq2 hsh2 x;
+                    ret (snd res3) ] true) = (1 %R).
+    End FalseNegatives.
 
     Axiom AMQ_false_positives_rate: forall  l value (values: seq _),
         length values == l ->
@@ -2121,29 +2124,31 @@ Module BlockedAMQ
     Variable s: AMQStateParams.
 
     Variable hashes: AMQHash h.
-    Variable amq: AMQState s.
 
-    Lemma AMQ_no_false_negatives:
-      forall (l:nat_eqType) (x:AMQHashKey) (xs: seq AMQHashKey),
-        uniq (x :: xs) -> length xs == l ->
+    Section NoFalseNegatives.
+      
+      Variable amq: AMQState s.
 
-        AMQ_valid amq -> AMQ_available_capacity h amq l.+1 ->
+      Lemma AMQ_no_false_negatives:
+        forall (l:nat_eqType) (x:AMQHashKey) (xs: seq AMQHashKey),
+          uniq (x :: xs) -> length xs == l ->
+          AMQ_valid amq -> AMQ_available_capacity h amq l.+1 ->
+          AMQHash_hashstate_valid hashes ->
+          AMQHash_hashstate_available_capacity hashes l.+1 ->
+          all (AMQHash_hashstate_unseen hashes) (x::xs) ->
+          (d[ res1 <-$ AMQ_add amq hashes x;
+                let '(hsh1, amq1) := res1 in
+                res2 <-$ AMQ_add_multiple hsh1 amq1 xs;
+                  let '(hsh2, amq2) := res2 in
+                  res3 <-$ AMQ_query amq2 hsh2 x;
+                    ret (snd res3) ] true) = (1 %R).
+      Proof.
+          by apply AmqOperations.AMQ_no_false_negatives.
+      Qed.
 
-        AMQHash_hashstate_valid hashes ->
-        AMQHash_hashstate_available_capacity hashes l.+1 ->
+    End NoFalseNegatives.
 
-        all (AMQHash_hashstate_unseen hashes) (x::xs) ->
-        (d[ res1 <-$ AMQ_add amq hashes x;
-              let '(hsh1, amq1) := res1 in
-              res2 <-$ AMQ_add_multiple hsh1 amq1 xs;
-                let '(hsh2, amq2) := res2 in
-                res3 <-$ AMQ_query amq2 hsh2 x;
-                  ret (snd res3) ] true) = (1 %R).
-    Proof.
-      by apply AmqOperations.AMQ_no_false_negatives.
-    Qed.
-
-    Theorem AMQ_false_positives_rate: forall  l value (values: seq _),
+    Theorem AMQ_false_positives_rate: forall  (l:nat) value (values: seq _),
         length values == l ->
 
         AMQHash_hashstate_valid hashes ->
@@ -2163,17 +2168,9 @@ Module BlockedAMQ
           ] true = AMQ_false_positive_probability h s l.
     Proof.
 
-      
-    Qed.
-    
-      
+    Admitted.
 
   End Properties.
-
-  
-
-  
 End  BlockedAMQProperties.
-
 End BlockedAMQ.
 
