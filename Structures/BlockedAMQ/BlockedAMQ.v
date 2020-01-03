@@ -3039,8 +3039,24 @@ Module BlockedAMQ
               by rewrite -cardE Hsz eq_refl.
       Qed.
 
-        
 
+
+      Lemma binomial_pred_eq (m p q: nat) (i:m.-tuple ('I_p.+1)) val:
+        size [seq x | x <- i & x == val] == q =
+       (@binomial_tuple_pred m p q val (binomial_tuple_split_intf q val (inl i))).
+      Proof.
+        apply Logic.eq_sym.
+        case Hsz: ((size [seq x | x <- i & x == val] == q)); last first.
+        - {
+            move=> //=; move: (erefl _ ); rewrite {2 3}Hsz //=.
+          }
+        - {
+            move=> //=; move: (erefl _ ); rewrite {2 3}Hsz //=.
+            move=> Hsz'.
+            by move: (binomial_tuple_split_propertiesE Hsz') => //=.
+          }
+      Qed.
+      
 
           
 
@@ -3059,31 +3075,116 @@ Module BlockedAMQ
         rewrite -big_distrl //= mulRC; apply Logic.eq_sym.
         rewrite mulRC [(Rdefinitions.Rinv (#|'I_p.+1| %R) ^R^ q) *R* _]mulRC [_ *R* c]mulRC -!mulRA.
         apply f_equal. apply Logic.eq_sym.
+        under eq_bigl do rewrite  binomial_pred_eq.
 
-        rewrite (@partition_big _ _ _ _ _ _ (@binomial_tuple_split_intf m p q ind)
-                                (@binomial_tuple_pred m p q ind)) //=.
-        rewrite -big_image_id //=.
-        rewrite big_image //=.
-        under eq_bigr => i Hi.
-        erewrite reindex; last first.
-        esplit.
-        move=> x.
+        rewrite index_enum_simpl.
+        move: (@reindex Rdefinitions.R Rdefinitions.R0 (addR_comoid)
+                           [finType of  m.-tuple ('I_p.+1) + unit]
+                           [finType of  m.-tuple ('I_p.+1)]
+                           inl
+                           (fun i =>
+                              binomial_tuple_pred ind (binomial_tuple_split_intf q ind i)
+                           )
+                           (fun _ => (Rdefinitions.Rinv (#|'I_p.+1| %R) ^R^ m))
+                 ) => //=.
+        move=> <-; last first.
+        exists (fun (x: [finType of  m.-tuple ('I_p.+1) + unit])  => match x with
+                                                             | inl x => x
+                                                             | inr x => nseq_tuple m ind
+                                                                     end).
+        {
+          by move=> x //=.         
+        }
+        {
+          move=> x; rewrite unfold_in //=; move: x.
+          by move=> [] //=.
+        }
+        move: (@reindex Rdefinitions.R Rdefinitions.R0 (addR_comoid)
+                        [finType of {set 'I_m} * q.-tuple 'I_p.+1 * (m - q).-tuple 'I_p.+1 + unit]
+                           [finType of  m.-tuple ('I_p.+1) + unit]
+                           (@binomial_tuple_split_intf m p q ind)
+                           (fun i =>
+                              binomial_tuple_pred ind i
+                           )
+                           (fun _ => (Rdefinitions.Rinv (#|'I_p.+1| %R) ^R^ m))
+                           (@binomial_split_bijective m p q ind)
+                 ) => //= <-.
+        move: (@reindex Rdefinitions.R Rdefinitions.R0 (addR_comoid)
+                        [finType of {set 'I_m} * q.-tuple 'I_p.+1 * (m - q).-tuple 'I_p.+1 + unit]
+                        [finType of {set 'I_m} * q.-tuple 'I_p.+1 * (m - q).-tuple 'I_p.+1]
+                        inl
+                           (fun i =>
+                              binomial_tuple_pred ind i
+                           )
+                           (fun _ => (Rdefinitions.Rinv (#|'I_p.+1| %R) ^R^ m))
+                           
+                 ) => //= ->; last first.
+        exists (fun x => match x with
+                         | inl x => x
+                         | inr x => (set0, nseq_tuple q ind, nseq_tuple (m - q) ind)
+                         end).
+        {
+          by move=> x //=.         
+        }
+        {
+          move=> x; rewrite unfold_in //=; move: x.
+          by move=> [] //=.
+        }
+        rewrite rsum_pred_demote rsum_split rsum_split //=.
+        under_all ltac:(rewrite !boolR_distr -!mulRA).
+        under eq_bigr do under eq_bigr do rewrite -rsum_Rmul_distr_l.
+        rewrite -big_distrlr //=.
 
-
-        rewrite (@partition_big _ _ _ _ _ _ .
-        rewrite big_image.
-        rewrite big_image_id.
-        transitivity (
-            \sum_(abc in [finType of
-                                  ({set 'I_m} * q.-tuple 'I_p.+1 * (m-q).-tuple 'I_p.+1)%type
-                         ]
-                 | (#| (abc.1).1 | == q) && (all (fun v => v == ind) (abc.1).2) && all (fun v => v != ind) abc.2 )
-             (Rdefinitions.Rinv (#|[finType of 'I_p.+1]| %R) ^R^ m)
-          ).
-
-        apply reindex.
-
-      Admitted.
+        under eq_bigr do rewrite -(mulR1 (_ == _ %R)); rewrite -rsum_pred_demote.
+        rewrite (@sum_partition_combinations _ _ _ 1) //= mul1R.
+        apply Logic.eq_sym; rewrite mulRC [_ *R* ('C(m, q) %R)]mulRC -!mulRA.
+        case Hmltq: (m < q); first by move: (bin_small Hmltq) ->; rewrite //= !mul0R.
+        apply f_equal; move/Bool.negb_true_iff: Hmltq; rewrite -leqNgt => Hqltm.
+        apply Logic.eq_sym.
+        under eq_bigr do rewrite -rsum_Rmul_distr_l; rewrite -rsum_pred_demote.
+        rewrite -rsum_pred_demote.
+        have: (Rdefinitions.Rinv (#|'I_p.+1| %R) ^R^ m) = ((Rdefinitions.Rinv (#|'I_p.+1| %R) ^R^ q) *R* (Rdefinitions.Rinv (#|'I_p.+1| %R) ^R^ (m - q))). {
+          rewrite -RealField.Rdef_pow_add.
+          suff ->: (q + (m - q))%coq_nat = m; first by [].
+          rewrite plusE subnKC //=.
+        }
+        move=> ->.
+        rewrite -big_distrlr //=.
+        rewrite (eq_bigl (fun i => i == nseq_tuple q ind)); last first.
+        move=> [i Hi] //=; rewrite/nseq_tuple //=.
+        move: (nseq_tupleP _ _) => //= Hi'.
+        apply /all_pred1P => //=.
+        case Heq: (_ == _). {
+        - move/eqP: Heq => [] {1}->.
+            by move/eqP: Hi ->.
+        }
+        {
+          - move/eqP: Heq => Heq Hinde.
+            apply Heq; clear Heq.
+            move: Hi (Hi) Hi' => Hi.
+            rewrite Hinde.
+            by move/eqP: Hi -> => H1 H2; rewrite (proof_irrelevance _ H1 H2).
+        }        
+        rewrite big_pred1_eq; apply f_equal.
+        clear.
+        elim: (m - q) => [| l IHl] //=.
+        - by rewrite rsum_pred_demote rsum_empty//= mul1R.
+        - rewrite rsum_pred_demote //= rsum_tuple_split rsum_split //=.
+          under_all ltac:(rewrite boolR_distr -!mulRA).
+          under eq_bigr do rewrite -rsum_Rmul_distr_l.
+          under_all ltac:(rewrite mulRC -!mulRA).
+          under eq_bigr do rewrite -rsum_Rmul_distr_l.
+          under eq_bigr do rewrite mulRA.
+          under_all ltac:(rewrite mulRC).
+          under eq_bigr do rewrite -rsum_pred_demote.
+          under eq_bigr do rewrite IHl.
+          rewrite -big_distrl //= mulRC; apply Logic.eq_sym; rewrite mulRC; apply f_equal; apply Logic.eq_sym.
+          rewrite -rsum_pred_demote.
+          rewrite (@prsumr_sans_one _ _ _ (Rdefinitions.Rinv (#|'I_p.+1| %R))) //=.
+          rewrite bigsum_card_constE mulRV //=.
+          by rewrite card_ord RIneq.INR_IZR_INZ; apply/eqP => //=.
+      Qed.
+      
 
     Theorem AMQ_false_positives_rate: forall  (l:nat) value (values: seq _),
         length values == l ->
