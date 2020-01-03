@@ -342,12 +342,6 @@ Section stirling_second_number.
       }
 
   Qed.
-  
-
-  
-
-
-
 
   Theorem second_stirling_number_sum: forall l k m (f: nat -> Rdefinitions.R),
       (\sum_(inds in [finType of (l * k).-tuple 'I_m.+1])
