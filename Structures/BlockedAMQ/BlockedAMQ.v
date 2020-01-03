@@ -2569,6 +2569,7 @@ Module BlockedAMQ
           }
       Qed.
 
+
       Lemma binomial_tuple_splitPL m p q val
             (i: [finType of  m.-tuple ('I_p.+1)]): size [seq x | x <- i & x == val] == q ->
             size [seq tnth i x | x in [set ind | tnth i ind == val]] == q.
@@ -2590,6 +2591,40 @@ Module BlockedAMQ
         have ->: (~: [set ind | tnth i ind != val]) = ([set ind | tnth i ind == val]).
         by apply eq_finset => x; rewrite in_set Bool.negb_involutive.
         by rewrite Heq'.
+      Qed.
+
+      Lemma binomial_tuple_fixed_splitPL (A:finType)
+            m p q val (i: [finType of  m.-tuple ('I_p.+1)])
+        (Hi: size [seq x | x <- i & x == val] == q) (xs: [finType of m.-tuple A]):
+        size [seq x.2 | x <- zip i xs & x.1 == val] == q.
+      Proof.
+        rewrite size_map.
+        erewrite filter_zip_L => //=.
+        rewrite size1_zip /pred1.
+        rewrite (@eq_filter _ _ (fun i => i == val)) //=.
+        by move: Hi; rewrite map_id.
+        rewrite size_filter.
+        rewrite size_mask //=.
+        rewrite count_map /preim.
+        rewrite (@eq_in_count _ [pred x | x == val] [pred x | [pred x0 | x0 == val] x]) //=.
+        rewrite size_map.
+        clear Hi; move: i xs => [i Hi] [x Hxs] //=.
+        by move/eqP: Hi ->; move/eqP: Hxs ->.
+        clear Hi; move: i xs => [i Hi] [x Hxs] //=.
+        by move/eqP: Hi ->; move/eqP: Hxs ->.
+      Qed.
+      
+      Lemma binomial_tuple_fixed_splitPR (A:finType)
+            m p q val (i: [finType of  m.-tuple ('I_p.+1)])
+        (Hi: size [seq x | x <- i & x == val] == q) (xs: [finType of m.-tuple A]):
+        size [seq x.2 | x <- zip i xs & x.1 != val] == (m - q).
+      Proof.
+        rewrite size_map.
+        rewrite -{3}(@size_tuple m _ (zip_tuple i xs)).
+        move/eqP: (@binomial_tuple_fixed_splitPL A m p q val _ Hi xs) <-.
+        rewrite size_map size_filter size_filter.
+        rewrite -(@count_predC _ (fun x : ordinal_eqType p.+1 * A => x.1 == val)) //=.
+        by rewrite -addnBAC //= subnn add0n //=.
       Qed.
 
       Lemma binomial_tuple_splitPL_valid m p q val i Hxs ind:
@@ -2631,7 +2666,6 @@ Module BlockedAMQ
         by move: (enum_valP ind); rewrite in_set =>->.
       Qed.
       
-
       Lemma ordinal_simplP (m p: nat) (i : [finType of m.-tuple 'I_p.+1]) val:
          size [seq tnth i x | x in [set ind | tnth i ind != val]] = #|[set ind0 | tnth i ind0 != val]|.
         by rewrite size_image.
@@ -2678,12 +2712,19 @@ Module BlockedAMQ
         by apply PeanoNat.Nat.eq_dec.
       Qed.
         
+      Definition binomial_tuple_fixed_split (A:finType) m p q val (i: [finType of  m.-tuple ('I_p.+1)])
+                 (Hi: size [seq x | x <- i & x == val] == q) (xs: [finType of m.-tuple A]) :
+        [finType of (q.-tuple A * (m - q).-tuple A)%type]
+        :=
+        (Tuple (binomial_tuple_fixed_splitPL Hi xs), Tuple (binomial_tuple_fixed_splitPR Hi xs)).
+
       Definition binomial_tuple_split m p q val
                  (xs: [finType of  m.-tuple ('I_p.+1)]) (Hxs: size [seq x | x <- xs & x == val] == q) :
         [finType of ({set 'I_m} * q.-tuple 'I_p.+1 * (m-q).-tuple 'I_p.+1)%type ] :=
         ( [set ind | tnth xs ind == val],
           Tuple (binomial_tuple_splitPL Hxs),
           Tuple (binomial_tuple_splitPR Hxs)).
+
 
       Lemma index_enum_ordP (T:finType) (m:nat)
         (t: T) (S: {set T}) (Hs: #| S | == m):
@@ -2718,6 +2759,8 @@ Module BlockedAMQ
         by apply/allP => v; move=>/mapP [v']; rewrite mem_filter //=  in_set =>/andP[/eqP -> _] ->.
         by apply/allP => v; move=>/mapP [v']; rewrite mem_filter //= in_set => /andP [Hn _] ->.
       Qed.
+
+
 
       Definition binomial_tuple_merge m p q
                  (pair: [finType of ({set 'I_m} * q.-tuple 'I_p.+1 * (m-q).-tuple 'I_p.+1)%type ])
@@ -3186,7 +3229,7 @@ Module BlockedAMQ
       Qed.
 
 
-      Lemma AMQHash_rsum_subs_eq (A:finType) l len ind f
+      Lemma AMQHash_rsum_subs_eq (A:finType)  l len ind f
             (xs : l.-tuple 'I_BasicMetaHashSpec.Hash_size.+1)
             (Hxs: size [seq x | x <- xs & x == ind] == len):
             \sum_(a in [finType of l.-tuple A])
@@ -3194,7 +3237,54 @@ Module BlockedAMQ
       ((#| A | ^R^ (l - len)) *R*
         \sum_(i0 in [finType of len.-tuple A]) (f i0)).
       Proof.
-      Admitted.
+        move: xs f len Hxs => [].
+        elim: l => [| l IHl] [| x xs] Hxs f //=.
+        - {
+            by move=> len /eqP <-; rewrite !rsum_empty //= mul1R.
+          }
+        - {
+            case Hxeq: (x == ind).
+            - {
+                move=> [//=|len] Hsize.
+                rewrite subSS; apply Logic.eq_sym.
+                rewrite rsum_tuple_split rsum_split //=.
+                rewrite rsum_Rmul_distr_l.
+                have H1: size xs == l; first by move: Hxs => //= /eqP [].
+                have H2: size [seq x0 | x0 <- Tuple H1 & x0 == ind] == len; first
+                    by move: Hsize => //=/eqP [].
+                under eq_bigr => i _. {
+                  rewrite -(@IHl xs H1 (fun b => f (i :: b)) len H2).
+                  by over.
+                }
+                move=> //=.
+                rewrite rsum_tuple_split rsum_split //=.
+                apply eq_bigr => a _.
+                apply eq_bigr => ass _.
+                by rewrite Hxeq //=.
+              }
+            - {
+                move=> len Hsize.
+                rewrite rsum_tuple_split rsum_split //=.
+                rewrite Hxeq.
+                have H1: size xs == l; first by move: Hxs => //= /eqP [].
+                have H2: size [seq x0 | x0 <- Tuple H1 & x0 == ind] == len; first
+                    by move: Hsize => //=/eqP [].
+                move: (@IHl xs H1 f len H2) => //= Heq.
+                under eq_bigr do rewrite Heq.
+                rewrite -big_distrl //= mulRC; apply Logic.eq_sym.
+                rewrite mulRC; apply f_equal.
+                rewrite bigsum_card_constE.
+                rewrite RIneq.INR_IZR_INZ -expRS.
+                apply f_equal; rewrite -subSn//=.
+                clear -H1 Hsize.
+                move/eqP: Hsize <-.
+                move/eqP: H1 <-.
+                elim: xs => //= x xs Hxs //=.
+                case: (x == ind) => //=.
+                by apply leq_trans with (n:=size xs) => //=.
+              }
+          }
+      Qed.
 
     Theorem AMQ_false_positives_rate: forall  (l:nat) value (values: seq _),
         length values == l ->
