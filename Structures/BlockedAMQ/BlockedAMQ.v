@@ -3184,7 +3184,17 @@ Module BlockedAMQ
           rewrite bigsum_card_constE mulRV //=.
           by rewrite card_ord RIneq.INR_IZR_INZ; apply/eqP => //=.
       Qed.
-      
+
+
+      Lemma AMQHash_rsum_subs_eq (A:finType) l len ind f
+            (xs : l.-tuple 'I_BasicMetaHashSpec.Hash_size.+1)
+            (Hxs: size [seq x | x <- xs & x == ind] == len):
+            \sum_(a in [finType of l.-tuple A])
+            (f [seq x.2 | x <- zip xs a & x.1 == ind]) =
+      ((#| A | ^R^ (l - len)) *R*
+        \sum_(i0 in [finType of len.-tuple A]) (f i0)).
+      Proof.
+      Admitted.
 
     Theorem AMQ_false_positives_rate: forall  (l:nat) value (values: seq _),
         length values == l ->
@@ -3335,9 +3345,44 @@ Module BlockedAMQ
                         (foldr
                            (fun hash' : AmqHash.AMQHashValue h.2 => (Amq.AMQ_add_internal (h:=h.2))^~ hash')
                            (Amq.AMQ_new s) i0) ind' %R)))) => //=.
-      
 
-    Admitted.
+      move=> vs Hvs.
+      move: (@AmqHash.AMQHash_hash_prob_valid h.2).
+      rewrite bigsum_card_constE => Hvld.
+      case Hz0: ((#|AmqHash.AMQHashValue h.2| %R) == BinNums.Z0).
+      move/eqP: Hz0 Hvld => ->; rewrite mul0R //= =>/eqP //=; rewrite eq_sym=>/eqP/Nsatz.R_one_zero //=.
+      move/Bool.negb_true_iff: Hz0=>/eqP Hnz0.
+      move: Hvld; rewrite -(@RIneq.Rinv_r (#|AmqHash.AMQHashValue h.2| %R) Hnz0).
+      move=>/(eqR_mul2l Hnz0) ->.
+      rewrite -!rsum_Rmul_distr_l.
+      rewrite (@AMQHash_rsum_subs_eq _ l len ind
+                                     (fun a =>
+                                        ((Amq.AMQ_query_internal
+                                            (foldr (fun hash' : AmqHash.AMQHashValue h.2
+                                                    => (Amq.AMQ_add_internal (h:=h.2))^~ hash')
+                                                   (tnth (AMQ_new s) ind) a) ind' %R))
+                                     )) //=.
+      rewrite mulRA.
+      have: ((Rdefinitions.Rinv (#|AmqHash.AMQHashValue h.2| %R) ^R^ l) *R*
+             (#|AmqHash.AMQHashValue h.2| ^R^ l - len)) =
+            ((Rdefinitions.Rinv (#|AmqHash.AMQHashValue h.2| %R) ^R^ len)).
+      {
+        clear -Hnz0; move: len => [m Hm] //=; rewrite -{1}(@subnK m l) //=.
+        rewrite -{1}plusE RealField.Rdef_pow_add.
+        rewrite -mulRA [_ *R*(#|AmqHash.AMQHashValue h.2| ^R^ l - m)]mulRC mulRA.
+        rewrite -Rfunctions.Rinv_pow.
+        rewrite [((#|AmqHash.AMQHashValue h.2| %R) ^- (l - m)) *R* _]mulRC.
+        rewrite RIneq.INR_IZR_INZ.
+        rewrite mulRV //=.
+        rewrite mul1R //=.
+        by apply expR_neq0; rewrite -RIneq.INR_IZR_INZ; apply/eqP.
+        by [].
+      }
+      move=>-> //=.
+      apply f_equal; apply eq_bigr => a Ha.
+      rewrite tnth_nseq_eq//=.
+      by move: len => [m Hl] //=.
+    Qed.
 
   End Properties.
 End  BlockedAMQProperties.
