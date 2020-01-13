@@ -1,5 +1,5 @@
 From mathcomp.ssreflect
-     Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun bigop seq path finfun tuple.
+     Require Import ssreflect ssrbool ssrnat eqtype fintype finset choice ssrfun bigop seq path finfun tuple.
 
 Lemma ltn_Snn a b : a.+1 < b.+1 -> a < b.
 Proof.
@@ -23,8 +23,8 @@ Proof.
   case Hall: all.
   - by move/allP: Hall => Hnin; move=> j Hj; apply/memPn => i Hi; move: (Hnin i Hi) =>/memPn/(_ j Hj); rewrite eq_sym.
   - by move/Bool.negb_true_iff: Hall => /allPn [i Hi];
-                                         rewrite Bool.negb_involutive => Hiinj;
-                                                                          apply/allP;apply/allPn; exists i => //=; rewrite Bool.negb_involutive.
+                                          rewrite Bool.negb_involutive => Hiinj;
+                                                                            apply/allP;apply/allPn; exists i => //=; rewrite Bool.negb_involutive.
 Qed.
 
 Lemma minn_mult m l: (minn m (l * m + m) = m). Proof. by rewrite minnE //= addnC subnDA subnn subn0. Qed.
@@ -40,8 +40,8 @@ Fixpoint rem_nth {A:Type} (n : nat) (ls : list A) : list A :=
   match n with
   | 0 => if ls is h::t then t else nil
   | S n' => if ls is h :: t 
-           then h :: (rem_nth n' t)
-           else ls
+            then h :: (rem_nth n' t)
+            else ls
   end.
 (*
 Example rem_nth_test_1 : rem_nth 0 [:: 1; 2; 3] = [:: 2; 3].
@@ -80,8 +80,8 @@ Fixpoint prefix {A : eqType} (xs : list A) (ys : list A) :=
     match ys with
     | [::] => xs == [::]
     | y' :: ys' => if length ys == length xs
-                 then xs == ys
-                 else prefix  xs ys'
+                   then xs == ys
+                   else prefix  xs ys'
     end.
 
 Example prefix_example_1 : prefix  [:: 1; 2; 3] [:: 4; 5; 1; 2; 3].
@@ -395,10 +395,10 @@ Qed.
 Lemma leq_exists  a b : a <= b -> exists c, a + c = b.
 Proof.
   rewrite leq_eqVlt => /orP [/eqP -> | ]; first by exists 0; rewrite addn0.
-                                                   move: a.
-                                                   elim: b => //= b IHb a.
-                                                   rewrite ltnS leq_eqVlt => /orP [/eqP -> | ]. by exists 1; rewrite addn1.
-                                                                                                     by move=> /IHb [c' Heqn]; exists (c'.+1); rewrite addnS Heqn.
+                                                          move: a.
+                                                          elim: b => //= b IHb a.
+                                                          rewrite ltnS leq_eqVlt => /orP [/eqP -> | ]. by exists 1; rewrite addn1.
+                                                                                                                   by move=> /IHb [c' Heqn]; exists (c'.+1); rewrite addnS Heqn.
 Qed.
 
 Lemma addn_ltn_eqn' a b c : a > 0 -> a + c = b -> c < b.
@@ -459,7 +459,7 @@ Qed.
 Lemma nth_set_nth_ident
       (A : Type) (P : pred A) (ls : seq A) (a a' : A) (n : nat) :
   ~~ P a -> ~~ P (nth a ls n) -> ~~ P a' -> length (filter P (set_nth a ls n a'))
-                                         = length (filter P ls).
+                                            = length (filter P ls).
 Proof.
   elim: ls n => [n H0 H1 H2| a'' ls n n'] //=.
   rewrite /filter.
@@ -636,4 +636,36 @@ Proof.
     case Hr2eq0: (eq_op r2 0).
       by move/eqP: Hr2eq0 => ->; rewrite (Rmult_0_r r1) .
         by move/eqP: Hr1eq0 => Hr1neq; move/eqP: Hr2eq0 => Hr2neq.
+Qed.
+
+Lemma index_enum_simpl y: ((index_enum y)) = (index_enum [finType of y]).
+Proof.
+    by rewrite /index_enum //= /[finType of _] //=; case: y => //=.
+Qed.
+
+
+Lemma ordinal_simplP (m p: nat) (i : [finType of m.-tuple 'I_p.+1]) val:
+  size [seq tnth i x | x in [set ind | tnth i ind != val]] = #|[set ind0 | tnth i ind0 != val]|.
+  by rewrite size_image.
+Qed.
+
+Lemma index_enum_ordP (T:finType) (m:nat)
+      (t: T) (S: {set T}) (Hs: #| S | == m):
+  t \in S -> (index t (enum S) < m )%nat.
+Proof.
+  move/eqP:Hs <- => Ht.
+  apply seq_index_enum_card => //=.
+  apply enum_uniq.      
+Qed.
+
+Lemma index_enum_ordPn (T:finType) (m q:nat) 
+      (t: T) (S: {set T}) (Ht: #| T | = m) (Hs: #| S | == q):
+  t \in S = false -> (index t (enum (~: S)) < m - q)%nat.
+Proof.
+  move=>/Bool.negb_true_iff Ht'; move: Ht <-; move/eqP:Hs <-.
+  rewrite cardsCs subKn //=.
+  apply seq_index_enum_card => //=.
+    by apply enum_uniq.      
+      by rewrite in_setC.
+        by rewrite -(cardsC S); apply leq_addl.
 Qed.

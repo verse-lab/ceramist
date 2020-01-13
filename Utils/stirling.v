@@ -94,19 +94,6 @@ Section stirling_second_number.
     
   End partitions.
 
-  Theorem sum_partition_combinations m (i: nat) (f: {set 'I_m} -> Rdefinitions.R) c:
-    (forall (I  : {set 'I_m}),  #|pred_of_set I| == i -> f I = c) ->
-    \sum_(I  : {set 'I_m} | #|pred_of_set I| == i) f (I) =
-    (c *R* ('C(m, i) %R)).
-  Proof.
-    move=> Hrw; under eq_bigr => I Hi do rewrite (Hrw I Hi); clear Hrw.
-    rewrite bigsum_card_constE //= mulRC; apply f_equal; clear.
-    suff{12}<-: #|  'I_m| = m.
-    rewrite  -(@card_draws [finType of 'I_m] i) //=.
-    apply f_equal => //=.
-      by rewrite cardsE //=.
-        by rewrite card_ord.
-  Qed.
 
   Lemma subset_combinations m n i (I  : {set 'I_m.+1}):
     #|pred_of_set I| == i  ->
@@ -342,12 +329,6 @@ Section stirling_second_number.
       }
 
   Qed.
-  
-
-  
-
-
-
 
   Theorem second_stirling_number_sum: forall l k m (f: nat -> Rdefinitions.R),
       (\sum_(inds in [finType of (l * k).-tuple 'I_m.+1])

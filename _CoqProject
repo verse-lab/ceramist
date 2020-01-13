@@ -8,6 +8,9 @@
 
 Computation/Comp.v
 Computation/Notationv1.v
+Structures/Core/AMQHash.v
+Structures/Core/AMQ.v
+Structures/Core/AMQReduction.v
 Structures/BloomFilter/BloomFilter_Definitions.v
 Structures/BloomFilter/BloomFilter_Probability.v
 Structures/Core/FixedList.v

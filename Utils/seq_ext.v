@@ -1,8 +1,8 @@
 From mathcomp.ssreflect
-Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq path.
+     Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq path.
 
 From mathcomp.ssreflect
-Require Import tuple.
+     Require Import tuple.
 
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Logic.ProofIrrelevance.
@@ -40,7 +40,7 @@ Qed.
 
 Lemma size_ncons_nil (A : Type) (a : A) (n : nat): (size (ncons n a [::])) == n.
 Proof.
-    rewrite size_ncons => //=.
+  rewrite size_ncons => //=.
     by rewrite addn0.
 Qed.
 
@@ -137,22 +137,22 @@ Fixpoint swap_vec {A: finType} (m:nat) (ps qs: seq A) (list: m.-tuple A) : m.-tu
   match m as m' return (m = m' -> m'.-tuple A -> m'.-tuple A) with
   | 0 => (fun (Hm: m = 0) (list: 0.-tuple A) => list)
   | m'.+1 => (fun (Hm: m = m'.+1) (list: (m'.+1).-tuple A) =>
-               let head := thead list in
-               let tail := behead_tuple list in
-               let new_head := (if (head \in ps) && (head \in qs) then
-                                  head
-                                else if (head \in ps) then
-                                       nth
-                                         head
-                                         (filter (fun p => p \notin qs) ps)
-                                         (index head (filter (fun q => q \notin ps) qs))  
-                                     else if (head \in qs) then
-                                            nth
-                                              head
-                                              (filter (fun q => q \notin ps) qs)
-                                              (index head (filter (fun p => p \notin qs) ps))
-                                          else head) in
-               [tuple of new_head :: (swap_vec  ps qs tail)] )
+                let head := thead list in
+                let tail := behead_tuple list in
+                let new_head := (if (head \in ps) && (head \in qs) then
+                                   head
+                                 else if (head \in ps) then
+                                        nth
+                                          head
+                                          (filter (fun p => p \notin qs) ps)
+                                          (index head (filter (fun q => q \notin ps) qs))  
+                                      else if (head \in qs) then
+                                             nth
+                                               head
+                                               (filter (fun q => q \notin ps) qs)
+                                               (index head (filter (fun p => p \notin qs) ps))
+                                           else head) in
+                [tuple of new_head :: (swap_vec  ps qs tail)] )
   end (erefl m) list.
 
 Lemma substitute_vec_inv (A: finType) (m: nat) (ps qs: seq A) :
@@ -257,7 +257,37 @@ Lemma tuple_split_valid (A: finType) (m l:nat) :  bijective (fun (x: [finType of
 Qed.
 
 Lemma tnth_nseq_eq (A: Type)  l a ind:
-    tnth (@nseq_tuple l A a) ind = a.
+  tnth (@nseq_tuple l A a) ind = a.
 Proof.
     by rewrite/nseq_tuple/tnth; rewrite nth_nseq; case: ind => [ m Hm] //=; rewrite Hm.
 Qed.
+
+Lemma unzip_tupleP (n : nat) (T U : Type) (xs: seq (T * U)%type):
+  size xs == n -> (size (unzip1 xs) == n) && (size (unzip2 xs) == n).
+Proof.
+  move=>/eqP<-;clear n.
+    by elim: xs => [//=| x xs /andP [Hl Hr]] //=.
+Qed.
+
+Lemma unzip_tuplePL (n : nat) (T U : Type) (xs: seq (T * U)%type):
+  size xs == n -> size (unzip1 xs) == n.
+Proof. by move=>/unzip_tupleP/andP[]. Qed.
+
+Lemma unzip_tuplePR (n : nat) (T U : Type) (xs: seq (T * U)%type):
+  size xs == n -> size (unzip2 xs) == n.
+Proof. by move=>/unzip_tupleP/andP[]. Qed.
+
+Definition unzip_tuple (n : nat) (T U : Type) (xs: n.-tuple (T * U)%type):
+  (n.-tuple T * n.-tuple U)%type :=
+  let: (Tuple _ hprf) := xs in (Tuple (unzip_tuplePL hprf), Tuple (unzip_tuplePR hprf)).
+
+Lemma seq_neqP (A:eqType) (x y: seq A) : (exists (v:A), (v \in x) && (v \notin y)) -> (x != y).
+Proof.
+  move=> [x'/andP[]]; move: x' y.
+  elim: x => [| x xs IHx] x' [|y ys] //=.
+  rewrite !in_cons Bool.negb_orb negb_consP.
+  move=>/orP [/eqP -> | Hx']/andP[]; first by move=>-> //=.
+  move=> Hxs' Hxs.
+    by move: Hxs =>/IHx Hxs; move: (Hxs Hx') ->; rewrite Bool.orb_true_r.
+Qed.
+

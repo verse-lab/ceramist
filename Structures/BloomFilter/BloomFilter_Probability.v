@@ -40,13 +40,18 @@ Proof idea
  *)
 Open Scope R_scope.
 
-
-
-
 Module BloomFilterProbability (Spec: HashSpec).
 
-  Module BloomfilterDefinitions := (BloomFilterDefinitions Spec).
+  Module BloomfilterCore :=  (BloomFilterAMQ Spec).
+  Module BloomfilterDefinitions :=  BloomfilterCore.BloomFilterDefinitions.
+  Module BasicHashVec :=  BloomfilterCore.BasicHashVec.
+  Module BloomfilterAMQ :=  BloomfilterCore.AMQ.
+  Module BloomfilterOperations :=  AMQ.AMQOperations (BasicHashVec)  (BloomfilterCore.AMQ).
+
   Export BloomfilterDefinitions.
+  Export BasicHashVec.
+  Export BloomfilterAMQ.
+  Export BloomfilterOperations.
 
   Section BloomFilter.
   (*
@@ -60,8 +65,6 @@ Module BloomFilterProbability (Spec: HashSpec).
   (* valid k *)
   Variable Hkgt0: k >0.
 
-  (* the sequence of hash functions used to update the bloom filter *)
-  Definition hash_vec := k.-tuple (HashState n).
 
   Lemma bloomfilter_add_internal_prob bf x l:
     ~~ tnth (bloomfilter_state bf) x ->
@@ -129,17 +132,17 @@ Module BloomFilterProbability (Spec: HashSpec).
   Qed.
 
 
-  Lemma bloomfilter_addn hashes (ind: 'I_(Hash_size.+1)) (bf: BloomFilter) (value: B):
+  Lemma bloomfilter_addn (hashes: AMQHash (n,k.-1)) (ind: 'I_(Hash_size.+1)) (bf: AMQState I) (value: B):
     (* provided the bloom filter is not full *)
-    @hashes_not_full k n  hashes ->
+    AMQHash_hashstate_available_capacity hashes 1 ->
     (* and that the bloom filter has not set the value *)
-    hashes_value_unseen hashes value ->
+    AMQHash_hashstate_unseen hashes value ->
     (* the bit in question is not set  *)
     ~~ bloomfilter_get_bit ind bf ->
     P[
         (
           (* bf' is the result of inserting into bf *)
-          res <-$ bloomfilter_add  value hashes bf;
+          res <-$ AMQ_add  bf hashes value;
             let: (new_hashes, bf') := res in
             (* the probability of the given bit being set is *)
             ret (~~ bloomfilter_get_bit ind bf')
@@ -147,21 +150,20 @@ Module BloomFilterProbability (Spec: HashSpec).
       ] = 
     ((1 -R- Rdefinitions.Rinv (Hash_size.+1)%:R) ^R^ k).
   Proof.
-    rewrite /bloomfilter_add/hashes_not_full
-            /hashes_value_unseen/hash_unseen
+    rewrite /AMQ_add/AMQHash_hashstate_available_capacity
+            /AMQHash_hashstate_unseen/HashVec.hash_unseen
             /hash_not_full /bloomfilter_get_bit  => /allP Hnfl /allP Husn Hunset //= .  
     time comp_normalize.
     time comp_simplify.
     rewrite exchange_big //=.
     move: (Hpredkvld Hkgt0).
-    move:  Hkgt0 hashes Hnfl Husn; rewrite /hash_vec.
+    move:  Hkgt0 hashes Hnfl Husn; rewrite /AMQHash //=.
     elim: k   => //=; clear k Hkgt0; case=> [ _  |k IHk] Hkgt0 hashes Hnfl Husn.
     {
       - move=> _ //=.
         rewrite mulR1.
         comp_normalize.
-        comp_simplify.
-        rewrite /hash/hashstate_find.
+        rewrite /HashVec.Hash.hash/HashVec.Hash.hashstate_find.
         have Hthead: (thead hashes) \in hashes; first by clear; rewrite (tuple_eta hashes) theadE//=; apply mem_head. 
         move/eqP: (Husn (thead hashes) Hthead) ->.
         rewrite exchange_big (bigID (fun values'' => values'' == ind)).
@@ -197,7 +199,8 @@ Module BloomFilterProbability (Spec: HashSpec).
     }
     (* Base case completed *)           
     - {
-        move=> Hpredkvld; rewrite -(IHk _ (FixedList.ntuple_tail hashes)); clear IHk; last first.
+        move=> Hpredkvld.
+        rewrite -(IHk _ (FixedList.ntuple_tail hashes)); clear IHk; last first.
         { - by rewrite -pred_Sn. }
         {
           - destruct hashes eqn: Hhashes => ls.
@@ -213,56 +216,61 @@ Module BloomFilterProbability (Spec: HashSpec).
         }
         { - by apply ltn0Sn. }
         {
+          move=> //=.
           comp_normalize.
-          comp_simplify_n 4.
-          rewrite rsum_tuple_split rsum_split.
-          exchange_big_outwards 5.
-          apply eq_bigr => result _.
+          move=>//=.
+          comp_simplify_n 1.
+          comp_simplify_n 1.
           exchange_big_outwards 3.
+          apply eq_bigr => result _.
+          exchange_big_outwards 2 => //=.
+          rewrite rsum_Rmul_distr_l.
           apply eq_bigr => exp_hashes _.
-          rewrite rsum_Rmul_distr_l rsum_tuple_split rsum_split.
-
-          rewrite [\sum_(a in hashstate_of_finType n) \sum_(b in tuple_finType k _) _]exchange_big //=.
+          rewrite rsum_Rmul_distr_l.
           exchange_big_outwards 2.
-          apply eq_bigr => inds  _.
-          apply Logic.eq_sym.
-          comp_normalize.
-          under_all ltac:(rewrite !cons_tuple_eq_tuple !xpair_eqE  !xcons_eqE !boolR_distr).
-          comp_simplify.
-          apply Logic.eq_sym.
+          apply eq_bigr => exp_hashes' _//=.
+          rewrite rsum_Rmul_distr_l.
           exchange_big_outwards 2.
-          apply eq_bigr => ind'  _.
-          under_all ltac:(rewrite  !mulRA mulRC).
-          under eq_bigr => ? ? do under eq_bigr => ? ? do rewrite mulRC mulRA mulRC mulRA mulRC.
-          under eq_bigr => ? ? do (under eq_bigr => ? ? do rewrite mulRC mulRA mulRC mulRA mulRC; rewrite -!rsum_Rmul_distr_l); rewrite -!rsum_Rmul_distr_l.
+          apply eq_bigr => inds _//=.
           apply Logic.eq_sym.
-          rewrite mulRC; apply f_equal.
-          rewrite mulRC; apply f_equal.
+          comp_normalize=> //=.
+          rewrite mulRA mulRC -!mulRA.
+          apply Logic.eq_sym.
+          under_all ltac:(rewrite  !mulRA mulRC mulRA mulRC).
+          under eq_bigr do rewrite -rsum_Rmul_distr_l;  rewrite -rsum_Rmul_distr_l.
+          apply f_equal => //=.
+          under eq_bigr do rewrite -rsum_Rmul_distr_l;  rewrite -rsum_Rmul_distr_l.
+          apply f_equal => //=.
           apply Logic.eq_sym.
           have H:(thead hashes \in hashes); first by rewrite (tuple_eta hashes) in_cons theadE eq_refl //=.
-          under_all ltac:(rewrite /hash/hashstate_find; move/eqP: (Husn _ H) => ->); clear H.
+          under_all ltac:(rewrite  /HashVec.Hash.hash/HashVec.Hash.hashstate_find; move/eqP: (Husn _ H) => ->); clear H.
           comp_normalize.
           comp_simplify.
-
           rewrite (bigID (fun i => i == ind)) //=.      
+          apply Logic.eq_sym.
           have H x y z: x = (0 %R) -> y = z -> x +R+ y = z; first by move=> -> -> //=; rewrite add0R.
           apply H.
           {
             - apply prsumr_eq0P => i /eqP ->; first by do?dispatch_eq0_obligations.
-              rewrite eq_sym eqb_id.
+              rewrite eq_sym eqb_id/AMQ_add_internal//=.
               rewrite bloomfilter_add_internal_preserve; first by rewrite //= mul0R.
               rewrite bloomfilter_set_bitC.
-                by move: (bloomfilter_set_get_eq ind (bloomfilter_set_bit result bf)); rewrite /bloomfilter_get_bit => ->.
+              rewrite/bloomfilter_state/bloomfilter_set_bit//=.
+              by rewrite tnth_set_nth_eq //=.
           }
-          rewrite eq_sym eqb_id; under eq_bigr => ? ? do rewrite eq_sym eqb_id.
-          case Hind: (ind \in exp_hashes).              
+          under eq_bigr => ? ? do rewrite eq_sym eqb_id.
+          apply Logic.eq_sym; rewrite  eq_sym eqb_id; apply Logic.eq_sym.
+          case Hind: (ind \in result).              
           {
-            - rewrite !bloomfilter_add_internal_hit //= mulR0.
+            - rewrite !bloomfilter_add_internal_hit //= ?mulR0.
               apply prsumr_eq0P => hshs' _; first (by do ?dispatch_eq0_obligations).
-                by rewrite bloomfilter_add_internal_hit //= mul0R.
+                rewrite bloomfilter_add_internal_hit //= ?mul0R //=.
+                by rewrite !in_cons Hind !Bool.orb_true_r.
+                by rewrite !in_cons Hind !Bool.orb_true_r.
           }
-          case Hres: (result == ind).
+          case Hres: (inds == ind).
           {
+            rewrite /AMQ_add_internal //=.
             move/eqP:Hres ->; rewrite bloomfilter_add_internal_preserve;
               last by move: (bloomfilter_set_get_eq ind bf); rewrite /bloomfilter_get_bit.
             rewrite //= mulR0.
@@ -270,6 +278,7 @@ Module BloomFilterProbability (Spec: HashSpec).
             rewrite bloomfilter_add_internal_preserve; first (by rewrite //= mul0R);
               last by move: (bloomfilter_set_get_eq ind (bloomfilter_set_bit i bf)); rewrite /bloomfilter_get_bit.
           }
+          rewrite /AMQ_add_internal //=.
           rewrite bloomfilter_add_internal_miss; [
           | by move/Bool.negb_true_iff:
                  Hres => Hres; rewrite/bloomfilter_state/bloomfilter_set_bit tnth_set_nth_neq 1?eq_sym//=
@@ -288,18 +297,15 @@ Module BloomFilterProbability (Spec: HashSpec).
               by apply RIneq.not_0_INR => //=.
         }
       }
-      (* DONE!!!! *)                                                         
-  Qed.
+      (* DONE!!!! *)                                                         Qed.
 
-  
-
-  Lemma bloomfilter_add_multiple_unfold A hshs bf x xs (f: _ -> Comp A):
-    d[ res <-$ @bloomfilter_add_multiple k n hshs bf (x :: xs);
+  Lemma bloomfilter_add_multiple_unfold A (hshs: AMQHash (n,k.-1)) bf x xs (f: _ -> Comp A):
+    d[ res <-$ AMQ_add_multiple hshs bf (x :: xs);
          f (res) ] =
     d[
-        res1 <-$ bloomfilter_add_multiple hshs bf xs;
+        res1 <-$ AMQ_add_multiple hshs bf xs;
           let (hshs', bf') := res1 in  
-          res2 <-$ bloomfilter_add x hshs' bf';
+          res2 <-$ @AMQ_add _ I bf' hshs' x;
             f (res2)
       ].
   Proof.
@@ -309,9 +315,10 @@ Module BloomFilterProbability (Spec: HashSpec).
   Qed.
   
 
-  Lemma bloomfilter_add_multiple_find_preserve value  inds hashes hashes' bf bf' xs:
-    hash_vec_contains_value value hashes inds ->
-    ((d[ @bloomfilter_add_multiple k n hashes bf xs]) (hashes', bf') != (0 %R)) ->
+  Lemma bloomfilter_add_multiple_find_preserve value  inds
+        (hashes hashes': AMQHash (n,k.-1)) (bf bf': AMQState I) xs:
+    AMQHash_hashstate_contains hashes  value inds ->
+    ((d[ AMQ_add_multiple hashes bf xs]) (hashes', bf') != (0 %R)) ->
     hash_vec_contains_value value hashes' inds.
   Proof.
     move=> Hcontains.
@@ -323,37 +330,58 @@ Module BloomFilterProbability (Spec: HashSpec).
           by move/eqP: Hhashes -> .
       }
     - {
-        comp_normalize.
-        comp_simplify.
-        comp_possible_decompose.
-        move=> hashes_internal' bf_prev inds' Heq0 Hhashes0 Hbf0.
+        move=> //=. rewrite FDistBind.dE //= rsum_split // /AMQ_add.
+        comp_possible_decompose => hashes_internal' bf_prev Heq0.
+        rewrite/AMQHash_hash //.
+        have H (T T1 T2:finType) (f: Comp T)
+             (g: T -> Comp [finType of (T1 * T2)]) a b:
+          ((d[ hash_res <-$ f; (g hash_res)])) (a,b) =
+          FDistBind.d (d[ f]) (fun b0 : T => d[ g b0]) (a, b); first by [].
+        rewrite H; clear H; rewrite FDistBind.dE rsum_split //.
+        comp_possible_decompose => inds' inds''.
+        have H: (let x0 := (inds', inds'') in
+                 (d[ HashVec.hash_vec_int x hashes_internal']) x0 *R*
+                 (d[ let (new_hashes, hash_vec) := x0 in
+                     ret (new_hashes, AMQ_add_internal bf_prev hash_vec)])
+                   (hashes', bf')) = 
+                ((d[ HashVec.hash_vec_int x hashes_internal'])
+                   (inds',inds'') *R*
+                 (d[ ret (inds', AMQ_add_internal bf_prev inds'')])
+                   (hashes', bf')); first by [].
+        rewrite H; clear H.
+        comp_possible_decompose => Hhashes //=; rewrite FDist1.dE.
+        move=>/bool_neq0_true; rewrite xpair_eqE=>/andP[/eqP -> _].
         move: Heq0 => //= /IHxs Heq0. 
         move: (Heq0 _ Hcontains); clear Heq0 => Hcontains_internal.
             case Hneq: (value == x).
             - {
-                move: Hcontains_internal Hhashes0.
+                move: Hcontains_internal Hhashes.
                 move/eqP: Hneq <- =>Hcontains_internal.
+                rewrite/HashVec.Hash.hash.
                 erewrite hash_vec_find_simpl =>//=; last by exact Hcontains_internal.
                 move=>/eqP; rewrite RIneq.INR_IZR_INZ; case Hand: (_ && _) => //= _.
                 move/andP: Hand => [/eqP ->] //=.
               }
               move/Bool.negb_true_iff: Hneq => Hneq.
-              move: Hneq Hcontains_internal Hhashes0; clear.
-              move: k inds hashes' hashes_internal' inds';clear k; elim => [|k IHk].
+              move: Hneq Hcontains_internal Hhashes; clear.
+              move: k inds inds'' hashes_internal' inds';clear k.
+              rewrite /AMQHashValue/AMQHash => k.
+              change ((n, k.-1).2.+1) with (k.-1.+1).
+              change ((n, k.-1).1) with (n).
+              elim (k.-1.+1) => [ //=| ]; clear k; last move=> k IHk.
             - {
-                do 5!intro; rewrite !tuple0 //= FDist1.dE xpair_eqE => H3.  
-                case Htrue: (_ && _); try rewrite RIneq.INR_IZR_INZ => /eqP //= _.
-                  by move/andP: Htrue => [/eqP -> /eqP _].              
+                do 5!intro; rewrite !tuple0 //= FDist1.dE xpair_eqE => H3.
+                by move=>/bool_neq0_true/andP[/eqP -> _] //=.
               }
             - {
                 move=> [[//=| ind inds] Hinds] [[//=| hash hashes] Hhashes] [[//=| hash' hashes'] Hhashes'].
                 move=> [[//=|ind' inds'] Hinds'] Hneq.
                 comp_normalize.
-                rewrite
+                  rewrite
                   (tuple_eta (Tuple Hhashes'))
                   (tuple_eta (Tuple Hinds))
                   (tuple_eta (Tuple Hhashes))
-                  (tuple_eta (Tuple Hinds')) //=.
+                  (tuple_eta (Tuple Hinds')).
                 rewrite !ntuple_tailE theadE//=.
                 have->: ( thead (Tuple Hhashes)) = hash; first by [].
                 have->: ( thead (Tuple Hhashes')) = hash'; first by [].
@@ -368,11 +396,12 @@ Module BloomFilterProbability (Spec: HashSpec).
                   hash_vec_contains_value value (behead_tuple (Tuple Hhashes')) (FixedList.ntuple_tail (Tuple Hinds));
                   first by rewrite/hash_vec_contains_value //=.
                 move:
-                  (IHk (FixedList.ntuple_tail (Tuple Hinds)) b' (behead_tuple (Tuple Hhashes')) b Hneq Hcont' Hint);
+                  (IHk (FixedList.ntuple_tail (Tuple Hinds))  b (behead_tuple (Tuple Hhashes')) b' Hneq Hcont' Hint);
+
                   clear IHk; rewrite/hash_vec_contains_value //= -Htupleeq => ->; rewrite Bool.andb_true_r.
                 move:  Hneq Hfind Hhash.
-                rewrite Hhsheq /Hash.hash; clear.
-                case: (hashstate_find n x hash') => //=.
+                rewrite Hhsheq /HashVec.Hash.hash; clear.
+                case: ( HashVec.Hash.hashstate_find n x hash') => //=.
                 - {
                     move=> ind_val' Hneq; rewrite FDist1.dE xpair_eqE=> Hfind'/eqP.
                     case Hand: (_ && _) => //= _.
@@ -393,8 +422,7 @@ Module BloomFilterProbability (Spec: HashSpec).
                     - {
                         move/eqP: Heq ->.
                         move/Bool.negb_true_iff: Hvalue -> => //=.
-                          by rewrite ntuple_head_consE eq_refl.                      
-                      }
+                          by rewrite ntuple_head_consE eq_refl.                                  }
                     - {
                         move=> Hin; move: (Hin).
                         move=>/IHn Heq'.
@@ -421,20 +449,24 @@ Module BloomFilterProbability (Spec: HashSpec).
               }
           }
   Qed.            
-  
 
   Lemma bloomfilter_add_multiple_preserve x xs l m hshs hshs' bf bf'
         (Huniq: uniq (x :: xs))
         (Hlen: length xs == l) 
         (Hfree: hashes_have_free_spaces hshs  ((l+m).+1))
         (Huns:      all (hashes_value_unseen hshs) (x :: xs)):
-    ((d[ @bloomfilter_add_multiple k n hshs bf xs]) (hshs', bf') != (0 %R)) ->
+    ((d[ @AMQ_add_multiple (n,k.-1) I hshs bf xs]) (hshs', bf') != (0 %R)) ->
     (hashes_have_free_spaces hshs' (m.+1)) && (hashes_value_unseen hshs' x).
   Proof.
     (* First clean up the proof *)
+    move: hshs hshs' bf bf' Hfree Huns.
+    rewrite/AMQHash/AMQState.
+    change ((n, k.-1).2.+1) with (k.-1.+1).
+    change ((n, k.-1).1) with n.
+    move => hshs hshs' bf bf' Hfree Huns.
     move=> //=.
     rewrite -all_predI /predI //=.
-    move: m hshs Hfree Huns bf bf' hshs'; rewrite/hash_vec.
+    move: m hshs Hfree Huns bf bf' hshs'.
     move/eqP: Hlen <-; clear l.
     have all_cons P y ys : all P (y :: ys) =  P y && all P ys. by [].
     move=> m hshs Hfree; rewrite all_cons => /andP []; move: x m hshs Huniq Hfree; clear all_cons.
@@ -454,18 +486,42 @@ Module BloomFilterProbability (Spec: HashSpec).
       have H4: all (fun b : B => all (fun hsh : HashState n => FixedMap.fixmap_find b hsh == None) hshs) ys;
         first by apply/allP.
       move: (IHy x m.+1 hshs H1 H2 H3 H4); clear IHy H1 H2 H3 H4 => IHy.
+      move=>//=; rewrite FDistBind.dE rsum_split //.
+      comp_possible_decompose => d_hshs' d_bf.
 
+      have ->:
+        (let x0 := (d_hshs', d_bf) in
+         (d[ @AMQ_add_multiple (n,k.-1) I hshs bf ys]) x0 *R*
+         (d[ let (hsh, bf0) := x0 in @AMQ_add (n,k.-1) I bf0 hsh y]) (hshs', bf')) =
+        ((d[ @AMQ_add_multiple (n,k.-1) I hshs bf ys]) (d_hshs',d_bf) *R*
+         (d[ @AMQ_add (n,k.-1) I d_bf d_hshs' y]) (hshs', bf')); first by [].
+      rewrite /AMQ_add.
+      have H (T T1 T2:finType) (f: Comp T)
+             (g: T -> Comp [finType of (T1 * T2)]) a b:
+          ((d[ hash_res <-$ f; (g hash_res)])) (a,b) =
+          FDistBind.d (d[ f]) (fun b0 : T => d[ g b0]) (a, b); first by [].
+      rewrite H; clear H.
+      rewrite FDistBind.dE.
+      rewrite mulR_neq0' => /andP[ Haddm ].
+      comp_possible_decompose => [[d_hshs'' d_ind]].
+      rewrite/AMQHash_hash => Hint //=.
       comp_normalize.
-      comp_possible_decompose => d_hshs' d_bf d_hshs'' d_ind /(IHy).
+      move: Haddm Hint.
+      move=>/(IHy).
       clear IHy all_cons bf Hfree Huns Hkgt0 Hfindys .
-      move=> Hall //= Hint /bool_neq0_true; rewrite xpair_eqE=>/andP[/eqP -> _].
+      move=> Hall Hint /bool_neq0_true; rewrite xpair_eqE=>/andP[/eqP -> _].
       (* clear hshs'; elim: k hs1 hs2 vec1 Hint; clear hshs Hfindy k. *)
-      clear hshs'; elim: k d_hshs' d_hshs'' d_ind Hint Hall; clear hshs Hfindy k.
+      clear hshs'.
+      move: k d_hshs' d_hshs'' d_ind Hint Hall; clear hshs Hfindy k=>k.
+      rewrite/AMQHash/AMQState/AMQHashValue.
+      change ((n, k.-1).2.+1) with (k.-1.+1).
+      change ((n, k.-1).1) with n.
+      elim: (k.-1.+1); clear k.
     - by move=> hs1 hs2 vec1 //=; comp_normalize => /bool_neq0_true; rewrite xpair_eqE=>/andP[/eqP -> _] //=.
     - move=> k IHk hs1 hs2 vec1 //=; comp_normalize; comp_possible_decompose.
       move=> hs3 vec2 state1 ind1.
       move=>/IHk;clear IHk => IHk Hhash /bool_neq0_true; rewrite xpair_eqE => /andP[/eqP -> _ ] //= Hall.
-      move: Hhash; rewrite/hash/hashstate_find.
+      move: Hhash; rewrite/HashVec.Hash.hash/HashVec.Hash.hashstate_find.
       have Hthead: (thead hs1 \in hs1); first by rewrite (tuple_eta hs1) theadE in_cons eq_refl //=.
       case: (FixedMap.fixmap_find _ _) => [val //=|]. 
       - {
@@ -495,7 +551,7 @@ Module BloomFilterProbability (Spec: HashSpec).
                   rewrite /FixedList.ntuple_tail; move: (behead_tupleP _) => //= Hls'.
                   move: (IHn ls Hls') => IHn'.
                   rewrite/FixedList.fixlist_length/FixedList.ntuple_cons.
-                    by case Hput: (hashstate_put _) => [ms Hms] //=; move: IHn';rewrite Hput.
+                    by case Hput: ( HashVec.Hash.hashstate_put _) => [ms Hms] //=; move: IHn';rewrite Hput.
                 }
             }
             {
@@ -507,13 +563,20 @@ Module BloomFilterProbability (Spec: HashSpec).
   Qed.
 
 
-  Lemma bloomfilter_addn_Nuns  ind bf (hashes: hash_vec) x :
+  Lemma bloomfilter_addn_Nuns  ind bf hashes x :
     bloomfilter_get_bit ind bf ->
-    (d[ res <-$ bloomfilter_add x hashes bf;
+    (d[ res <-$ @AMQ_add (n,k.-1) I bf hashes x;
           (let '(_, bf') := res in ret ~~ bloomfilter_get_bit ind bf')]) true = (0 %R).
   Proof.
+    move: hashes bf; rewrite /AMQHash/AMQ_add/AMQHash_hash/AMQ_add_internal/AMQHashValue.
+    change  (AMQHash (n, k.-1)) with ([finType of k.-1.+1.-tuple (HashVec.Hash.HashState n)]).
+    change ((n, k.-1).2.+1) with (k.-1.+1).
+    change ((n, k.-1).1) with n.
+    rewrite (@prednK k Hkgt0).
+    move=> hashes bf.
     move=> Htnth; comp_normalize.
-    comp_impossible_decompose => hashes' _ bf' _ hashes'' _ hvec _ Hnbit /eqP <- /eqP Hbf; clear hashes''.
+    comp_impossible_decompose.
+    move=> hashes' _ bf' _ hashes'' _ hvec _ Hnbit /eqP <- /eqP Hbf; clear hashes''.
     move: Hbf Hnbit => ->; clear bf'.
     rewrite/bloomfilter_get_bit.
       by rewrite bloomfilter_add_internal_preserve //=.
@@ -527,9 +590,17 @@ Module BloomFilterProbability (Spec: HashSpec).
     all (hashes_value_unseen hashes) values ->
     uniq values ->
     ~~ bloomfilter_get_bit ind bf ->
-    (d[ res <-$ @bloomfilter_add_multiple  k n hashes bf values;
+    (d[ res <-$ @AMQ_add_multiple (n,k.-1) I  hashes bf values;
           (let '(_, bf') := res in ret ~~ bloomfilter_get_bit ind bf')]) true =
     ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ (k * l)).
+  Proof.
+    move: hashes bf bloomfilter_add_multiple_preserve bloomfilter_addn bloomfilter_addn_Nuns ;
+      rewrite /AMQHash/AMQ_add/AMQHash_hash/AMQ_add_internal/AMQHashValue;
+    rewrite/AMQHash_hashstate_available_capacity/AMQHash_hashstate_unseen.
+    change  (AMQHash (n, k.-1)) with ([finType of k.-1.+1.-tuple (HashVec.Hash.HashState n)]).
+    change ((n, k.-1).2.+1) with (k.-1.+1).
+    change ((n, k.-1).1) with n.
+    move=> hashes bf bloomfilter_add_multiple_preserve bloomfilter_addn bloomfilter_addn_Nuns .
     elim: l ind bf values hashes => [|l IHl] ind bf values hashes0 .
     {
       case: values => //= _ _ _ _ Htnth; rewrite muln0; comp_normalize.
@@ -540,40 +611,64 @@ Module BloomFilterProbability (Spec: HashSpec).
       case: values => [//= | x xs] Hlen Hfree Huns Huniq Hnb.
       rewrite bloomfilter_add_multiple_unfold.
       rewrite RealField.Rdef_pow_add.
-      erewrite <- (IHl ind bf xs hashes0) => //=.
-      rewrite mulRC; comp_normalize.
-
+      erewrite <- (IHl ind bf xs hashes0) => //=; clear IHl.
+      rewrite mulRC.
+      rewrite FDistBind.dE rsum_split.
+      move: bloomfilter_addn_Nuns  (bloomfilter_add_multiple_preserve x xs l 0 hashes0) bloomfilter_addn; clear bloomfilter_add_multiple_preserve.
+      rewrite/AMQ_add_multiple/AMQState/AMQ_add/AMQ_add_internal/AMQHash_hash.
+      change  (AMQHash (n, k.-1)) with ([finType of k.-1.+1.-tuple (HashVec.Hash.HashState n)]).
+      change  (AMQHashValue (n, k.-1)) with ([finType of k.-1.+1.-tuple 'I_Hash_size.+1]).
+      change ((n, k.-1).2.+1) with (k.-1.+1).
+      change ((n, k.-1).1) with n.
+      move: hashes0 Hfree Huns .
+      rewrite (@prednK k Hkgt0).
+      move=> hashes0 Hfree Huns bloomfilter_addn_Nuns bloomfilter_add_multiple_preserve bloomfilter_addn.
+      comp_normalize.
       exchange_big_outwards 2 => //=; exchange_big_outwards 3 => //=.
       comp_simplify_n 1.
-      exchange_big_outwards 2 => //=; exchange_big_outwards 2 => //=.
+      comp_simplify_n 1.
       apply eq_bigr => hshs' _; apply eq_bigr => bf' _.
-
-      under eq_bigr => i _ do (under eq_bigr
-                               => i0 _ do
-                                     rewrite -rsum_Rmul_distr_l;
-                                  rewrite -rsum_Rmul_distr_l); rewrite -rsum_Rmul_distr_l.
-      case Hnz: (d[ bloomfilter_add_multiple hashes0 bf xs ] (hshs', bf') == (0 %R));
+      move=>//=.
+      under eq_bigr do rewrite -rsum_Rmul_distr_l; rewrite -rsum_Rmul_distr_l.
+      move: (@bloomfilter_add_multiple_preserve hshs' bf bf'); clear bloomfilter_add_multiple_preserve.
+      set bloomfilter_add_multiple :=
+        foldr
+         (fun val : AMQHashKey =>
+          (Bind
+             (B:=[finType of k.-tuple (HashVec.Hash.HashState n) *
+                             BloomfilterCore.BloomFilterDefinitions.BloomFilter]))^~ 
+          (fun
+             res_1 : k.-tuple (HashVec.Hash.HashState n) *
+                     BloomfilterCore.BloomFilterDefinitions.BloomFilter =>
+           let (hsh, bf0) := res_1 in
+           hash_res <-$ HashVec.hash_vec_int val hsh;
+           (let (new_hashes, hash_vec) := hash_res in
+            ret (new_hashes,
+                BloomfilterCore.BloomFilterDefinitions.bloomfilter_add_internal hash_vec bf0))))
+         (ret (hashes0, bf)) xs.        
+      move=> bloomfilter_add_multiple_preserve.
+      case Hnz: (d[ bloomfilter_add_multiple ] (hshs', bf') == (0 %R));
         first by move/eqP: Hnz ->; rewrite !mul0R mulR0.
       move/Bool.negb_true_iff: Hnz => Hnz.
       move: Hfree; rewrite -(addn0 l) => Hfree.
-      move: (bloomfilter_add_multiple_preserve Huniq Hlen Hfree Huns Hnz) => /andP [].
+      move: (bloomfilter_add_multiple_preserve  Huniq Hlen Hfree Huns Hnz) => /andP [].
       rewrite /hashes_have_free_spaces/hashes_value_unseen => Hfree' Huns'.
       apply Logic.eq_sym; rewrite mulRA mulRC mulRA mulRC; apply f_equal; apply Logic.eq_sym.
       case Htnth': (~~ bloomfilter_get_bit ind bf').
     - have <-: (Rdefinitions.IZR 1) = (BinNums.Zpos BinNums.xH); first by [].
       erewrite <-  (@bloomfilter_addn hshs' ind bf' x) => //=.
       by apply Logic.eq_sym; comp_normalize; comp_simplify_n 2; apply Logic.eq_sym; comp_simplify_n 1.
-    - move: Hfree'; rewrite /hashes_not_full/hash_has_free_spaces => /allP Hlt; apply/allP => cell Hcell; rewrite /hash_not_full.
-        by move: (Hlt cell Hcell); rewrite addn1 //=.
-    - move /Bool.negb_false_iff: Htnth' => Htnth'; rewrite FDist1.dE // mul0R; comp_simplify.
-        by move: (@bloomfilter_addn_Nuns ind bf' hshs' x Htnth'); comp_normalize; comp_simplify.
-        move/allP: Hfree => Hfree; apply/allP => cell Hcell.        
-        move: (Hfree cell Hcell); rewrite /hash_has_free_spaces.
-          by rewrite addnS => /ltnW.
-          move /allP: Huns => Huns; apply/allP => x' Hx'.
-          apply Huns => //=.
-            by rewrite in_cons Hx' Bool.orb_true_r.
-              by move: Huniq => //= /andP [].
+    (* - move: Hfree'; rewrite /hashes_not_full/hash_has_free_spaces => /allP Hlt; apply/allP => cell Hcell; rewrite /hash_not_full. *)
+    (*     by move: (Hlt cell Hcell); rewrite addn1 //=. *)
+    - move /Bool.negb_false_iff: Htnth' => Htnth'; rewrite FDist1.dE // mul0R.
+       by move: (@bloomfilter_addn_Nuns ind bf' hshs' x Htnth'); comp_normalize; comp_simplify.
+    - move/allP: Hfree => Hfree; apply/allP => cell Hcell.        
+    - move: (Hfree cell Hcell); rewrite /hash_has_free_spaces.
+        by rewrite addnS => /ltnW.
+    - move /allP: Huns => Huns; apply/allP => x' Hx'.
+    - apply Huns => //=.
+        by rewrite in_cons Hx' Bool.orb_true_r.
+          by move: Huniq => //= /andP [].
     }
   Qed.
   
@@ -642,19 +737,19 @@ Module BloomFilterProbability (Spec: HashSpec).
     all (hashes_value_unseen hashes) values ->
     uniq values ->
     ~~ bloomfilter_get_bit ind bf ->
-    (d[ res <-$ @bloomfilter_add_multiple k n hashes bf values;
+    (d[ res <-$ @AMQ_add_multiple (n,k.-1) I hashes bf values;
           (let '(_, bf') := res in ret bloomfilter_get_bit ind bf')]) true =
     (1 -R- ((1 -R- Rdefinitions.Rinv (Hash_size.+1 %R)) ^R^ (k * l))).
   Proof.
     move=> Hlen Hhashes Huns Huniq Hnth.
     transitivity (
-        (d[ res <-$ bloomfilter_add_multiple hashes bf values;
+        (d[ res <-$ @AMQ_add_multiple (n,k.-1) I hashes bf values;
             ret (fun res' => (let '(_, bf') := res' in bloomfilter_get_bit ind bf')) res]) true
       ).
     - by rewrite //= !FDistBind.dE; apply/eq_bigr=>[[hs' bf']] _ //=.
       rewrite -(prsumr_neg1 ).
       transitivity (
-          (1 -R- (d[ res <-$ bloomfilter_add_multiple hashes bf values;
+          (1 -R- (d[ res <-$ @AMQ_add_multiple (n,k.-1) I hashes bf values;
                      (let '(_, bf') := res in ret ~~ bloomfilter_get_bit ind bf')]) true)
         ).
     - by rewrite //= !FDistBind.dE; apply f_equal; apply/eq_bigr=>[[hs' bf']] _ //=.
@@ -663,13 +758,21 @@ Module BloomFilterProbability (Spec: HashSpec).
 
 
   Lemma bloomfilter_hits_preserve (xs : seq B) (l : nat_eqType) (m : nat)
-        (hshs : k.-tuple (HashState n)) (hshs' : tuple_finType k (hashstate_of_finType n))
+        hshs hshs'
         (bf bf' : bloomfilter_finType) inds :
    length xs == l ->
    all (bloomfilter_get_bit^~ bf) inds ->
-   (d[ bloomfilter_add_multiple hshs bf xs]) (hshs', bf') != (0 %R) ->
+   (d[ @AMQ_add_multiple (n,k.-1) I hshs bf xs]) (hshs', bf') != (0 %R) ->
    all (bloomfilter_get_bit^~ bf') inds.
   Proof.
+    move: hshs hshs'.
+    rewrite/AMQ_add_multiple/AMQState/AMQ_add/AMQ_add_internal/AMQHash_hash.
+    change  (AMQHash (n, k.-1)) with ([finType of k.-1.+1.-tuple (HashVec.Hash.HashState n)]).
+    change  (AMQHashValue (n, k.-1)) with ([finType of k.-1.+1.-tuple 'I_Hash_size.+1]).
+    change ((n, k.-1).2.+1) with (k.-1.+1).
+    change ((n, k.-1).1) with n.
+    rewrite (@prednK k Hkgt0).
+    move=> hshs hshs'.
     elim: l xs bf inds hshs' bf' => [//= [|//=]| l IHl [//=| x xs]] bf inds hshs' bf' Hlen Hall //=.
     - by comp_normalize =>/bool_neq0_true; rewrite xpair_eqE => /andP[_/eqP->].
     - {
@@ -684,129 +787,28 @@ Module BloomFilterProbability (Spec: HashSpec).
       }
   Qed.
   
-  Theorem bloomfilter_no_false_negatives l  bf (hashes: hash_vec) x xs :
-    uniq (x :: xs) ->
-    length xs == l ->
-    hashes_have_free_spaces hashes (l.+1) ->
-    all (hashes_value_unseen hashes) (x::xs) ->
-    (d[ res1 <-$ bloomfilter_add x hashes bf;
-          let '(hsh1, bf1) := res1 in
-          res2 <-$ bloomfilter_add_multiple hsh1 bf1 xs;
-            let '(hsh2, bf2) := res2 in
-            res3 <-$ bloomfilter_query x hsh2 bf2;
-              ret (snd res3) ] true) = (1 %R).
-  Proof.
-    move=> Huniq Hlen Hfree Huns .
-
-    comp_normalize.
-    comp_simplify_n 2.
-    exchange_big_outwards 5 => //=; comp_simplify_n 1.
-    exchange_big_outwards 4 => //=; comp_simplify_n 1.
-
-    under eq_bigr => hshs _ do  under eq_bigr
-    => bf' _ do
-           (rewrite  exchange_big //=; under eq_bigr
-            => v1 _ do
-                  (rewrite exchange_big //=; under eq_bigr
-                   => v2 _ do
-                         (rewrite exchange_big //=;  under eq_bigr
-                          => v3 _ do
-                                (rewrite hash_vec_simpl //=;
-                                         try by move: Huns => //=/andP[];
-                                                              rewrite/hashes_value_unseen/hash_unseen //=)))).
-    under eq_bigr => ? ? do
-                       (under eq_bigr
-                        => ? ? do (under eq_bigr
-                                   => ? ? do (under eq_bigr do
-                                                    rewrite -rsum_Rmul_distr_l;
-                                              rewrite -rsum_Rmul_distr_l);
-                                      rewrite -rsum_Rmul_distr_l);
-                           rewrite -rsum_Rmul_distr_l);
-                       rewrite -rsum_Rmul_distr_l.
-      transitivity (
-          ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k) *R*
-           \sum_(i in tuple_finType k (ordinal_finType Hash_size.+1))
-            \sum_(i0 in tuple_finType k (hashstate_of_finType n))
-            \sum_(i1 in bloomfilter_finType)
-            ((d[ bloomfilter_add_multiple (Tuple (hash_vec_insert_length x hashes i))
-                                          (bloomfilter_add_internal i bf) xs]) (i0, i1) *R*
-             (bloomfilter_query_internal i i1 %R)
-        ))).
-    - {
-        apply f_equal.
-        exchange_big_outwards 2.
-        apply eq_bigr => inds _.
-        apply eq_bigr => inds' _.
-        apply eq_bigr => bf' _.
-        under eq_bigr => ? ?  do rewrite -rsum_Rmul_distr_l; rewrite -rsum_Rmul_distr_l.
-        case Heq0: ((d[ bloomfilter_add_multiple (Tuple (hash_vec_insert_length x hashes inds))
-                                                 (bloomfilter_add_internal inds bf) xs]) (inds', bf') == 0).
-        - by move/eqP: Heq0 ->; rewrite //= ?mulR0 ?mul0R.
-          move/Bool.negb_true_iff: Heq0 => Heq0.
-          apply f_equal.
-          move/bloomfilter_add_multiple_find_preserve: (Heq0) => /(_ x inds) Hfind.
-          under eq_bigr => i _.  under eq_bigr => i0 _. {
-            rewrite (@hash_vec_find_simpl _ _ x _ _ inds _); last apply Hfind.
-            by over.
-            apply hash_vec_contains_value_base;apply/allP => //= h Hh.
-            move/allP: Hfree; rewrite/hashes_have_free_spaces/hash_has_free_spaces => /(_ h Hh).
-            have ->: [length h] + l.+1 = [length h].+1 + l; first by rewrite addnS -addSn.
-              by rewrite addn1; move=>/leq_addr_weaken.
-          } by over.
-          move=>//=; comp_normalize.
-          under eq_bigr => i _ do under eq_bigr => i0 _ do rewrite boolR_distr; comp_simplify.
-      }
-      transitivity (
-        ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k) *R*
-         \sum_(i in tuple_finType k (ordinal_finType Hash_size.+1))
-          \sum_(i0 in tuple_finType k (hashstate_of_finType n))
-          \sum_(i1 in bloomfilter_finType)
-          ((d[ bloomfilter_add_multiple (Tuple (hash_vec_insert_length x hashes i))
-                                        (bloomfilter_add_internal i bf) xs]) (i0, i1)
-      ))).
-      {
-        rewrite /bloomfilter_query_internal.        
-        apply f_equal; apply eq_bigr => inds _ ; apply eq_bigr=> hshs1 _; apply eq_bigr=> bf1 _.
-        case Heq0: ((d[ bloomfilter_add_multiple
-                          (Tuple (hash_vec_insert_length x hashes inds))
-                          (bloomfilter_add_internal inds bf) xs]) (hshs1, bf1) == 0);
-          first by move/eqP: Heq0 ->; rewrite //= ?mulR0 ?mul0R.
-        move/Bool.negb_true_iff: Heq0 => Heq0.
-        have Hset: (all (bloomfilter_get_bit^~ (bloomfilter_add_internal inds bf)) inds).
-        {
-          apply/allP => ind Hind.
-            by apply bloomfilter_add_internal_hit.
-        }
-        move: (@bloomfilter_hits_preserve xs l 0 _ _ _ _  inds Hlen Hset Heq0) -> .
-          by rewrite mulR1.
-      }
-      transitivity (
-        ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k) *R*
-         \sum_(i in tuple_finType k (ordinal_finType Hash_size.+1)) (1 %R))
-      ).
-      {
-        apply f_equal; apply eq_bigr=> i _.
-        move: (fdist_is_fdist ((d[ bloomfilter_add_multiple (Tuple (hash_vec_insert_length x hashes i))
-                                                            (bloomfilter_add_internal i bf) xs]))) => [_ ] //=.
-          by rewrite rsum_split //= => ->.
-      }
-      rewrite bigsum_card_constE card_tuple card_ord mulR1 -natRexp -expRM mulRC mulRV ?exp1R//=.
-        by rewrite RIneq.INR_IZR_INZ; apply/eqP => //=.
-  Qed.
   
   Theorem bloomfilter_addn_bits
           hashes b (inds: seq 'I_Hash_size.+1) (bf: BloomFilter) (value: B):
     b < k ->
     length inds == b ->
-    @hashes_have_free_spaces k n hashes 1 ->
-    (hashes_value_unseen hashes value)  ->
+    @AMQHash_hashstate_available_capacity (n,k.-1) hashes 1 ->
+    (@AMQHash_hashstate_unseen (n,k.-1) hashes value)  ->
     uniq inds ->
     all (fun ind => ~~ bloomfilter_get_bit ind bf) inds ->
-    (d[ res <-$ bloomfilter_add value hashes bf;
+    (d[ res <-$ @AMQ_add (n,k.-1) I bf  hashes value;
           (let '(_, bf') := res in ret (all (bloomfilter_get_bit^~ bf') inds))]) true = 
     \sum_(i in tuple_finType k (ordinal_finType Hash_size.+1))
      ((((inds \subseteq i) == true) %R) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k)).
   Proof.
+    move: hashes.
+    rewrite/AMQ_add_multiple/AMQState/AMQ_add/AMQ_add_internal/AMQHash_hash/AMQHash_hashstate_available_capacity/AMQHash_hashstate_unseen.
+    change  (AMQHash (n, k.-1)) with ([finType of k.-1.+1.-tuple (HashVec.Hash.HashState n)]).
+    change  (AMQHashValue (n, k.-1)) with ([finType of k.-1.+1.-tuple 'I_Hash_size.+1]).
+    change ((n, k.-1).2.+1) with (k.-1.+1).
+    change ((n, k.-1).1) with n.
+    rewrite (@prednK k Hkgt0).
+    move=> hashes.
     have H x1 y1 z1: y1 = (0 %R) -> x1 = z1 -> x1 +R+ y1 = z1; first by move=> -> ->; rewrite addR0.
     move =>  //= Hb Hlen Hfree Huns Huniq Hall.
     comp_normalize; comp_simplify.
@@ -835,21 +837,44 @@ Module BloomFilterProbability (Spec: HashSpec).
   Lemma bloomfilter_add_multiple_unwrap_internal bf
         hashes l value (values: seq B) inds:
     length values == l ->
-    hashes_have_free_spaces hashes (l.+1) ->
-    all (hashes_value_unseen hashes) (value::values) ->
-    \sum_(a in [finType of k.-tuple (HashState n) * BloomFilter])
-     ((d[ bloomfilter_add_multiple (Tuple (hash_vec_insert_length value hashes inds)) bf
+    @AMQHash_hashstate_available_capacity (n,k.-1) hashes (l.+1) ->
+    all (@AMQHash_hashstate_unseen (n,k.-1) hashes) (value::values) ->
+    \sum_(a in [finType of k.-1.+1.-tuple (HashState n) * BloomFilter])
+     ((d[ @AMQ_add_multiple (n,k.-1) I (Tuple (hash_vec_insert_length value hashes inds)) bf
                                    values]) a *R*
       (d[ let (hashes2, bf) := a in res' <-$ bloomfilter_query value hashes2 bf; ret res'.2]) true) =
-    \sum_(a in [finType of k.-tuple (HashState n) * BloomFilter])
-     ((d[ bloomfilter_add_multiple (Tuple (hash_vec_insert_length value hashes inds)) bf
+    \sum_(a in [finType of k.-1.+1.-tuple (HashState n) * BloomFilter])
+     ((d[ @AMQ_add_multiple (n,k.-1) I (Tuple (hash_vec_insert_length value hashes inds)) bf
                                    values]) a *R*
       (bloomfilter_query_internal inds a.2 == true %R)).
   Proof.
-    move: hashes; rewrite/hash_vec => hashes.
+    move: hashes inds bloomfilter_add_multiple_find_preserve.
+    rewrite/AMQ_add_multiple/AMQState/AMQ_add/AMQ_add_internal/AMQHash_hash/AMQHash_hashstate_available_capacity/AMQHash_hashstate_unseen/AMQHash_hashstate_contains.
+    change  (AMQHash (n, k.-1)) with ([finType of k.-1.+1.-tuple (HashVec.Hash.HashState n)]).
+    change  (AMQHashValue (n, k.-1)) with ([finType of k.-1.+1.-tuple 'I_Hash_size.+1]).
+    change ((n, k.-1).2.+1) with (k.-1.+1).
+    change ((n, k.-1).1) with n.
+    rewrite (@prednK k Hkgt0).
+    move=> hashes inds bloomfilter_add_multiple_find_preserve.
+
     move=>  Hlen Hfree Hall; apply eq_bigr => [[hshs' bf']] _.
-    case Hzro: ((d[ bloomfilter_add_multiple (Tuple (hash_vec_insert_length value hashes inds)) bf values])
-                  (hshs', bf') == 0); first by move/eqP:Hzro -> ; rewrite !mul0R.
+
+    move: (@bloomfilter_add_multiple_find_preserve value inds (Tuple (hash_vec_insert_length value hashes inds)) hshs' bf bf' values  ); clear bloomfilter_add_multiple_find_preserve.
+    set bloomfilter_add_multiple :=
+      (d[ foldr
+            (fun val : AMQHashKey =>
+               (Bind
+                  (B:=[finType of [finType of k.-tuple (HashVec.Hash.HashState n)] *
+                       [finType of BloomfilterCore.BloomFilterDefinitions.BloomFilter]]))^~ (fun res_1 : [finType of [finType of k.-tuple (HashVec.Hash.HashState n)] *
+                                 [finType of BloomfilterCore.BloomFilterDefinitions.BloomFilter]] =>
+           let (hsh, bf0) := res_1 in
+           hash_res <-$ HashVec.hash_vec_int val hsh;
+           (let (new_hashes, hash_vec) := hash_res in
+            ret (new_hashes,
+                BloomfilterCore.BloomFilterDefinitions.bloomfilter_add_internal hash_vec bf0))))
+         (ret (Tuple (hash_vec_insert_length value hashes inds), bf)) values]).      
+    move=> bloomfilter_add_multiple_find_preserve.
+    case Hzro: (bloomfilter_add_multiple (hshs', bf') == 0); first by move/eqP:Hzro -> ; rewrite !mul0R.
     move/Bool.negb_true_iff: Hzro => Hzro.
     apply f_equal.
     comp_normalize; comp_simplify.
@@ -858,10 +883,10 @@ Module BloomFilterProbability (Spec: HashSpec).
                        FixedList.fixlist_length hsh + 1 <= n) hashes.
     {
       move: Hfree;rewrite/hashes_have_free_spaces/hash_has_free_spaces=>/allP Hfree;apply/allP=>ind Hind.
-        by move: (Hfree ind Hind); rewrite addn1 addnS =>/ltn_weaken.    
+      by move: (Hfree ind Hind); rewrite/HashVec.hash_has_free_spaces; rewrite addn1 addnS =>/ltn_weaken.    
     }
     move: (@hash_vec_contains_value_base _ _ value hashes inds Hallleq) => Hcontains'.
-    move: (@bloomfilter_add_multiple_find_preserve value inds (Tuple (hash_vec_insert_length value hashes inds)) hshs' bf bf' values Hcontains' Hzro) => Hcontains''.
+    move: (@bloomfilter_add_multiple_find_preserve Hcontains' Hzro) => Hcontains''.
     under eq_bigr => a0 _ do under eq_bigr => b _ do rewrite (@hash_vec_find_simpl n k value hshs' _ inds _ Hcontains'') //=.
     by under eq_bigr => ? ? do under eq_bigr => ? ? do rewrite boolR_distr; comp_simplify; rewrite eq_sym.
   Qed.
@@ -870,14 +895,22 @@ Module BloomFilterProbability (Spec: HashSpec).
         hashes l (values: seq B) others inds:
     uniq values ->
     length values == l ->
-    hashes_have_free_spaces (hashes: k.-tuple (HashState n)) (l) ->
-    all (hashes_value_unseen hashes) (values) ->
-    \sum_(a in [finType of (k.-tuple (HashState n) * BloomFilter)]%type)
-     ((d[ bloomfilter_add_multiple hashes bloomfilter_new values]) a *R*
+    @AMQHash_hashstate_available_capacity (n,k.-1) hashes l ->
+    all (@AMQHash_hashstate_unseen (n,k.-1) hashes) (values) ->
+    \sum_(a in [finType of (k.-1.+1.-tuple (HashState n) * BloomFilter)]%type)
+     ((d[ @AMQ_add_multiple (n,k.-1) I hashes bloomfilter_new values]) a *R*
       ((all (bloomfilter_get_bit^~ (bloomfilter_add_internal others a.2)) inds == true) %R)) =
     \sum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1])
      ((inds \subseteq hits ++ others) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l * k)).
   Proof.
+    move: hashes bloomfilter_add_multiple_preserve.
+    rewrite/AMQ_add_multiple/AMQState/AMQ_add/AMQ_add_internal/AMQHash_hash/AMQHash_hashstate_available_capacity/AMQHash_hashstate_unseen/AMQHash_hashstate_contains.
+    change  (AMQHash (n, k.-1)) with ([finType of k.-1.+1.-tuple (HashVec.Hash.HashState n)]).
+    change  (AMQHashValue (n, k.-1)) with ([finType of k.-1.+1.-tuple 'I_Hash_size.+1]).
+    change ((n, k.-1).2.+1) with (k.-1.+1).
+    change ((n, k.-1).1) with n.
+    rewrite (@prednK k Hkgt0).
+    move=> hashes bloomfilter_add_multiple_preserve.
     elim: l others values inds => [//=| l IHl] others [//=|//= value values] inds Huniq Hlen Hfree Hunseen.
     - {
         comp_normalize; comp_simplify; rewrite mulR1 //=.
@@ -900,17 +933,37 @@ Module BloomFilterProbability (Spec: HashSpec).
           rewrite -(IHl (others ++ b) values inds) //=.
             by over.          
               by move/andP: Huniq => [].
-              by move: Hfree;rewrite /hashes_have_free_spaces=>/allP Hall; apply/allP=> y Hy; move: (Hall y Hy);
+              move: Hfree;rewrite /HashVec.hashes_have_free_spaces=>/allP Hall; apply/allP=> y Hy; move: (Hall y Hy);
 
-              rewrite/hash_has_free_spaces addnS => /ltnW.
-              by move/andP:Hunseen => [].
+              rewrite/HashVec.hash_has_free_spaces addnS => /ltnW.
+                by move/andP:Hunseen => [].
+                by move/andP: Hunseen => [].
         }
-        comp_normalize; comp_simplify_n 2.
+         comp_normalize; comp_simplify_n 2.
         apply Logic.eq_sym; under eq_bigr => ? ? do rewrite rsum_Rmul_distr_l; rewrite exchange_big //=.
         comp_normalize; apply eq_bigr => hshs' _ ; apply eq_bigr => bf' _.
         rewrite exchange_big; apply eq_bigr => inds' _; rewrite mulRC -!mulRA; apply Logic.eq_sym.
         under eq_bigr => i ? do rewrite mulRC  -!mulRA; rewrite -rsum_Rmul_distr_l.
-        case Hzr0: ((d[ bloomfilter_add_multiple hashes bloomfilter_new values]) (hshs', bf') == 0);
+        move: (@bloomfilter_add_multiple_preserve
+                 value
+                 values l 0 hashes hshs' bloomfilter_new bf' ); clear bloomfilter_add_multiple_preserve.
+
+        set bloomfilter_add_multiple := (d[ foldr
+         (fun val : AMQHashKey =>
+          (Bind
+             (B:=[finType of [finType of k.-tuple (HashVec.Hash.HashState n)] *
+                             [finType of BloomfilterCore.BloomFilterDefinitions.BloomFilter]]))^~ 
+          (fun
+             res_1 : [finType of [finType of k.-tuple (HashVec.Hash.HashState n)] *
+                                 [finType of BloomfilterCore.BloomFilterDefinitions.BloomFilter]] =>
+           let (hsh, bf) := res_1 in
+           hash_res <-$ HashVec.hash_vec_int val hsh;
+           (let (new_hashes, hash_vec) := hash_res in
+            ret (new_hashes,
+                BloomfilterCore.BloomFilterDefinitions.bloomfilter_add_internal hash_vec bf))))
+         (ret (hashes, bloomfilter_new)) values]).
+        move=> bloomfilter_add_multiple_preserve.
+        case Hzr0: (bloomfilter_add_multiple (hshs', bf') == 0);
           first by move/eqP: Hzr0 ->;rewrite ?mulR0 ?mul0R //=.
         move/Bool.negb_true_iff: Hzr0 => Hzr0.
         apply f_equal.
@@ -920,8 +973,6 @@ Module BloomFilterProbability (Spec: HashSpec).
         have H3: hashes_have_free_spaces hashes (l + 0).+1; first by rewrite addn0.
         have H4: all (hashes_value_unseen hashes) (value :: values); first by [].
         move: (@bloomfilter_add_multiple_preserve
-                 value
-                 values l 0 hashes hshs' bloomfilter_new bf'
                  H1 H2 H3 H4 Hzr0
               ) => /andP [Hfree' Huns'].
         by rewrite hash_vec_simpl => //=; rewrite mulRC bloomfilter_add_multiple_cat //=.
@@ -932,10 +983,10 @@ Module BloomFilterProbability (Spec: HashSpec).
         hashes l value (values: seq B) inds:
     uniq (value::values) ->
     length values == l ->
-    hashes_have_free_spaces (hashes: k.-tuple (HashState n)) (l.+1) ->
-    all (hashes_value_unseen hashes) (value::values) ->
-    \sum_(a in [finType of k.-tuple (HashState n) * BloomFilter])
-     ((d[ bloomfilter_add_multiple (Tuple (hash_vec_insert_length value hashes inds)) bloomfilter_new
+    @AMQHash_hashstate_available_capacity (n,k.-1) hashes (l.+1) ->
+    all (@AMQHash_hashstate_unseen (n,k.-1) hashes) (value::values) ->
+    \sum_(a in [finType of k.-1.+1.-tuple (HashState n) * BloomFilter])
+     ((d[ @AMQ_add_multiple (n,k.-1) I (Tuple (hash_vec_insert_length value hashes inds)) bloomfilter_new
                                    values]) a *R*
       (d[ let (hashes2, bf) := a in res' <-$ bloomfilter_query value hashes2 bf; ret res'.2]) true) =
     \sum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1])
@@ -953,11 +1004,11 @@ Module BloomFilterProbability (Spec: HashSpec).
     - {
         move: Hfree; rewrite/hashes_have_free_spaces/hash_has_free_spaces//=; clear.
         move=>/allP Hfree; apply/allP => [ //= hsh' /mapP [[hsh ind] /mem_zip/andP [Hhsh Hind] ->]].
-        rewrite/hashstate_put //=.
+        rewrite/hashstate_put/HashVec.hash_has_free_spaces //=.
         move: (Hfree hsh Hhsh); clear.      
         rewrite/FixedList.fixlist_length => //=.
         move=> H; apply/ fixedlist_add_incr;move: H.
-          by rewrite addnS.
+        by rewrite/HashVec.hash_has_free_spaces addnS.
       }
     - {
         move/andP: Hunseen Hnin => [Huns ]; clear.
@@ -973,15 +1024,15 @@ Module BloomFilterProbability (Spec: HashSpec).
   Theorem bloomfilter_collision_rsum
           hashes l value (values: seq B):
     length values == l ->
-    hashes_have_free_spaces hashes (l.+1) ->
-    all (hashes_value_unseen hashes) (value::values) ->
+    @AMQHash_hashstate_available_capacity (n,k.-1) hashes (l.+1) ->
+    all (@AMQHash_hashstate_unseen (n,k.-1) hashes) (value::values) ->
     uniq (value::values) ->
     d[ 
-        res1 <-$ bloomfilter_query value hashes (bloomfilter_new);
+        res1 <-$ @AMQ_query (n,k.-1) I  (AMQ_new I) hashes value;
           let (hashes1, init_query_res) := res1 in
-          res2 <-$ @bloomfilter_add_multiple k n hashes1 (bloomfilter_new) values;
+          res2 <-$ @AMQ_add_multiple (n,k.-1) I hashes1 (bloomfilter_new) values;
             let (hashes2, bf) := res2 in
-            res' <-$ bloomfilter_query value hashes2 bf;
+            res' <-$ @AMQ_query (n,k.-1) I  bf hashes2 value;
               ret (res'.2)
       ] true =
     \sum_(inds in [finType of k.-tuple ('I_Hash_size.+1)])
@@ -989,14 +1040,24 @@ Module BloomFilterProbability (Spec: HashSpec).
       (\sum_(hits in [finType of (l * k).-tuple 'I_Hash_size.+1])
         ((( inds \subseteq hits) *R* (Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ (l * k)))))).
   Proof.
+    (* expand to simplify k.-1.+1 to normal form *)
+    move: hashes bloomfilter_add_multiple_unwrap.
+    rewrite/AMQ_query/AMQ_query_internal/AMQ_new/AMQ_add_multiple/AMQState/AMQ_add/AMQ_add_internal/AMQHash_hash/AMQHash_hashstate_available_capacity/AMQHash_hashstate_unseen/AMQHash_hashstate_contains.
+    change  (AMQHash (n, k.-1)) with ([finType of k.-1.+1.-tuple (HashVec.Hash.HashState n)]).
+    change  (AMQHashValue (n, k.-1)) with ([finType of k.-1.+1.-tuple 'I_Hash_size.+1]).
+    change ((n, k.-1).2.+1) with (k.-1.+1).
+    change ((n, k.-1).1) with n.
+    rewrite (@prednK k Hkgt0).
+    move=> hashes bloomfilter_add_multiple_unwrap.
     have H x y z: (y = (0%R)) -> x = z -> x +R+ y = z. by move => -> ->; rewrite addR0.
     move=>//= Hlen Hfree /andP[Huns Halluns]/andP[Hnin Huniq].
     comp_normalize; comp_simplify_n 2.
     exchange_big_outwards 5 => //=; comp_simplify_n 1.
     exchange_big_outwards 4 => //=; comp_simplify_n 1.
-    apply Logic.eq_sym. under eq_bigr
-    => inds _ do (rewrite  -(@bloomfilter_add_multiple_unwrap hashes l value values) 1?rsum_Rmul_distr_l //=;
-                                                                                     try (by apply/andP;split => //=)).
+    apply Logic.eq_sym.
+    under eq_bigr => inds _ do (rewrite
+                                -(@bloomfilter_add_multiple_unwrap hashes l value values)
+                                   1?rsum_Rmul_distr_l //=; try (by apply/andP;split => //=)).
     comp_normalize.
     exchange_big_outwards 4 => //=; comp_simplify_n 1.
     exchange_big_outwards 3 => //=; comp_simplify_n 1.
@@ -1006,7 +1067,7 @@ Module BloomFilterProbability (Spec: HashSpec).
     exchange_big_outwards 2 => //=; apply Logic.eq_sym; rewrite exchange_big; apply eq_bigr => inds' _. 
     rewrite exchange_big; apply eq_bigr => inds _; apply Logic.eq_sym=> //=.
     rewrite hash_vec_simpl //.
-  Qed.    
+  Qed.
 
   Lemma subseq_conv l:
     \sum_(inds in [finType of k.-tuple ('I_Hash_size.+1)])
@@ -1060,15 +1121,15 @@ Module BloomFilterProbability (Spec: HashSpec).
   Theorem bloomfilter_collision_prob
           hashes l value (values: seq B):
     length values == l ->
-    hashes_have_free_spaces hashes (l.+1) ->
-    all (hashes_value_unseen hashes) (value::values) ->
+    @AMQHash_hashstate_available_capacity (n,k.-1) hashes (l.+1) ->
+    all (@AMQHash_hashstate_unseen (n,k.-1) hashes) (value::values) ->
     uniq (value::values) ->
     d[ 
-        res1 <-$ bloomfilter_query value hashes (bloomfilter_new);
+        res1 <-$ @AMQ_query (n,k.-1) I  (AMQ_new I) hashes value;
           let (hashes1, init_query_res) := res1 in
-          res2 <-$ @bloomfilter_add_multiple k n hashes1 (bloomfilter_new) values;
+          res2 <-$ @AMQ_add_multiple (n,k.-1) I hashes1 (bloomfilter_new) values;
             let (hashes2, bf) := res2 in
-            res' <-$ bloomfilter_query value hashes2 bf;
+            res' <-$ @AMQ_query (n,k.-1) I  bf hashes2 value;
               ret (res'.2)
       ] true =
     ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l.+1 * k) *R*
@@ -1078,12 +1139,81 @@ Module BloomFilterProbability (Spec: HashSpec).
     intros; rewrite (@bloomfilter_collision_rsum _ l) => //=.
       by rewrite  subseq_conv.
   Qed.
-
 End BloomFilter.
-
 Print Assumptions  bloomfilter_collision_prob.
 
+Module BloomFilterProperties :  AMQ.AMQProperties (BasicHashVec) (BloomfilterAMQ).
+  Module AmqOperations :=  BloomfilterOperations.
+  Export AmqOperations.
+
+  Definition AMQ_false_positive_probability (hash:  AMQHashParams) (state: AMQStateParams) (l: nat) : Rdefinitions.R :=
+((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l.+1 * hash.2.+1) *R*
+     \sum_(a in ordinal_finType (Hash_size.+2))
+      (((((a %R) ^R^ hash.2.+1) *R* (Factorial.fact a %R)) *R* ('C(Hash_size.+1, a) %R)) *R* stirling_no_2 (l * hash.2.+1) a)).
+
+  Section Properties.
+    Variable h : AMQHashParams.
+    Variable s: AMQStateParams.
+
+    Variable hashes: AMQHash h.
+
+    Section FalseNegatives.
+
+      Variable amq: AMQState s.
+
+      Lemma AMQ_no_false_negatives:
+        forall (l:nat_eqType) (x:AMQHashKey) (xs: seq AMQHashKey),
+          uniq (x :: xs) -> length xs == l ->
+
+          AMQ_valid amq -> AMQ_available_capacity h amq l.+1 ->
+
+          AMQHash_hashstate_valid hashes ->
+          AMQHash_hashstate_available_capacity hashes l.+1 ->
+          all (AMQHash_hashstate_unseen hashes) (x::xs) ->
+          (d[ res1 <-$ AMQ_add amq hashes x;
+                let '(hsh1, amq1) := res1 in
+                res2 <-$ AMQ_add_multiple hsh1 amq1 xs;
+                  let '(hsh2, amq2) := res2 in
+                  res3 <-$ AMQ_query amq2 hsh2 x;
+                    ret (snd res3) ] true) = (1 %R).
+      Proof.
+        apply AMQ_no_false_negatives.
+      Qed.
+
+    End FalseNegatives.
+
+    Theorem AMQ_false_positives_rate: forall  l value (values: seq _),
+        length values == l ->
+
+        AMQHash_hashstate_valid hashes ->
+        AMQHash_hashstate_available_capacity hashes (l.+1) ->
+
+
+        AMQ_available_capacity h (AMQ_new s) l.+1 ->
+        all (AMQHash_hashstate_unseen hashes) (value::values) ->
+        uniq (value::values) ->
+        d[ 
+            res1 <-$ AMQ_query (AMQ_new s) hashes value;
+              let (hashes1, init_query_res) := res1 in
+              res2 <-$ AMQ_add_multiple hashes1 (AMQ_new s) values;
+                let (hashes2, amq) := res2 in
+                res' <-$ AMQ_query amq  hashes2 value;
+                  ret (res'.2)
+          ] true = AMQ_false_positive_probability h s l.
+    Proof.
+      move: h hashes => [n k]; clear hashes=> hashes.
+      move=> l value values Hlen Hvalid Havail Hcap Huns Huniq.
+      move: (@bloomfilter_collision_prob k.+1 n).
+      Set Printing Implicit Defensive.
+      change (k.+1.-1) with (k); rewrite/AMQ_false_positive_probability.
+      change (n, k).2.+1 with k.+1.
+      move=>H; rewrite (@H _ _ l) //=.
+    Qed.
+  End Properties.
+End  BloomFilterProperties.
+
 End BloomFilterProbability.
+
 (* Local Variables: *)
 (* company-coq-local-symbols: (("\\subseteq" . ?⊆)) *)
 (* End: *)

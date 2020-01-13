@@ -13,7 +13,7 @@ From ProbHash.Utils
 From ProbHash.Computation
      Require Import Comp Notationv1.
 From ProbHash.Core
-     Require Import Hash HashVec FixedList.
+     Require Import Hash HashVec FixedList AMQ AMQHash.
 
 
 
@@ -92,11 +92,6 @@ Section BloomFilter.
     | [::]   => bf
     end.
 
-  Definition bloomfilter_add (value: hash_keytype) (hashes: k.-tuple (HashState n)) (bf: BloomFilter) : Comp [finType of (k.-tuple (HashState n)) * BloomFilter] :=
-    hash_res <-$ (HashVec.hash_vec_int value hashes);
-      let (new_hashes, hash_vec) := hash_res in
-      let new_bf := bloomfilter_add_internal (tval hash_vec) bf in
-      ret (new_hashes, new_bf).
 
   Definition bloomfilter_query_internal (items: seq 'I_(Hash_size.+1)) bf : bool :=
     all (fun h => bloomfilter_get_bit h bf) items.
@@ -107,12 +102,6 @@ Section BloomFilter.
       let qres := bloomfilter_query_internal (tval hash_vec) bf in
       ret (new_hashes, qres).
 
-  Definition bloomfilter_add_multiple  hsh_0 bf_0 values :=
-    @foldr B (Comp [finType of k.-tuple (HashState n) * BloomFilter])
-           (fun val hsh_bf =>
-              res_1 <-$ hsh_bf;
-                let (hsh, bf) := res_1 in
-                bloomfilter_add val hsh bf) (ret (hsh_0, bf_0)) values.
   
   Definition bloomfilter_new : BloomFilter.
     apply mkBloomFilter.
@@ -260,3 +249,116 @@ Section BloomFilter.
   
 End BloomFilter.
 End BloomFilterDefinitions.
+
+
+(* instantiation of AMQ interface *)
+Module BloomFilterAMQ (Spec: HashSpec).
+  Module BasicHashVec := BasicHashVec Spec.
+  Module BloomFilterDefinitions :=  BloomFilterDefinitions Spec.
+
+  Export BasicHashVec.
+  Export BloomFilterDefinitions.
+
+  Module AMQ <: AMQ BasicHashVec.
+
+    Definition AMQStateParams := True.
+
+    Definition AMQState (val:AMQStateParams) : finType :=
+      [finType of BloomFilterDefinitions.BloomFilter ].
+
+    Section AMQ.
+      Variable p: AMQStateParams.
+      Variable h: BasicHashVec.AMQHashParams.
+
+      Definition AMQ_add_internal
+                 (amq: AMQState p)
+                 (inds: BasicHashVec.AMQHashValue h) : AMQState p :=
+        BloomFilterDefinitions.bloomfilter_add_internal
+          inds amq.
+
+      Definition AMQ_query_internal
+                 (amq: AMQState p) (inds: BasicHashVec.AMQHashValue h) : bool :=
+
+        BloomFilterDefinitions.bloomfilter_query_internal
+          inds amq.
+      Definition AMQ_available_capacity (_: BasicHashVec.AMQHashParams) (amq: AMQState p) (l:nat) : bool := true.
+      Definition AMQ_valid (amq: AMQState p) : bool := true.
+
+      Definition AMQ_new: AMQState p :=
+        BloomFilterDefinitions.bloomfilter_new.
+
+      
+      Lemma AMQ_new_nqueryE: forall vals, ~~ AMQ_query_internal  AMQ_new vals.
+      Proof.
+        move=> //= vals.
+        apply BloomFilterDefinitions.bloomfilter_new_empty.
+          by rewrite -length_sizeP size_tuple => //=.
+      Qed.
+      
+      Lemma AMQ_new_validT: AMQ_valid AMQ_new.
+      Proof.
+          by [].
+      Qed.
+      
+      Section DeterministicProperties.
+        Variable amq: AMQState p.
+
+        Lemma AMQ_available_capacityW: forall  n m,
+            AMQ_valid amq -> m <= n -> AMQ_available_capacity h amq n -> AMQ_available_capacity h amq m.
+        Proof.
+            by [].
+        Qed.
+        
+        Lemma AMQ_add_query_base: forall (amq: AMQState p) inds,
+            AMQ_valid amq -> AMQ_available_capacity h amq 1 ->
+            AMQ_query_internal (AMQ_add_internal amq inds) inds.
+        Proof.
+          move=> //= amq' inds _ _.
+          move: inds => [inds Hinds] //=.
+          rewrite/AMQ_query_internal/AMQ_add_internal//=; clear Hinds.
+          elim: inds  amq' => //= ind inds IHinds amq'.
+          apply/andP;split.
+            by apply bloomfilter_add_internal_preserve; apply tnth_set_nth_eq.
+            apply IHinds.
+        Qed.
+        
+        Lemma AMQ_add_valid_preserve: forall (amq: AMQState p) inds,
+            AMQ_valid amq -> AMQ_available_capacity h amq 1 ->
+            AMQ_valid (AMQ_add_internal amq inds).
+        Proof.
+            by [].
+        Qed.
+        
+        Lemma AMQ_add_query_preserve: forall (amq: AMQState p) inds inds',
+            AMQ_valid amq -> AMQ_available_capacity h amq 1 -> AMQ_query_internal amq inds ->
+            AMQ_query_internal (AMQ_add_internal amq inds') inds.
+        Proof.
+          move=> amq' inds inds' _ _.
+          move=>/allP Hquery; apply/allP => v Hv; move: (Hquery v Hv).
+          apply bloomfilter_add_internal_preserve.
+        Qed.
+        
+        Lemma AMQ_add_capacity_decr: forall (amq: AMQState p) inds l,
+            AMQ_valid amq -> AMQ_available_capacity h amq l.+1 ->
+            AMQ_available_capacity h (AMQ_add_internal amq inds) l.
+        Proof.
+            by [].
+        Qed.
+        
+        Lemma AMQ_query_valid_preserve: forall (amq: AMQState p) inds,
+            AMQ_valid amq -> AMQ_valid (AMQ_add_internal amq inds).
+        Proof.
+            by [].
+        Qed.
+        
+        Lemma AMQ_query_capacity_preserve: forall (amq: AMQState p) inds l,
+            AMQ_valid amq -> AMQ_available_capacity h amq l.+1 -> AMQ_available_capacity h (AMQ_add_internal amq inds) l.
+        Proof.
+            by [].
+        Qed.
+
+      End DeterministicProperties.
+    End AMQ.
+  End AMQ.
+
+End BloomFilterAMQ.
