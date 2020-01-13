@@ -1140,7 +1140,7 @@ Module BloomFilterProbability (Spec: HashSpec).
       by rewrite  subseq_conv.
   Qed.
 End BloomFilter.
-Print Assumptions  bloomfilter_collision_prob.
+
 
 Module BloomFilterProperties :  AMQ.AMQProperties (BasicHashVec) (BloomfilterAMQ).
   Module AmqOperations :=  BloomfilterOperations.
