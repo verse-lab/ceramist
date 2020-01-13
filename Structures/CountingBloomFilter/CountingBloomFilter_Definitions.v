@@ -18,7 +18,11 @@ From ProbHash.Computation
      Require Import Comp Notationv1.
 
 From ProbHash.Core
-     Require Import Hash HashVec FixedList.
+     Require Import Hash HashVec FixedList AMQ AMQHash AMQReduction.
+
+From ProbHash.Utils
+     Require Import seq_ext.
+
 
 From ProbHash.BloomFilter
      Require Import BloomFilter_Definitions BloomFilter_Probability.
@@ -27,7 +31,6 @@ Module CountingBloomFilterDefinitions (Spec:HashSpec).
 
   Module BloomFilterProbability := (BloomFilterProbability Spec).
   Export BloomFilterProbability.
-
 
   Section CountingBloomFilter.
     (*
@@ -130,7 +133,7 @@ Module CountingBloomFilterDefinitions (Spec:HashSpec).
       | [::]   => bf
       end.
 
-    Definition countingbloomfilter_add (value: hash_keytype) (hashes: k.-tuple (HashState n)) (bf: CountingBloomFilter) : Comp [finType of (k.-tuple (HashState n)) * CountingBloomFilter] :=
+    Definition countingbloomfilter_add (value: B) (hashes: k.-tuple (HashState n)) (bf: CountingBloomFilter) : Comp [finType of (k.-tuple (HashState n)) * CountingBloomFilter] :=
       hash_res <-$ (hash_vec_int value hashes);
         let (new_hashes, hash_vec) := hash_res in
         let new_bf := countingbloomfilter_add_internal (tval hash_vec) bf in
@@ -681,5 +684,202 @@ Module CountingBloomFilterDefinitions (Spec:HashSpec).
     End OfBloomFilter.
 
   End CountingBloomFilter.
+
+  Module AMQ <: AMQ BasicHashVec.
+
+    Inductive AMQStateParamsInt :=
+    | mkStateParams (n:nat) of  n > 0.
+
+    Definition AMQStateParams := AMQStateParamsInt.
+
+    Definition AMQStateParamsToNat params :=
+      match params with
+      | mkStateParams n Hn => n
+      end.
+
+    Definition AMQState (n: AMQStateParams) : finType :=
+      [finType of CountingBloomFilterDefinitions.CountingBloomFilter (AMQStateParamsToNat n)].
+
+
+    Section AMQ.
+      Variable p: AMQStateParams.
+      Variable h: BasicHashVec.AMQHashParams.
+
+      Definition AMQ_add_internal
+                 (amq: AMQState p)
+                 (inds: BasicHashVec.AMQHashValue h) : AMQState p :=
+        CountingBloomFilterDefinitions.countingbloomfilter_add_internal
+          inds amq.
+
+      Definition AMQ_query_internal
+                 (amq: AMQState p) (inds: BasicHashVec.AMQHashValue h) : bool :=
+
+        CountingBloomFilterDefinitions.countingbloomfilter_query_internal
+          inds amq.
+
+
+
+      Definition AMQ_available_capacity (amq: AMQState p) (l:nat) : bool :=
+        CountingBloomFilterDefinitions.countingbloomfilter_free_capacity
+          amq (l * h.2.+1).
+
+
+
+      Definition AMQ_valid (amq: AMQState p) : bool := true.
+
+      Definition AMQ_new: AMQState p :=
+        CountingBloomFilterDefinitions.countingbloomfilter_new (AMQStateParamsToNat p).
+
+      Lemma AMQ_new_nqueryE: forall vals, ~~ AMQ_query_internal  AMQ_new vals.
+      Proof.
+        move=> //= vals.
+        apply/allPn; exists (thead vals); first by apply mem_tnth.
+        rewrite/AMQ_new/countingbloomfilter_new.
+        move: (eq_ind_r _ _ _) => H1.
+        move: (@tnth_nseq_eq _ Hash_size.+1  (Ordinal (Hngt0 (AMQStateParamsToNat p))) (thead vals)).
+        rewrite/nseq_tuple.
+        move: (nseq_tupleP _ _) => H2.
+        rewrite (proof_irrelevance _ H1 H2); clear H1.
+        rewrite/countingbloomfilter_get_bit //= => -> //=.
+      Qed.
+      
+      Lemma AMQ_new_validT: AMQ_valid AMQ_new.
+      Proof.
+          by [].
+      Qed.
+      
+      Section DeterministicProperties.
+        Variable amq: AMQState p.
+
+        Lemma AMQ_available_capacityW: forall  n m,
+            AMQ_valid amq -> m <= n ->
+            AMQ_available_capacity amq n ->
+            AMQ_available_capacity amq m.
+        Proof.
+          move=> n m _ Hmn /allP Hcfb; apply/allP => v Hv.
+          move: (Hcfb v Hv).
+          move: Hmn; rewrite leq_eqVlt => /orP[/eqP -> | Hlmn] //=.
+          apply ltn_trans.
+          rewrite ltn_add2l ltn_mul2r //=.
+        Qed.
+        
+        Lemma AMQ_add_query_base: forall (amq: AMQState p) inds,
+            AMQ_valid amq -> AMQ_available_capacity amq 1 ->
+            AMQ_query_internal (AMQ_add_internal amq inds) inds.
+        Proof.
+          move=> //= amq' inds _ Hcap.
+          rewrite/  AMQ_query_internal/AMQ_add_internal.
+          apply countingbloomfilter_add_base.
+          move: inds => [inds Hinds] //=.
+          rewrite/AMQ_query_internal/AMQ_add_internal//=; clear Hinds.
+            by case: p => //=.
+        Qed.
+        
+        Lemma AMQ_add_valid_preserve: forall (amq: AMQState p) inds,
+            AMQ_valid amq -> AMQ_available_capacity amq 1 ->
+            AMQ_valid (AMQ_add_internal amq inds).
+        Proof.
+            by [].
+        Qed.
+        
+        Lemma AMQ_add_query_preserve: forall (amq: AMQState p) inds inds',
+            AMQ_valid amq -> AMQ_available_capacity amq 1 -> AMQ_query_internal amq inds ->
+            AMQ_query_internal (AMQ_add_internal amq inds') inds.
+        Proof.
+          move=> amq' inds inds' _ _.
+          apply countingbloomfilter_add_preserve.
+            by case p.
+        Qed.
+        
+        Lemma AMQ_add_capacity_decr: forall (amq: AMQState p) inds l,
+            AMQ_valid amq -> AMQ_available_capacity amq l.+1 ->
+            AMQ_available_capacity (AMQ_add_internal amq inds) l.
+        Proof.
+          rewrite/AMQ_available_capacity/AMQ_add_internal.
+          move=> amq' [inds Hinds] l _.
+          move:(@countingbloomfilter_add_capacity_change
+                  0 _ h.2.+1 (l * h.2.+1) amq' inds Hinds
+               ).
+            by rewrite -mulSn => H /H //=.
+        Qed.
+        
+        Lemma AMQ_query_valid_preserve: forall (amq: AMQState p) inds,
+            AMQ_valid amq -> AMQ_valid (AMQ_add_internal amq inds).
+        Proof.
+            by [].
+        Qed.
+        
+        Lemma AMQ_query_capacity_preserve: forall (amq: AMQState p) inds l,
+            AMQ_valid amq -> AMQ_available_capacity amq l.+1 -> AMQ_available_capacity (AMQ_add_internal amq inds) l.
+        Proof.
+          apply AMQ_add_capacity_decr.
+        Qed.
+
+      End DeterministicProperties.
+    End AMQ.
+  End AMQ.
+
+
+  Module BloomFilterReduction : AMQMAP (BasicHashVec) (AMQ) (BloomFilterProbability.BloomfilterAMQ).
+
+
+    Definition AMQ_param_map: AMQ.AMQStateParams -> BloomFilterProbability.BloomfilterAMQ.AMQStateParams :=
+    (fun _ => I).
+
+    Definition AMQ_state_map  {p: AMQ.AMQStateParams} (cbf: AMQ.AMQState p) :
+      BloomFilterProbability.BloomfilterAMQ.AMQState (AMQ_param_map p) :=
+      toBloomFilter cbf.
+
+  Section Map.
+
+    Variable p: AMQ.AMQStateParams.
+    Variable h: BasicHashVec.AMQHashParams.
+
+    Lemma AMQ_map_validE: forall (a: AMQ.AMQState p), AMQ.AMQ_valid a ->
+                                                      BloomFilterProbability.BloomfilterAMQ.AMQ_valid
+                                                        (AMQ_state_map a).
+    Proof.
+      by rewrite/BloomfilterAMQ.AMQ_valid//=.
+    Qed.
+    
+      
+    Lemma AMQ_map_capacityE: forall (a: AMQ.AMQState p) l, AMQ.AMQ_available_capacity h a l ->
+                                                           BloomFilterProbability.BloomfilterAMQ.AMQ_available_capacity
+                                                             h (AMQ_state_map a) l.
+    Proof.
+      by rewrite/BloomfilterAMQ.AMQ_available_capacity //=.
+    Qed.
+    
+
+    Lemma AMQ_map_add_internalE: forall (a: AMQ.AMQState p) val, AMQ.AMQ_valid a ->
+                                                                 AMQ.AMQ_available_capacity h a 1 ->
+                                                                 BloomFilterProbability.BloomfilterAMQ.AMQ_add_internal (AMQ_state_map a) val = AMQ_state_map (@AMQ.AMQ_add_internal _ h   a val).
+    Proof.
+      move=> s value Hvalid Hcap.
+      rewrite/BloomfilterAMQ.AMQ_add_internal/AMQ_state_map/AMQ.AMQ_add_internal.
+      rewrite countingbloomfilter_bloomfilter_add_internalC //=.
+      by case: p => //=.
+    Qed.
+
+    Lemma AMQ_map_query_internalE: forall (a: AMQ.AMQState p) val, AMQ.AMQ_valid a ->
+                                                                   AMQ.AMQ_available_capacity h a 1 ->
+                                                                 BloomFilterProbability.BloomfilterAMQ.AMQ_query_internal (AMQ_state_map a) val = @AMQ.AMQ_query_internal _ h a val.
+    Proof.
+      move=> s value Hvalid Hcap.
+      rewrite/BloomfilterAMQ.AMQ_add_internal/AMQ_state_map/AMQ.AMQ_query_internal.
+      rewrite countingbloomfilter_bloomfilter_query_eq //= .
+    Qed.
+    
+    Lemma AMQ_map_newE: forall (a: AMQ.AMQState p), 
+        BloomFilterProbability.BloomfilterAMQ.AMQ_new (AMQ_param_map p)  = AMQ_state_map (AMQ.AMQ_new p).
+    Proof.
+      move=> s.
+      rewrite/BloomfilterAMQ.AMQ_new/AMQ_state_map/AMQ.AMQ_new.
+      rewrite counting_bloomfilter_new_bloomfilter_eq //=.
+      by case: p.
+    Qed.
+  End Map.
+  End  BloomFilterReduction.
+  
 End CountingBloomFilterDefinitions.
 

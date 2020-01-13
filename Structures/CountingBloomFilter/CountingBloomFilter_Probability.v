@@ -20,7 +20,7 @@ From ProbHash.Computation
      Require Import Comp Notationv1.
 
 From ProbHash.Core
-     Require Import Hash HashVec FixedList FixedMap.
+     Require Import Hash HashVec FixedList FixedMap AMQ AMQHash AMQReduction.
 
 From ProbHash.BloomFilter
      Require Import BloomFilter_Probability BloomFilter_Definitions.
@@ -37,6 +37,16 @@ Module CountingBloomFilter (Spec: HashSpec).
   Module CountingBloomFilterDefinitions := (CountingBloomFilterDefinitions Spec).
   Export CountingBloomFilterDefinitions.
 
+  Module CountingBloomFilterProperties := AMQPropertyMap
+                                            (BasicHashVec)
+                                            (AMQ)
+                                            (BloomFilterProbability.BloomfilterAMQ)
+                                            (CountingBloomFilterDefinitions.BloomFilterReduction)
+                                            (BloomFilterProbability.BloomFilterProperties).
+
+  
+  
+  
 
   Section CountingBloomFilter.
     (*
@@ -128,141 +138,29 @@ Module CountingBloomFilter (Spec: HashSpec).
         }
     Qed.
 
-    Lemma countingbloomfilter_add_multiple_bloomfilter_eq_split cbf hashes values f:
-      \sum_(hshs in [finType of (k.-tuple (HashState n))]) \sum_(cbf' in [finType of (CountingBloomFilter n)])
-       ((d[ countingbloomfilter_add_multiple hashes cbf values]) (hshs,cbf') *R*
-        (f hshs (toBloomFilter cbf'))) =
-      \sum_(hshs in [finType of (k.-tuple (HashState n))]) \sum_(bf' in [finType of BloomFilter])
-       ((d[ bloomfilter_add_multiple hashes (toBloomFilter cbf) values]) (hshs, bf') *R*
-        (f hshs bf')).
-    Proof.
-      under eq_bigr => hshs' _ do
-                             rewrite (partition_big (toBloomFilter (n:=n)) predT) => //=.
-      under eq_bigr => hshs' _ do
-                             under eq_bigr => bf _ do
-                                                 under eq_bigr => i /eqP Hbi do rewrite Hbi mulRC.
-      rewrite exchange_big //= [\sum_(a in tuple_finType k _) _]exchange_big; apply eq_bigr => bf _.
-      elim: values  bf f => [|val values IHval] bf f //=.
-      - {
-          apply eq_bigr => hshs' _.
-          rewrite rsum_pred_demote; under eq_bigr => ? ? do rewrite FDist1.dE xpair_eqE mulRC [_ *R* (_ && _ %R)]mulRC andbC boolR_distr -!mulRA.
-          rewrite -rsum_pred_demote big_pred1_eq FDist1.dE xpair_eqE boolR_distr.
-          rewrite -mulRA; apply f_equal.
-          rewrite [_ *R* f _ _ ]mulRC; apply f_equal.
-            by apply f_equal; rewrite eqseqE eq_sym.
-        }
-      - {
-          apply Logic.eq_sym.
-          under eq_bigr => hshs' _.
-          {
-            rewrite FDistBind.dE.
-            rewrite rsum_split //=.
 
-            rewrite exchange_big.
-            under eq_bigr =>  bf' _ do rewrite -(@IHval bf' (fun i bf' => FDistBind.d _ _ _ )).
-            under eq_bigr =>  bf' _.
-
-            rewrite exchange_big //=.
-              by over.
-                by over.
-          }
-          move=> //=; clear IHval.
-          apply eq_bigr => hshs' _.
-          apply Logic.eq_sym; under eq_bigr => ? ? do rewrite mulRC.
-          rewrite -big_distrl //= mulRC.
-          rewrite [_ *R* f _ _]mulRC; apply f_equal.
-          under eq_bigr => ? ? do rewrite FDistBind.dE; rewrite exchange_big //= rsum_split //=.
-          apply Logic.eq_sym.
-          under eq_bigr => bf' _ do (rewrite rsum_pred_demote;under eq_bigr => ? ? do  rewrite rsum_Rmul_distr_l).
-          exchange_big_outwards 1 => //=.
-          exchange_big_outwards 2 => //=.
-          apply eq_bigr => inds' _; apply eq_bigr => cbf' _.
-          under eq_bigr do rewrite mulRC [_ *R* (d[ _ ]) _]mulRC -mulRA.
-          rewrite -rsum_Rmul_distr_l; apply Logic.eq_sym.
-          under eq_bigr do rewrite mulRC.
-          rewrite -big_distrl  //= mulRC ; apply f_equal.
-          under eq_bigr do rewrite FDistBind.dE; rewrite exchange_big //=; apply Logic.eq_sym.
-          under eq_bigr do rewrite FDistBind.dE big_distrl //=; rewrite exchange_big; apply eq_bigr => [[hshs'' inds'']] _.
-          under eq_bigr do rewrite [(d[ _ ]) _ *R* _ ]mulRC mulRC mulRA //=; rewrite -big_distrl //= mulRC; apply Logic.eq_sym.
-          under eq_bigr do rewrite [(d[ _ ]) _ *R* _ ]mulRC  ; rewrite -big_distrl //= mulRC; apply f_equal.
-          under eq_bigr do rewrite FDist1.dE xpair_eqE andbC boolR_distr//=; rewrite -big_distrl //= mulRC.
-          apply Logic.eq_sym.
-          under eq_bigr do rewrite FDist1.dE xpair_eqE andbC boolR_distr//= mulRA;
-            rewrite -big_distrl //= mulRC; apply f_equal.
-          apply Logic.eq_sym.
-          rewrite rsum_pred_demote; under eq_bigr do rewrite mulRC; rewrite -rsum_pred_demote big_pred1_eq //=.
-          rewrite -rsum_pred_demote (big_pred1 (toBloomFilter cbf')).
-          rewrite -countingbloomfilter_bloomfilter_add_internalC //=.
-          rewrite eqseqE //=; apply f_equal; case: bf => //=; rewrite /BitVector/toBloomFilter => bf //=.
-          rewrite eq_sym inj_eq //=.
-            by rewrite /injective //=;  intros x y hLxLy; injection hLxLy.
-              by clear; move=> bf //=; rewrite eq_sym //=.
-        }
-    Qed.
-
-
-    Lemma countingbloomfilter_add_multiple_bloomfilter_eq cbf hashes values f:
-      \sum_(a in [finType of (k.-tuple (HashState n) * CountingBloomFilter n)]%type)
-       ((d[ countingbloomfilter_add_multiple hashes cbf values]) a *R*
-        (f a.1 (toBloomFilter a.2))) =
-      \sum_(a in [finType of (k.-tuple (HashState n) * BloomFilter)]%type)
-       ((d[ bloomfilter_add_multiple hashes (toBloomFilter cbf) values]) a *R*
-        (f a.1 a.2)).
-    Proof.
-      by rewrite !rsum_split countingbloomfilter_add_multiple_bloomfilter_eq_split.
-    Qed.
-    
-    
-
-    
-    Theorem countingbloomfilter_no_false_negatives l (hashes: k.-tuple (HashState n)) (cbf: CountingBloomFilter n)  x xs :
+    Theorem countingbloomfilter_no_false_negatives l hashes amq  x xs :
+      countingbloomfilter_free_capacity amq (l.+1 * k) ->
       uniq (x :: xs) -> length xs == l -> hashes_have_free_spaces hashes (l.+1) ->
       all (hashes_value_unseen hashes) (x::xs) ->
-    (d[ res1 <-$ countingbloomfilter_add x hashes cbf;
-          let '(hsh1, bf1) := res1 in
-          res2 <-$ countingbloomfilter_add_multiple hsh1 bf1 xs;
-            let '(hsh2, bf2) := res2 in
-            res3 <-$ countingbloomfilter_query x hsh2 bf2;
-              ret (snd res3) ] true) = (1 %R).
-      Proof.
-        (* elim: xs x cbf => [ | x' xs' Hxs'] x cbf *)
-         move=> Huniq Hlen Hfree Huns//=; comp_normalize.
-         comp_simplify_n 2.
-         exchange_big_outwards 5 => //=; comp_simplify_n 1.
-         exchange_big_outwards 4 => //=; comp_simplify_n 1.
-         under_all ltac:(rewrite eq_sym eqb_id countingbloomfilter_bloomfilter_query_eq mulRA [(d[ _ ]) _ *R* _]mulRC -!mulRA).
-         exchange_big_inwards ltac:(idtac); exchange_big_inwards ltac:(idtac).
-         under eq_bigr => hshs _. {
-           under eq_bigr => inds _; first under eq_bigr => hshs' _; first under eq_bigr => inds'' _.
-
-           rewrite (@countingbloomfilter_add_multiple_bloomfilter_eq_split
-                      (countingbloomfilter_add_internal inds cbf)
-                      hshs xs
-                      (fun i i0 =>
-                         ((d[ hash_vec_int x hashes]) (hshs, inds) *R*
-                          ((d[ hash_vec_int x i]) (hshs', inds'') *R*
-                           (bloomfilter_query_internal inds'' i0 %R)))
-                      )
-                   ) => //=.
-           rewrite countingbloomfilter_bloomfilter_add_internalC //=.
-           under_all ltac:(rewrite mulRC -!mulRA).
-           by over. by over. by over. by over.
-         }
-         move=> //=.
-         apply Logic.eq_sym.
-         rewrite -(@bloomfilter_no_false_negatives k n l (toBloomFilter cbf) hashes x xs Huniq Hlen Hfree Huns) //=; comp_normalize.
-         comp_simplify_n 2.
-         exchange_big_outwards 5 => //=; comp_simplify_n 1.
-         exchange_big_outwards 4 => //=; comp_simplify_n 1.
-         exchange_big_outwards 2 => //=; apply eq_bigr => inds _.
-         exchange_big_outwards 2 => //=; apply eq_bigr => hshs _.
-         exchange_big_outwards 2 => //=; apply eq_bigr => inds' _.
-         exchange_big_outwards 2 => //=; apply eq_bigr => hshs' _.
-         apply eq_bigr => hshs'' _; apply eq_bigr => bf' _.
-         rewrite eq_sym eqb_id  mulRC mulRA mulRC -!mulRA; apply f_equal.
-         rewrite mulRC -!mulRA; apply f_equal; apply f_equal.
-         by [].
-      Qed.
+      (d[ res1 <-$ CountingBloomFilterProperties.AmqOperations.AMQ_add amq hashes x;
+           (let
+            '(hsh1, amq1) := res1 in
+             res2 <-$ CountingBloomFilterProperties.AmqOperations.AMQ_add_multiple hsh1 amq1 xs;
+             (let
+              '(hsh2, amq2) := res2 in
+               res3 <-$ @CountingBloomFilterProperties.AmqOperations.AMQ_query (n,k.-1)
+                    (AMQ.mkStateParams Hngt0)
+                    amq2 hsh2 x; ret res3.2))]) true = (1 %R).
+    Proof.
+      move=> Hcap Hunq Hlen Hfree Hall.
+    (* for free *)
+      rewrite (@CountingBloomFilterProperties.AMQ_no_false_negatives
+                 _ _ _ _ l) //=.
+      rewrite/AMQ.AMQ_available_capacity //=.
+      by rewrite (prednK Hkgt0).
+    Qed.
+    
 
     Theorem countingbloomfilter_removal_preserve (hashes: k.-tuple (HashState n)) (cbf: CountingBloomFilter n)  x x' : x != x' ->
       countingbloomfilter_free_capacity cbf k.*2 ->
@@ -340,74 +238,44 @@ Module CountingBloomFilter (Spec: HashSpec).
                                                                         first apply/eqP/Rfunctions.pow_nonzero;
             rewrite RIneq.INR_IZR_INZ //=.
       Qed.
-      
         
     Theorem countingbloomfilter_collision_prob
             hashes l value (values: seq B):
+      (l.+1 * k < n.+1) ->
       length values == l ->
       hashes_have_free_spaces hashes (l.+1) ->
       all (hashes_value_unseen hashes) (value::values) ->
       uniq (value::values) ->
       d[
-          res1 <-$ countingbloomfilter_query value hashes (countingbloomfilter_new n);
+          res1 <-$ CountingBloomFilterProperties.AmqOperations.AMQ_query
+               (AMQ.AMQ_new (AMQ.mkStateParams Hngt0)) hashes value;
             let (hashes1, init_query_res) := res1 in
-            res2 <-$ @countingbloomfilter_add_multiple k n hashes1 (countingbloomfilter_new n) values;
+            res2 <-$ CountingBloomFilterProperties.AmqOperations.AMQ_add_multiple
+                 hashes1 (AMQ.AMQ_new (AMQ.mkStateParams Hngt0)) values;
               let (hashes2, bf) := res2 in
-              res' <-$ countingbloomfilter_query value hashes2 bf;
+              res' <-$
+                   @CountingBloomFilterProperties.AmqOperations.AMQ_query (n,k.-1) _
+                   bf hashes2 value;
                 ret (res'.2)
         ] true =
       ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ l.+1 * k) *R*
        \sum_(i < (Hash_size.+2))
         (((((i %R) ^R^ k) *R* (Factorial.fact i %R)) *R* ('C(Hash_size.+1, i) %R)) *R* stirling_no_2 (l * k) i)).
     Proof.
-      (* simplify proof a bit *)
-      move=> Hlen Hfree Hall Huniq.
+      move=>  Hltn Hlen Hfree Huns Huniq.
+    (* for free *)
+      rewrite (@CountingBloomFilterProperties.AMQ_false_positives_rate _ _ _ l) //=.
+      rewrite/CountingBloomFilterProperties.AMQ_false_positive_probability.
+      rewrite/BloomFilterProperties.AMQ_false_positive_probability.
+      change (n,k.-1).2.+1 with (k.-1.+1).
+      rewrite (prednK Hkgt0) //=.
 
-      comp_normalize; comp_simplify_n 2.
-      exchange_big_outwards 5 => //=; comp_simplify_n 1.
-      exchange_big_outwards 4 => //=; comp_simplify_n 1.
-      under_all ltac:(rewrite countingbloomfilter_bloomfilter_query_eq).
-      do 3!(exchange_big_outwards 5 => //=); move: (Hall) => //=/andP[];rewrite/hashes_value_unseen/hash_unseen => H1 _.
-      under eq_bigr => ? ? do under eq_bigr => ? ? do under eq_bigr => ? ? do under eq_bigr => ? ? do under eq_bigr
-      => ? ? do rewrite hash_vec_simpl //=.
-
-      under_all ltac:(rewrite mulRA [(_ ^R^ _) *R* _]mulRC -!mulRA).
-
-      under eq_bigr => inds _. {
-        under eq_bigr => hshs _; first under eq_bigr => ins' _.
-
-        move: (@countingbloomfilter_add_multiple_bloomfilter_eq
-                 (countingbloomfilter_new n)
-                 (Tuple (hash_vec_insert_length value hashes inds))
-                 values
-                 (fun i i0 =>
-                    ((Rdefinitions.Rinv (Hash_size.+1 %R) ^R^ k) *R*
-                     ((d[ hash_vec_int value i]) (hshs, ins') *R*
-                      ((true == bloomfilter_query_internal ins' i0) %R)))
-                 )
-              ); rewrite rsum_split //= => ->.
-          by over. by over. by over. 
-      }
-      move=> //=.
-      apply Logic.eq_sym; rewrite -rsum_Rmul_distr_l -(@bloomfilter_collision_prob k n hashes l value values Hlen Hfree Hall Huniq ).
-      comp_normalize; comp_simplify_n 2.
-      exchange_big_outwards 5 => //=; comp_simplify_n 1.
-      exchange_big_outwards 4 => //=; comp_simplify_n 1.
-      do 3!(exchange_big_outwards 5 => //=); move: (Hall) => //=/andP[];rewrite/hashes_value_unseen/hash_unseen => H2 _.
-      under eq_bigr => ? ? do under eq_bigr => ? ? do under eq_bigr => ? ? do under eq_bigr => ? ? do under eq_bigr
-      => ? ? do rewrite hash_vec_simpl //=.
-      apply eq_bigr => inds _.
-      apply eq_bigr => hshs _.
-      apply eq_bigr => inds' _.
-      rewrite rsum_split //=.
-      apply eq_bigr => hshs'' _.
-      apply eq_bigr => bf' _.
-      apply Logic.eq_sym; rewrite mulRC -!mulRA; apply f_equal.
-      apply Logic.eq_sym; rewrite mulRC -!mulRA; apply f_equal; apply f_equal.
-        by rewrite counting_bloomfilter_new_bloomfilter_eq.
+      rewrite/AMQ.AMQ_available_capacity.
+      change (n,k.-1).2.+1 with (k.-1.+1).
+      rewrite (prednK Hkgt0) //=.
+      rewrite/AMQ.AMQ_new/AMQ.AMQStateParamsToNat.
+      by apply countingbloomfilter_new_capacity.
     Qed.
     
-
-
   End CountingBloomFilter.    
 End CountingBloomFilter.

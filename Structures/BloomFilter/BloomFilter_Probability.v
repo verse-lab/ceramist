@@ -1142,7 +1142,7 @@ Module BloomFilterProbability (Spec: HashSpec).
 End BloomFilter.
 
 
-Module BloomFilterProperties :  AMQ.AMQProperties (BasicHashVec) (BloomfilterAMQ).
+Module BloomFilterProperties <:  AMQ.AMQProperties (BasicHashVec) (BloomfilterAMQ).
   Module AmqOperations :=  BloomfilterOperations.
   Export AmqOperations.
 
