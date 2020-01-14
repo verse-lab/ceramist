@@ -21,6 +21,7 @@ Structures/CountingBloomFilter/CountingBloomFilter_Definitions.v
 Structures/CountingBloomFilter/CountingBloomFilter_Probability.v
 Structures/QuotientFilter/QuotientFilter_Definitions.v
 Structures/QuotientFilter/QuotientFilter_Probability.v
+Structures/BlockedAMQ/BlockedAMQ.v
 Utils/InvMisc.v
 Utils/tactics.v
 Utils/rsum_ext.v

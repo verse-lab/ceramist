@@ -30,7 +30,7 @@ From ProbHash.QuotientFilter
 
 
 
-Module QuotientFilterProperties (Spec:  QuotientFilterSpec).
+Module QuotientFilterProbability (Spec:  QuotientFilterSpec).
 
   Module QuotientFilterCore :=  (QuotientFilterAMQ Spec).
   Module QuotientFilterDefinitions :=  QuotientFilterCore.QuotientFilterDefinitions.
@@ -541,5 +541,5 @@ Module QuotientFilterProperties (Spec:  QuotientFilterSpec).
       Qed.
     End Properties.
   End QuotientFilterProperties.
-End QuotientFilterProperties.
+End QuotientFilterProbability.
 

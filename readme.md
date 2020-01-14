@@ -20,14 +20,19 @@ The structure of the overall development is as follows:
 │   ├── Comp.v
 │   └── Notationv1.v
 ├── Structures
+│   ├── BlockedAMQ
+│   │   └── BlockedAMQ.v
+│   ├── BloomFilter
+│   │   ├── BloomFilter_Definitions.v
+│   │   └── BloomFilter_Probability.v
 │   ├── Core
+│   │   ├── AMQHash.v
+│   │   ├── AMQReduction.v
+│   │   ├── AMQ.v
 │   │   ├── FixedList.v
 │   │   ├── FixedMap.v
 │   │   ├── Hash.v
 │   │   └── HashVec.v
-│   ├── BloomFilter
-│   │   ├── BloomFilter_Definitions.v
-│   │   └── BloomFilter_Probability.v
 │   ├── CountingBloomFilter
 │   │   ├── CountingBloomFilter_Definitions.v
 │   │   └── CountingBloomFilter_Probability.v
@@ -42,15 +47,17 @@ The structure of the overall development is as follows:
     ├── stirling.v
     └── tactics.v
 
-7 directories, 19 files
+8 directories, 22 files
 ```
 
 The library is split into separate logical components by directory:
 - *Computation* - defines a probability monad and associated notation for it on top of the 'coq-infotheo' probability library.
 - *Utils* - collection of utility lemmas and tactics used throughout the development
-- *Structures/Core* - contains definitions and properties about the core probabilistic primitives exported by the library.
+- *Structures/Core* - contains definitions and properties about the core probabilistic primitives exported by the library, and defines the abstract AMQ interface satisfied by all instantiations.
 - *Structures/BloomFilter* - example use of the exported library to prove various probabilistic properties on bloom filters.
 - *Structures/CountingBloomFilter* - another exemplar use of the library to prove probabilistic properties on counting bloom filters. 
+- *Structures/QuotientBloomFilter* - exemplar use of library to prove probabilistic properties of quotient filters
+- *Structures/BlockedAMQ* - exemplar use of library to prove probabilistic properties of a higher order AMQ - the blockedAMQ 
 
 ## Axioms
 NO AXIOMS! 

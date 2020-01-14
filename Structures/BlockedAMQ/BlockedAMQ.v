@@ -19,310 +19,18 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 From ProbHash.Utils
-     Require Import InvMisc  seq_ext seq_subset rsum_ext stirling tactics.
+     Require Import InvMisc seq_ext seq_subset rsum_ext stirling tactics.
 
 From ProbHash.Computation
      Require Import Comp Notationv1.
 
 From ProbHash.Core
-     Require Import Hash HashVec FixedList FixedMap.
-
-From ProbHash.BloomFilter
-     Require Import BloomFilter_Definitions.
-
-From ProbHash.CountingBloomFilter
-     Require Import CountingBloomFilter_Definitions.
-
-From ProbHash.QuotientFilter
-     Require Import QuotientFilter_Definitions.
-
-
-
-
-
-Module CountingBloomFilterAMQ (Spec: HashSpec).
-  Module BasicHashVec := BasicHashVec Spec.
-  Module CountingBloomFilterDefinitions :=  CountingBloomFilterDefinitions Spec.
-
-  Export BasicHashVec.
-  Export CountingBloomFilterDefinitions.
-
-  Module AMQ <: AMQ BasicHashVec.
-
-    Inductive AMQStateParamsInt :=
-    | mkStateParams (n:nat) of  n > 0.
-
-    Definition AMQStateParams := AMQStateParamsInt.
-
-    Definition AMQStateParamsToNat params :=
-      match params with
-      | mkStateParams n Hn => n
-      end.
-
-    Definition AMQState (n: AMQStateParams) : finType :=
-      [finType of CountingBloomFilterDefinitions.CountingBloomFilter (AMQStateParamsToNat n)].
-
-    Section AMQ.
-      Variable p: AMQStateParams.
-      Variable h: BasicHashVec.AMQHashParams.
-
-      Definition AMQ_add_internal
-                 (amq: AMQState p)
-                 (inds: BasicHashVec.AMQHashValue h) : AMQState p :=
-        CountingBloomFilterDefinitions.countingbloomfilter_add_internal
-          inds amq.
-
-      Definition AMQ_query_internal
-                 (amq: AMQState p) (inds: BasicHashVec.AMQHashValue h) : bool :=
-
-        CountingBloomFilterDefinitions.countingbloomfilter_query_internal
-          inds amq.
-
-
-
-      Definition AMQ_available_capacity (amq: AMQState p) (l:nat) : bool :=
-        CountingBloomFilterDefinitions.countingbloomfilter_free_capacity
-          amq (l * h.2.+1).
-
-
-
-      Definition AMQ_valid (amq: AMQState p) : bool := true.
-
-      Definition AMQ_new: AMQState p :=
-        CountingBloomFilterDefinitions.countingbloomfilter_new (AMQStateParamsToNat p).
-
-      
-      Lemma AMQ_new_nqueryE: forall vals, ~~ AMQ_query_internal  AMQ_new vals.
-      Proof.
-        move=> //= vals.
-        apply/allPn; exists (thead vals); first by apply mem_tnth.
-        rewrite/AMQ_new/countingbloomfilter_new.
-        move: (eq_ind_r _ _ _) => H1.
-        move: (@tnth_nseq_eq _ Hash_size.+1  (Ordinal (Hngt0 (AMQStateParamsToNat p))) (thead vals)).
-        rewrite/nseq_tuple.
-        move: (nseq_tupleP _ _) => H2.
-        rewrite (proof_irrelevance _ H1 H2); clear H1.
-        rewrite/countingbloomfilter_get_bit //= => -> //=.
-      Qed.
-      
-      Lemma AMQ_new_validT: AMQ_valid AMQ_new.
-      Proof.
-          by [].
-      Qed.
-      
-      Section DeterministicProperties.
-        Variable amq: AMQState p.
-
-        Lemma AMQ_available_capacityW: forall  n m,
-            AMQ_valid amq -> m <= n ->
-            AMQ_available_capacity amq n ->
-            AMQ_available_capacity amq m.
-        Proof.
-          move=> n m _ Hmn /allP Hcfb; apply/allP => v Hv.
-          move: (Hcfb v Hv).
-          move: Hmn; rewrite leq_eqVlt => /orP[/eqP -> | Hlmn] //=.
-          apply ltn_trans.
-          rewrite ltn_add2l ltn_mul2r //=.
-        Qed.
-        
-        Lemma AMQ_add_query_base: forall (amq: AMQState p) inds,
-            AMQ_valid amq -> AMQ_available_capacity amq 1 ->
-            AMQ_query_internal (AMQ_add_internal amq inds) inds.
-        Proof.
-          move=> //= amq' inds _ Hcap.
-          rewrite/  AMQ_query_internal/AMQ_add_internal.
-          apply countingbloomfilter_add_base.
-          move: inds => [inds Hinds] //=.
-          rewrite/AMQ_query_internal/AMQ_add_internal//=; clear Hinds.
-            by case: p => //=.
-        Qed.
-        
-        Lemma AMQ_add_valid_preserve: forall (amq: AMQState p) inds,
-            AMQ_valid amq -> AMQ_available_capacity amq 1 ->
-            AMQ_valid (AMQ_add_internal amq inds).
-        Proof.
-            by [].
-        Qed.
-        
-        Lemma AMQ_add_query_preserve: forall (amq: AMQState p) inds inds',
-            AMQ_valid amq -> AMQ_available_capacity amq 1 -> AMQ_query_internal amq inds ->
-            AMQ_query_internal (AMQ_add_internal amq inds') inds.
-        Proof.
-          move=> amq' inds inds' _ _.
-          apply countingbloomfilter_add_preserve.
-            by case p.
-        Qed.
-        
-        Lemma AMQ_add_capacity_decr: forall (amq: AMQState p) inds l,
-            AMQ_valid amq -> AMQ_available_capacity amq l.+1 ->
-            AMQ_available_capacity (AMQ_add_internal amq inds) l.
-        Proof.
-          rewrite/AMQ_available_capacity/AMQ_add_internal.
-          move=> amq' [inds Hinds] l _.
-          move:(@countingbloomfilter_add_capacity_change
-                  0 _ h.2.+1 (l * h.2.+1) amq' inds Hinds
-               ).
-            by rewrite -mulSn => H /H //=.
-        Qed.
-        
-        Lemma AMQ_query_valid_preserve: forall (amq: AMQState p) inds,
-            AMQ_valid amq -> AMQ_valid (AMQ_add_internal amq inds).
-        Proof.
-            by [].
-        Qed.
-        
-        Lemma AMQ_query_capacity_preserve: forall (amq: AMQState p) inds l,
-            AMQ_valid amq -> AMQ_available_capacity amq l.+1 -> AMQ_available_capacity (AMQ_add_internal amq inds) l.
-        Proof.
-          apply AMQ_add_capacity_decr.
-        Qed.
-
-      End DeterministicProperties.
-    End AMQ.
-  End AMQ.
-  
-End  CountingBloomFilterAMQ.
-
-
-Module QuotientFilterAMQ (QSpec: QuotientFilterSpec).
-  Module QuotientFilterDefinitions := QuotientFilterDefinitions QSpec.
-
-  Module BasicHash := BasicHash  QuotientFilterDefinitions.QuotientHash.
-
-  Export BasicHash.
-  Export QuotientFilterDefinitions.
-
-  Module AMQ: AMQ BasicHash.
-
-
-    Definition AMQStateParams := True.
-    Definition AMQState (params: AMQStateParams) : finType :=
-      [finType of QuotientFilter].
-
-    Section AMQ.
-      Variable p: AMQStateParams.
-      Variable h: BasicHash.AMQHashParams.
-
-      Definition AMQ_add_internal
-                 (amq: AMQState p) (value: BasicHash.AMQHashValue h):
-        AMQState p := quotientfilter_add_internal value amq.
-      
-      Definition AMQ_query_internal
-                 (amq: AMQState p) (key: BasicHash.AMQHashValue h) : bool :=
-        quotientfilter_query_internal key amq.
-
-      Definition AMQ_available_capacity
-                 (h: BasicHash.AMQHashParams) (amq: AMQState p) (l:nat): bool:=
-        quotientfilter_has_free_spaces (h.+1 * l) amq.
-
-      Definition AMQ_valid (amq:AMQState p) : bool :=
-        quotientfilter_valid amq.
-
-      Definition AMQ_new: AMQState p := quotientfilter_new.
-
-      Lemma AMQ_new_nqueryE: forall vals, ~~ AMQ_query_internal  AMQ_new vals.
-      Proof.
-        move=> vals; rewrite/AMQ_query_internal/quotientfilter_query_internal//=.
-        rewrite tnth_nseq_eq.
-        rewrite/fixlist_contains //=.
-        apply/hasPn => v.
-        move: (@fixlist_empty_is_empty [eqType of 'I_r.+1] n.+1).
-        rewrite/fixlist_is_empty =>/eqP -> //=.
-      Qed.
-      
-      Lemma AMQ_new_validT: AMQ_valid AMQ_new.
-      Proof.
-          by apply quotientfilter_new_valid.
-      Qed.
-      
-      Section DeterministicProperties.
-        Variable amq: AMQState p.
-
-        Lemma AMQ_available_capacityW: forall  n m,
-            AMQ_valid amq -> m <= n -> AMQ_available_capacity h amq n -> AMQ_available_capacity h amq m.
-        Proof.
-          move=> n m Hvalid Hnm /allP Hvv; apply/allP => v Hv; move:(Hvv v Hv) => //=.
-          apply leq_trans; rewrite leq_add2l //=.
-            by rewrite leq_mul2l Hnm; apply/orP; right.
-        Qed.
-      End DeterministicProperties.
-
-      Section DeterministicProperties.
-        Variable amq: AMQState p.
-
-        Lemma AMQ_add_query_base: forall (amq: AMQState p) inds,
-            AMQ_valid amq -> AMQ_available_capacity h amq 1 ->
-            AMQ_query_internal (AMQ_add_internal amq inds) inds.
-        Proof.
-          apply quotientfilter_add_query_base.
-        Qed.
-        
-        Lemma AMQ_add_valid_preserve: forall (amq: AMQState p) inds,
-            AMQ_valid amq -> AMQ_available_capacity h amq 1 ->
-            AMQ_valid (AMQ_add_internal amq inds).
-        Proof.
-          rewrite /AMQ_available_capacity muln1/AMQHashValue/AMQ_valid.
-          rewrite/quotientfilter_valid/quotientfilter_has_free_spaces.
-          move=> [amq'] ind /allP Hvv /allP Hspace; apply /allP => v.
-          rewrite/AMQ_add_internal/quotientfilter_add_internal.
-          case_eq (quotient_num ind) => quot rem Heq.
-
-          have H f:  quotientfilter_state {|  quotientfilter_state := f |} = f; first by [].
-          rewrite !H.
-          move=>/tnthP [ quot' ].
-          case Hquot: (quot' != quot).
-          - rewrite tnth_set_nth_neq; first move=>->; last by [].
-            apply Hvv.
-              by apply mem_tnth.
-          - move/Bool.negb_true_iff: Hquot; rewrite Bool.negb_involutive => /eqP ->.
-            rewrite tnth_set_nth_eq; first move=>->; last by [].
-            apply fixlist_insert_preserves_top_heavy.
-            apply Hvv.
-              by apply mem_tnth.
-        Qed.
-
-        Lemma AMQ_add_query_preserve: forall (amq: AMQState p) inds inds',
-            AMQ_valid amq -> AMQ_available_capacity h amq 1 -> AMQ_query_internal amq inds ->
-            AMQ_query_internal (AMQ_add_internal amq inds') inds.
-        Proof.
-          move=> amq' ind inds' Hvalid Hcap.
-            by apply quotientfilter_add_query_preserve.
-        Qed.
-        
-        Lemma AMQ_add_capacity_decr: forall (amq: AMQState p) inds l,
-            AMQ_valid amq -> AMQ_available_capacity h amq l.+1 ->
-            AMQ_available_capacity h (AMQ_add_internal amq inds) l.
-        Proof.
-          move=> amq' ind l Hvalid Hcap.
-          rewrite /AMQ_available_capacity in Hcap.
-          have Hobv: 0 < h.+1 * l.+1; first by rewrite muln_gt0; apply/andP;split => //=.
-          move: (@quotientfilter_add_preserve
-                   _ Hobv amq'
-                   (quotientfilter_add_internal ind amq')
-                   ind Hvalid Hcap
-                   (Logic.eq_refl
-                      (quotientfilter_add_internal ind amq'))
-                ) => /andP [_ ].
-
-          rewrite/AMQ_available_capacity.
-          rewrite mulnS addnC addnS -pred_Sn.
-          move=>/allP Hvv; apply/allP => v Hv; move: (Hvv v Hv).
-            by rewrite addnA =>/leq_addr_weaken.
-        Qed.
-        
-
-
-      End DeterministicProperties.
-    End AMQ.
-  End AMQ.
-End QuotientFilterAMQ.
-
+     Require Import Hash HashVec FixedList FixedMap AMQ AMQHash.
 
 Module Type BlockedAMQSpec.
 
   (** number of blocks(amqs) in Blocked AMQ - 1 *)
   Parameter n:nat.
-  Parameter Hngt0: n > 0.
 
 End BlockedAMQSpec.
 
@@ -748,41 +456,41 @@ Module BlockedAMQ
        )
     .
 
-  Section Properties.
-    Variable h : AMQHashParams.
-    Variable s: AMQStateParams.
+    Section Properties.
+      Variable h : AMQHashParams.
+      Variable s: AMQStateParams.
 
-    Variable hashes: AMQHash h.
+      Variable hashes: AMQHash h.
 
-    Section NoFalseNegatives.
-      
-      Variable amq: AMQState s.
+      Section NoFalseNegatives.
+        
+        Variable amq: AMQState s.
 
-      Lemma AMQ_no_false_negatives:
-        forall (l:nat_eqType) (x:AMQHashKey) (xs: seq AMQHashKey),
-          uniq (x :: xs) -> length xs == l ->
-          AMQ_valid amq -> AMQ_available_capacity h amq l.+1 ->
-          AMQHash_hashstate_valid hashes ->
-          AMQHash_hashstate_available_capacity hashes l.+1 ->
-          all (AMQHash_hashstate_unseen hashes) (x::xs) ->
-          (d[ res1 <-$ AMQ_add amq hashes x;
-                let '(hsh1, amq1) := res1 in
-                res2 <-$ AMQ_add_multiple hsh1 amq1 xs;
-                  let '(hsh2, amq2) := res2 in
-                  res3 <-$ AMQ_query amq2 hsh2 x;
-                    ret (snd res3) ] true) = (1 %R).
-      Proof.
-          by apply AmqOperations.AMQ_no_false_negatives.
-      Qed.
+        Lemma AMQ_no_false_negatives:
+          forall (l:nat_eqType) (x:AMQHashKey) (xs: seq AMQHashKey),
+            uniq (x :: xs) -> length xs == l ->
+            AMQ_valid amq -> AMQ_available_capacity h amq l.+1 ->
+            AMQHash_hashstate_valid hashes ->
+            AMQHash_hashstate_available_capacity hashes l.+1 ->
+            all (AMQHash_hashstate_unseen hashes) (x::xs) ->
+            (d[ res1 <-$ AMQ_add amq hashes x;
+                  let '(hsh1, amq1) := res1 in
+                  res2 <-$ AMQ_add_multiple hsh1 amq1 xs;
+                    let '(hsh2, amq2) := res2 in
+                    res3 <-$ AMQ_query amq2 hsh2 x;
+                      ret (snd res3) ] true) = (1 %R).
+        Proof.
+            by apply AmqOperations.AMQ_no_false_negatives.
+        Qed.
 
-    End NoFalseNegatives.
+      End NoFalseNegatives.
 
-    Lemma AMQ_add_multipl_foldl  f j (vs: seq (AMQHashValue h)) (i : AmqHash.AMQHashValue h.2) a key_1 key_2:
+      Lemma AMQ_add_multipl_foldl  f j (vs: seq (AMQHashValue h)) (i : AmqHash.AMQHashValue h.2) a key_1 key_2:
         f = (fun a => foldl (fun amq vl => @AMQ_add_internal _ h amq vl) a vs) ->
         j != key_2 -> (AMQ_query_internal
-                                           (f (AMQ_add_internal a (j, i)))
-                                           (key_2, key_1)) =
-                                        (@AMQ_query_internal s _
+                         (f (AMQ_add_internal a (j, i)))
+                         (key_2, key_1)) =
+                      (@AMQ_query_internal s _
                                            (f a)
                                            (key_2, key_1)).
       Proof.
@@ -791,61 +499,61 @@ Module BlockedAMQ
         have Hs pp qq: (pp, qq).1 = pp; last rewrite !Hs; last clear Hs; first by [].
         have Hs pp qq: (pp, qq).2 = qq; last rewrite !Hs; last clear Hs; first by [].
         suff H f:
-                AMQ_query_internal
-                  (foldl
-                     (fun (amq : AMQState s) (vl : AMQHashValue h) =>
-                        set_tnth amq (f (tnth amq vl.1) vl.2) vl.1)
-                     (set_tnth a (f (tnth a j) i) j) vs) (key_2, key_1) =
-                AMQ_query_internal
-                  (foldl
-                     (fun (amq : AMQState s) (vl : AMQHashValue h) =>
-                        set_tnth amq (f (tnth amq vl.1) vl.2) vl.1) a vs)
-                  (key_2, key_1).
-              eapply H.
-              elim: vs f a j i key_1 key_2 Hneq  => [| [v_1 v_2] vs Hvs] f a j i key_1 key_2 Hneq.
-              - {
-                  rewrite /AMQ_query_internal/AMQ_add_internal //.
-                  rewrite tnth_set_nth_neq //=; last by rewrite eq_sym.
-                }
-              -{
-                  case Hv1: (v_1 == key_2); last by
-                      move/Bool.negb_true_iff: Hv1 => Hv1; by do ?rewrite Hvs //=.
-                  move/eqP: Hv1 ->; clear v_1.
+          AMQ_query_internal
+            (foldl
+               (fun (amq : AMQState s) (vl : AMQHashValue h) =>
+                  set_tnth amq (f (tnth amq vl.1) vl.2) vl.1)
+               (set_tnth a (f (tnth a j) i) j) vs) (key_2, key_1) =
+          AMQ_query_internal
+            (foldl
+               (fun (amq : AMQState s) (vl : AMQHashValue h) =>
+                  set_tnth amq (f (tnth amq vl.1) vl.2) vl.1) a vs)
+            (key_2, key_1).
+        eapply H.
+        elim: vs f a j i key_1 key_2 Hneq  => [| [v_1 v_2] vs Hvs] f a j i key_1 key_2 Hneq.
+        - {
+            rewrite /AMQ_query_internal/AMQ_add_internal //.
+            rewrite tnth_set_nth_neq //=; last by rewrite eq_sym.
+          }
+        -{
+            case Hv1: (v_1 == key_2); last by
+                move/Bool.negb_true_iff: Hv1 => Hv1; by do ?rewrite Hvs //=.
+            move/eqP: Hv1 ->; clear v_1.
 
-                  have Hfold f' y ys y' :
-                    foldl f' y' (y::ys) = foldl f' (f' y' y) ys; last rewrite !Hfold; first by [].
-                  rewrite tnth_set_nth_neq; last by rewrite eq_sym.
-                  have Hs pp qq: (pp, qq).1 = pp; last rewrite !Hs; last clear Hs; first by [].
-                  have Hs pp qq: (pp, qq).2 = qq; last rewrite !Hs; last clear Hs; first by [].
+            have Hfold f' y ys y' :
+              foldl f' y' (y::ys) = foldl f' (f' y' y) ys; last rewrite !Hfold; first by [].
+            rewrite tnth_set_nth_neq; last by rewrite eq_sym.
+            have Hs pp qq: (pp, qq).1 = pp; last rewrite !Hs; last clear Hs; first by [].
+            have Hs pp qq: (pp, qq).2 = qq; last rewrite !Hs; last clear Hs; first by [].
 
-                  have ->:
-                       (set_tnth (set_tnth a (f (tnth a j) i) j)
-                                 (f (tnth a key_2) v_2) key_2) =
-                       (set_tnth (set_tnth a (f (tnth a key_2) v_2) key_2)
-                                 (f (tnth a j) i) j). {
-                    move: (f (tnth a j) i) (f (tnth a key_2) v_2) => s1 s2.
-                    move: a; rewrite/AMQState => a.
-                    apply eq_from_tnth => v.
-                    case Hveq: (v == key_2).
-                    move/eqP: Hveq ->; rewrite tnth_set_nth_eq; clear v; last by [].
-                    rewrite tnth_set_nth_neq; last by rewrite eq_sym.
-                      by rewrite tnth_set_nth_eq.
-                      move/Bool.negb_true_iff: Hveq => Hveq.
-                      rewrite tnth_set_nth_neq; last by [].
-                      case Hvej: (v == j).
-                      move/eqP:Hvej ->; rewrite tnth_set_nth_eq; last by[].
-                        by rewrite tnth_set_nth_eq.
-                        move/Bool.negb_true_iff: Hvej => Hvej.
-                        rewrite tnth_set_nth_neq; last by [].
-                        rewrite tnth_set_nth_neq; last by [].
-                          by rewrite tnth_set_nth_neq.
-                }
-
-                  move: (Hvs f (set_tnth a (f (tnth a key_2) v_2) key_2)
-                             j i key_1 key_2 Hneq).
+            have ->:
+                 (set_tnth (set_tnth a (f (tnth a j) i) j)
+                           (f (tnth a key_2) v_2) key_2) =
+            (set_tnth (set_tnth a (f (tnth a key_2) v_2) key_2)
+                      (f (tnth a j) i) j). {
+              move: (f (tnth a j) i) (f (tnth a key_2) v_2) => s1 s2.
+              move: a; rewrite/AMQState => a.
+              apply eq_from_tnth => v.
+              case Hveq: (v == key_2).
+              move/eqP: Hveq ->; rewrite tnth_set_nth_eq; clear v; last by [].
+              rewrite tnth_set_nth_neq; last by rewrite eq_sym.
+                by rewrite tnth_set_nth_eq.
+                move/Bool.negb_true_iff: Hveq => Hveq.
+                rewrite tnth_set_nth_neq; last by [].
+                case Hvej: (v == j).
+                move/eqP:Hvej ->; rewrite tnth_set_nth_eq; last by[].
+                  by rewrite tnth_set_nth_eq.
+                  move/Bool.negb_true_iff: Hvej => Hvej.
                   rewrite tnth_set_nth_neq; last by [].
-                  by move=> -> //=.
-                }
+                  rewrite tnth_set_nth_neq; last by [].
+                    by rewrite tnth_set_nth_neq.
+            }
+
+            move: (Hvs f (set_tnth a (f (tnth a key_2) v_2) key_2)
+                       j i key_1 key_2 Hneq).
+            rewrite tnth_set_nth_neq; last by [].
+              by move=> -> //=.
+          }
       Qed.
 
       
@@ -854,35 +562,35 @@ Module BlockedAMQ
         (@AMQ_query_internal _ h
                              (f (foldr (fun hash' : _ => (AMQ_add_internal (h:=h))^~ hash') a
                                        (filter (fun hash' : _ => hash'.1 != key_2) i))) (key_2, key_1)) =
-         (@AMQ_query_internal s _ (f a) (key_2, key_1)).
+        (@AMQ_query_internal s _ (f a) (key_2, key_1)).
       Proof.
         move=> ->; clear f.
         elim: i vs a key_1 key_2 => [| [x1 x2] xs Hxs] vs a key_1 key_2 //=.
         case Hxeq: (x1 != key_2).
         - {
             rewrite (@AMQ_add_multipl_foldl
-                    (fun a => foldl (fun amq vl => @AMQ_add_internal _ h amq vl) a vs) x1 vs x2
-                    (foldr
-                       (fun hash' : 'I_BasicMetaHashSpec.Hash_size.+1 * AmqHash.AMQHashValue h.2 =>
-                          (AMQ_add_internal (h:=h))^~ hash') a
-                       (filter (fun hash' : _ => hash'.1 != key_2) xs) )
-                    key_1 key_2 (Logic.eq_refl _) Hxeq
-                 ).
+                       (fun a => foldl (fun amq vl => @AMQ_add_internal _ h amq vl) a vs) x1 vs x2
+                       (foldr
+                          (fun hash' : 'I_BasicMetaHashSpec.Hash_size.+1 * AmqHash.AMQHashValue h.2 =>
+                             (AMQ_add_internal (h:=h))^~ hash') a
+                          (filter (fun hash' : _ => hash'.1 != key_2) xs) )
+                       key_1 key_2 (Logic.eq_refl _) Hxeq
+                    ).
               by rewrite Hxs //=.
           }
         - {
-            by rewrite Hxs //=.
+              by rewrite Hxs //=.
           }
       Qed.
       
       Lemma AMQ_add_mulitpl_filter (i1:AMQHashValue h) (i: seq _) (a:AMQState s):
         AMQ_query_internal
-             (foldr (fun hash' : 'I_BasicMetaHashSpec.Hash_size.+1 * AmqHash.AMQHashValue h.2 =>
-                       (AMQ_add_internal (h:=h))^~ hash') a i ) i1 =
+          (foldr (fun hash' : 'I_BasicMetaHashSpec.Hash_size.+1 * AmqHash.AMQHashValue h.2 =>
+                    (AMQ_add_internal (h:=h))^~ hash') a i ) i1 =
         AMQ_query_internal
-             (foldr (fun hash' : 'I_BasicMetaHashSpec.Hash_size.+1 * AmqHash.AMQHashValue h.2 =>
-                       (AMQ_add_internal (h:=h))^~ hash') a
-                    (filter (fun hash' : _ => hash'.1 == i1.1) i)) i1.
+          (foldr (fun hash' : 'I_BasicMetaHashSpec.Hash_size.+1 * AmqHash.AMQHashValue h.2 =>
+                    (AMQ_add_internal (h:=h))^~ hash') a
+                 (filter (fun hash' : _ => hash'.1 == i1.1) i)) i1.
       Proof.
         move: i1 => [key_1 key_2].
         rewrite -!foldl_rev //=.
@@ -899,20 +607,20 @@ Module BlockedAMQ
         }
         {
           move/Bool.negb_true_iff: Hxeq; rewrite Bool.negb_involutive => Hxeq; rewrite Hxeq.
-          by move=> //=.
+            by move=> //=.
         }
       Qed.
 
       Lemma AMQ_query_simplify a key xs:
         @AMQ_query_internal s h
-          (foldr
-             (fun hash' : 'I_BasicMetaHashSpec.Hash_size.+1 * AmqHash.AMQHashValue h.2 =>
-                (AMQ_add_internal (h:=h))^~ hash') a
-             (filter (fun hash' => hash'.1 == key.1) xs)) key =
+                            (foldr
+                               (fun hash' : 'I_BasicMetaHashSpec.Hash_size.+1 * AmqHash.AMQHashValue h.2 =>
+                                  (AMQ_add_internal (h:=h))^~ hash') a
+                               (filter (fun hash' => hash'.1 == key.1) xs)) key =
         Amq.AMQ_query_internal
           (foldr (fun hash' : AmqHash.AMQHashValue h.2 =>
-                (Amq.AMQ_add_internal (h:=h.2))^~ hash') ((tnth a key.1))
-             (map (fun x => x.2) (filter (fun hash' => hash'.1 == key.1) xs))) key.2.
+                    (Amq.AMQ_add_internal (h:=h.2))^~ hash') ((tnth a key.1))
+                 (map (fun x => x.2) (filter (fun hash' => hash'.1 == key.1) xs))) key.2.
       Proof.
         rewrite -!foldl_rev //=; rewrite -!map_rev -!filter_rev.
         move: (rev xs); clear xs => xs.
@@ -935,21 +643,21 @@ Module BlockedAMQ
         rewrite size_map.
         move: i => [xs /eqP Hi] //=; rewrite -Hi.
         rewrite !length_sizeP.
-        by apply filter_leq_size.
+          by apply filter_leq_size.
       Qed.
 
       Lemma AMQHash_rsum_subs_eq (A:finType)  l len ind f
             (xs : l.-tuple 'I_BasicMetaHashSpec.Hash_size.+1)
             (Hxs: size [seq x | x <- xs & x == ind] == len):
-            \sum_(a in [finType of l.-tuple A])
-            (f [seq x.2 | x <- zip xs a & x.1 == ind]) =
-      ((#| A | ^R^ (l - len)) *R*
-        \sum_(i0 in [finType of len.-tuple A]) (f i0)).
+        \sum_(a in [finType of l.-tuple A])
+         (f [seq x.2 | x <- zip xs a & x.1 == ind]) =
+        ((#| A | ^R^ (l - len)) *R*
+         \sum_(i0 in [finType of len.-tuple A]) (f i0)).
       Proof.
         move: xs f len Hxs => [].
         elim: l => [| l IHl] [| x xs] Hxs f //=.
         - {
-            by move=> len /eqP <-; rewrite !rsum_empty //= mul1R.
+              by move=> len /eqP <-; rewrite !rsum_empty //= mul1R.
           }
         - {
             case Hxeq: (x == ind).
@@ -960,16 +668,16 @@ Module BlockedAMQ
                 rewrite rsum_Rmul_distr_l.
                 have H1: size xs == l; first by move: Hxs => //= /eqP [].
                 have H2: size [seq x0 | x0 <- Tuple H1 & x0 == ind] == len; first
-                    by move: Hsize => //=/eqP [].
+                  by move: Hsize => //=/eqP [].
                 under eq_bigr => i _. {
                   rewrite -(@IHl xs H1 (fun b => f (i :: b)) len H2).
-                  by over.
+                    by over.
                 }
                 move=> //=.
                 rewrite rsum_tuple_split rsum_split //=.
                 apply eq_bigr => a _.
                 apply eq_bigr => ass _.
-                by rewrite Hxeq //=.
+                  by rewrite Hxeq //=.
               }
             - {
                 move=> len Hsize.
@@ -977,7 +685,7 @@ Module BlockedAMQ
                 rewrite Hxeq.
                 have H1: size xs == l; first by move: Hxs => //= /eqP [].
                 have H2: size [seq x0 | x0 <- Tuple H1 & x0 == ind] == len; first
-                    by move: Hsize => //=/eqP [].
+                  by move: Hsize => //=/eqP [].
                 move: (@IHl xs H1 f len H2) => //= Heq.
                 under eq_bigr do rewrite Heq.
                 rewrite -big_distrl //= mulRC; apply Logic.eq_sym.
@@ -990,200 +698,200 @@ Module BlockedAMQ
                 move/eqP: H1 <-.
                 elim: xs => //= x xs Hxs //=.
                 case: (x == ind) => //=.
-                by apply leq_trans with (n:=size xs) => //=.
+                  by apply leq_trans with (n:=size xs) => //=.
               }
           }
       Qed.
 
-    Theorem AMQ_false_positives_rate: forall  (l:nat) value (values: seq _),
-        length values == l ->
+      Theorem AMQ_false_positives_rate: forall  (l:nat) value (values: seq _),
+          length values == l ->
 
-        AMQHash_hashstate_valid hashes ->
-        AMQHash_hashstate_available_capacity hashes (l.+1) ->
+          AMQHash_hashstate_valid hashes ->
+          AMQHash_hashstate_available_capacity hashes (l.+1) ->
 
 
-        AMQ_available_capacity h (AMQ_new s) l.+1 ->
-        all (AMQHash_hashstate_unseen hashes) (value::values) ->
-        uniq (value::values) ->
-        d[ 
-            res1 <-$ AMQ_query (AMQ_new s) hashes value;
-              let (hashes1, init_query_res) := res1 in
-              res2 <-$ AMQ_add_multiple hashes1 (AMQ_new s) values;
-                let (hashes2, amq) := res2 in
-                res' <-$ AMQ_query amq  hashes2 value;
-                  ret (res'.2)
-          ] true = AMQ_false_positive_probability h s l.
-    Proof.
-      move=> l value values Hlen Hvalid Hcap Hcap_new Hunseen Huniq.
-      rewrite (@AMQ_false_positives_simplify_normalize _ _ _ l) //=.
-      under_all ltac:(rewrite  AMQ_add_mulitpl_filter).
-      under_all ltac:(rewrite  AMQ_query_simplify).
-      rewrite /AMQ_false_positive_probability.
-      rewrite rsum_split //=.
-      rewrite {1}/AMQHash_probability.
-      under eq_bigr do under eq_bigr do rewrite -!mulRA.
-      under eq_bigr do rewrite -rsum_Rmul_distr_l.
-      suff H' ind:
-        \sum_(b in AmqHash.AMQHashValue h.2)
-         (AmqHash.AMQHash_probability h.2 *R*
-         \sum_(i in [finType of l.-tuple ('I_BasicMetaHashSpec.Hash_size.+1 * AmqHash.AMQHashValue h.2)%type])
-            ((AMQHash_probability h ^R^ l) *R*
-             (Amq.AMQ_query_internal
-                (foldr (fun hash' : AmqHash.AMQHashValue h.2 => (Amq.AMQ_add_internal (h:=h.2))^~ hash')
-                   (tnth (AMQ_new s) ind) [seq x.2 | x <- i & x.1 == ind]) b %R))) =
-        \sum_(i < l.+1)
-         (((('C(l, i) %R) *R* (BasicMetaHash.AMQHash_probability h.1 ^R^ i)) *R*
-           ((BinNums.Zpos BinNums.xH -R- BasicMetaHash.AMQHash_probability h.1) ^R^ l - i)) *R*
-          AmqProperties.AMQ_false_positive_probability h.2 s i).
-      under eq_bigr => ind _ do rewrite (H' ind).
-      {
-        rewrite -big_distrl //=.
-          by rewrite  BasicMetaHash.AMQHash_hash_prob_valid mul1R.
-      }
-      under eq_bigr => b _. {
-        rewrite (@partition_big
-                   _ _ _ _ _ _
-                   (fun (i: [finType of l.-tuple
-                                     ('I_BasicMetaHashSpec.Hash_size.+1 *
-                                      AmqHash.AMQHashValue h.2)%type]) =>
-                       Ordinal ( hash_size_map_filter ind i)) predT 
-                              ) //=.
-        by over.
-      }
-      under eq_bigr do rewrite rsum_Rmul_distr_l.
-      rewrite exchange_big //=; apply eq_bigr => len _.
-      have H (i: 'I_Spec.n.+1) (l':nat) (Hl: l' <= l)  :
-        \sum_(i1 in [finType of AmqHash.AMQHashValue h.2])
-         (AmqHash.AMQHash_probability h.2 *R*
-          \sum_(i0 in [finType of l'.-tuple (AmqHash.AMQHashValue h.2)])
-           ((AmqHash.AMQHash_probability h.2 ^R^ l') *R*
-            (Amq.AMQ_query_internal
-               (foldr (fun hash' : AmqHash.AMQHashValue h.2 => (Amq.AMQ_add_internal (h:=h.2))^~ hash')
-                      (Amq.AMQ_new s) i0) i1 %R))) = AmqProperties.AMQ_false_positive_probability h.2 s l'. {
-        have Hvalid': AmqHash.AMQHash_hashstate_valid (tnth hashes.2 i); first
-          by move: Hvalid => //=/andP[_ /allP H1]; apply H1; apply mem_tnth.
-
-        have Hcap': AmqHash.AMQHash_hashstate_available_capacity (tnth hashes.2 i) l'.+1; first
-          by apply AmqHash.AMQHash_hashstate_available_capacityW with (n:=l.+1)
-        => //=; move: Hcap => //=/andP[ _ /allP H2]; apply H2; apply mem_tnth.
-
-        have Hcap'': Amq.AMQ_available_capacity h.2 (Amq.AMQ_new s) l'.+1; first
-          by apply Amq.AMQ_available_capacityW with (n:=l.+1)
-        => //=; first apply Amq.AMQ_new_validT; last move:Hcap_new;rewrite/AMQ_available_capacity=>//=/andP[].
-        have Huns: all (AmqHash.AMQHash_hashstate_unseen (tnth hashes.2 i)) (value :: (take l' values)). {
-          move=>//=;apply/andP;split.
-            by move:Hunseen=>//=;rewrite/AMQHash_hashstate_unseen
-                           =>/andP[/andP[_ /allP Hv] _];apply Hv;apply mem_tnth.
-              by move:Hunseen=>//=;rewrite/AMQHash_hashstate_unseen=>/andP[_ /allP Hv];
-                apply/allP => v /mem_take/Hv/andP[_/allP Hv']; apply Hv'; apply /mem_tnth.
+          AMQ_available_capacity h (AMQ_new s) l.+1 ->
+          all (AMQHash_hashstate_unseen hashes) (value::values) ->
+          uniq (value::values) ->
+          d[ 
+              res1 <-$ AMQ_query (AMQ_new s) hashes value;
+                let (hashes1, init_query_res) := res1 in
+                res2 <-$ AMQ_add_multiple hashes1 (AMQ_new s) values;
+                  let (hashes2, amq) := res2 in
+                  res' <-$ AMQ_query amq  hashes2 value;
+                    ret (res'.2)
+            ] true = AMQ_false_positive_probability h s l.
+      Proof.
+        move=> l value values Hlen Hvalid Hcap Hcap_new Hunseen Huniq.
+        rewrite (@AMQ_false_positives_simplify_normalize _ _ _ l) //=.
+        under_all ltac:(rewrite  AMQ_add_mulitpl_filter).
+        under_all ltac:(rewrite  AMQ_query_simplify).
+        rewrite /AMQ_false_positive_probability.
+        rewrite rsum_split //=.
+        rewrite {1}/AMQHash_probability.
+        under eq_bigr do under eq_bigr do rewrite -!mulRA.
+        under eq_bigr do rewrite -rsum_Rmul_distr_l.
+        suff H' ind:
+          \sum_(b in AmqHash.AMQHashValue h.2)
+           (AmqHash.AMQHash_probability h.2 *R*
+            \sum_(i in [finType of l.-tuple ('I_BasicMetaHashSpec.Hash_size.+1 * AmqHash.AMQHashValue h.2)%type])
+             ((AMQHash_probability h ^R^ l) *R*
+              (Amq.AMQ_query_internal
+                 (foldr (fun hash' : AmqHash.AMQHashValue h.2 => (Amq.AMQ_add_internal (h:=h.2))^~ hash')
+                        (tnth (AMQ_new s) ind) [seq x.2 | x <- i & x.1 == ind]) b %R))) =
+          \sum_(i < l.+1)
+           (((('C(l, i) %R) *R* (BasicMetaHash.AMQHash_probability h.1 ^R^ i)) *R*
+             ((BinNums.Zpos BinNums.xH -R- BasicMetaHash.AMQHash_probability h.1) ^R^ l - i)) *R*
+            AmqProperties.AMQ_false_positive_probability h.2 s i).
+        under eq_bigr => ind _ do rewrite (H' ind).
+        {
+          rewrite -big_distrl //=.
+            by rewrite  BasicMetaHash.AMQHash_hash_prob_valid mul1R.
         }
-        have Hlen': length (take l' values) == l'; first by rewrite -length_sizeP size_takel //= length_sizeP;move/eqP:Hlen ->.
-
-        have Huniq': uniq (value :: take l' values). {
-          move=> //=; apply/andP;split.
-            by apply/memPn => v /mem_take Hv; move: Huniq => //=/andP[/memPn Hn _]; apply Hn.
-            move: Huniq=>//=/andP[Hnin Huniq].
-            move: Hl;rewrite leq_eqVlt=>/orP[/eqP->|Hltn].
-            rewrite take_oversize//=length_sizeP;move/eqP:Hlen->=>//=.
-            apply uniq_take=>//=;first rewrite?length_sizeP;first move/eqP:Hlen=>->//=.
+        under eq_bigr => b _. {
+          rewrite (@partition_big
+                     _ _ _ _ _ _
+                     (fun (i: [finType of l.-tuple
+                                       ('I_BasicMetaHashSpec.Hash_size.+1 *
+                                        AmqHash.AMQHashValue h.2)%type]) =>
+                        Ordinal ( hash_size_map_filter ind i)) predT 
+                  ) //=.
+            by over.
         }
-        move: (@AmqProperties.AMQ_false_positives_rate
-                 h.2 s (tnth hashes.2 i) l' value (take l' values)
-                 Hlen' Hvalid' Hcap' Hcap'' Huns Huniq').
-        rewrite (@AmqProperties.AmqOperations.AMQ_false_positives_simplify_normalize
-                   h.2 s (tnth hashes.2 i) l') //=.
-      }
+        under eq_bigr do rewrite rsum_Rmul_distr_l.
+        rewrite exchange_big //=; apply eq_bigr => len _.
+        have H (i: 'I_Spec.n.+1) (l':nat) (Hl: l' <= l)  :
+          \sum_(i1 in [finType of AmqHash.AMQHashValue h.2])
+           (AmqHash.AMQHash_probability h.2 *R*
+            \sum_(i0 in [finType of l'.-tuple (AmqHash.AMQHashValue h.2)])
+             ((AmqHash.AMQHash_probability h.2 ^R^ l') *R*
+              (Amq.AMQ_query_internal
+                 (foldr (fun hash' : AmqHash.AMQHashValue h.2 => (Amq.AMQ_add_internal (h:=h.2))^~ hash')
+                        (Amq.AMQ_new s) i0) i1 %R))) = AmqProperties.AMQ_false_positive_probability h.2 s l'. {
+          have Hvalid': AmqHash.AMQHash_hashstate_valid (tnth hashes.2 i); first
+            by move: Hvalid => //=/andP[_ /allP H1]; apply H1; apply mem_tnth.
 
-      have: 'I_Spec.n.+1; first apply Ordinal with (m:=0) => //=.
-      move=>/H;clear H=>H.
-      apply Logic.eq_sym.
-      rewrite -(@H len).
-      rewrite rsum_Rmul_distr_l -index_enum_simpl; apply eq_bigr => ind' _.
-      rewrite mulRA [_ *R* AmqHash.AMQHash_probability h.2]mulRC -!mulRA.
-      apply f_equal; apply Logic.eq_sym=>//=.
-      rewrite rsum_zip_tuple_split //=.
-      rewrite rsum_pred_demote rsum_split //=.
-      rewrite -index_enum_simpl.
-      have H' (T:eqType) m  (a: m.-tuple _) (b: m.-tuple T):
-         (size [seq x.2 | x <- zip a b & x.1 == ind]) == len = (size [seq x | x <- a & x == ind] == len). {
-        rewrite size_map.
-        rewrite (@filter_zip_L _ _  m).
-        rewrite size1_zip //=.
-        move: a len => [xs Hxs] [len Hlen'] //=.
-        suff:
-          (@filter (ordinal (S Spec.n))
-                   (@PredOfSimpl.coerce (ordinal (S Spec.n)) (@pred1 (ordinal_eqType (S Spec.n)) ind))
-                   xs) = [seq x | x <- xs & x == ind]; first by move=><-//=.
-        clear Hlen' Hxs => //=.
-        by rewrite map_id.
-        move: a b len => [xs Hxs] [ys Hys] [len Hlen'] //=.
-        clear Hlen'  => //=.
-        rewrite leq_eqVlt; apply/orP; left; apply/eqP.
-        elim: xs m ys Hxs Hys  => //= x xs Hxs  [| m] [| y ys] Hxs' Hys //=.
-        case Hxeq: (x == ind) => //=.
-        by rewrite (Hxs m ys) //=.
-        by rewrite (Hxs m ys) //=.
-        by move: a => [a Ha] //=; apply/eqP.
-        by move: b => [b Hb] //=; apply/eqP.
-      }
+          have Hcap': AmqHash.AMQHash_hashstate_available_capacity (tnth hashes.2 i) l'.+1; first
+            by apply AmqHash.AMQHash_hashstate_available_capacityW with (n:=l.+1)
+          => //=; move: Hcap => //=/andP[ _ /allP H2]; apply H2; apply mem_tnth.
 
-      under_all ltac:(rewrite eqnE).
-      under eq_bigr => a _ do under eq_bigr => b _ do rewrite H'; clear H'.
-      under eq_bigr do rewrite -rsum_Rmul_distr_l.
-      rewrite -rsum_pred_demote.
-      under eq_bigr => a _ do under eq_bigr => b _ do rewrite expRM -!mulRA.
-      under eq_bigr do rewrite -rsum_Rmul_distr_l.
-      rewrite /BasicMetaHash.AMQHash_probability.
-      rewrite /BasicMetaHash.AMQHashValue.
+          have Hcap'': Amq.AMQ_available_capacity h.2 (Amq.AMQ_new s) l'.+1; first
+            by apply Amq.AMQ_available_capacityW with (n:=l.+1)
+          => //=; first apply Amq.AMQ_new_validT; last move:Hcap_new;rewrite/AMQ_available_capacity=>//=/andP[].
+          have Huns: all (AmqHash.AMQHash_hashstate_unseen (tnth hashes.2 i)) (value :: (take l' values)). {
+            move=>//=;apply/andP;split.
+              by move:Hunseen=>//=;rewrite/AMQHash_hashstate_unseen
+                             =>/andP[/andP[_ /allP Hv] _];apply Hv;apply mem_tnth.
+                by move:Hunseen=>//=;rewrite/AMQHash_hashstate_unseen=>/andP[_ /allP Hv];
+                  apply/allP => v /mem_take/Hv/andP[_/allP Hv']; apply Hv'; apply /mem_tnth.
+          }
+          have Hlen': length (take l' values) == l'; first by rewrite -length_sizeP size_takel //= length_sizeP;move/eqP:Hlen ->.
 
-      rewrite  (@binomial_summation
-                  _ _ _ _ _
-                  (\sum_(i0 in [finType of len.-tuple (AmqHash.AMQHashValue h.2)])
-                    ((AmqHash.AMQHash_probability h.2 ^R^ len) *R*
-                     (Amq.AMQ_query_internal
-                        (foldr
-                           (fun hash' : AmqHash.AMQHashValue h.2 => (Amq.AMQ_add_internal (h:=h.2))^~ hash')
-                           (Amq.AMQ_new s) i0) ind' %R)))) => //=.
+          have Huniq': uniq (value :: take l' values). {
+            move=> //=; apply/andP;split.
+              by apply/memPn => v /mem_take Hv; move: Huniq => //=/andP[/memPn Hn _]; apply Hn.
+              move: Huniq=>//=/andP[Hnin Huniq].
+              move: Hl;rewrite leq_eqVlt=>/orP[/eqP->|Hltn].
+              rewrite take_oversize//=length_sizeP;move/eqP:Hlen->=>//=.
+              apply uniq_take=>//=;first rewrite?length_sizeP;first move/eqP:Hlen=>->//=.
+          }
+          move: (@AmqProperties.AMQ_false_positives_rate
+                   h.2 s (tnth hashes.2 i) l' value (take l' values)
+                   Hlen' Hvalid' Hcap' Hcap'' Huns Huniq').
+          rewrite (@AmqProperties.AmqOperations.AMQ_false_positives_simplify_normalize
+                     h.2 s (tnth hashes.2 i) l') //=.
+        }
 
-      move=> vs Hvs.
-      move: (@AmqHash.AMQHash_hash_prob_valid h.2).
-      rewrite bigsum_card_constE => Hvld.
-      case Hz0: ((#|AmqHash.AMQHashValue h.2| %R) == BinNums.Z0).
-      move/eqP: Hz0 Hvld => ->; rewrite mul0R //= =>/eqP //=; rewrite eq_sym=>/eqP/Nsatz.R_one_zero //=.
-      move/Bool.negb_true_iff: Hz0=>/eqP Hnz0.
-      move: Hvld; rewrite -(@RIneq.Rinv_r (#|AmqHash.AMQHashValue h.2| %R) Hnz0).
-      move=>/(eqR_mul2l Hnz0) ->.
-      rewrite -!rsum_Rmul_distr_l.
-      rewrite (@AMQHash_rsum_subs_eq _ l len ind
-                                     (fun a =>
-                                        ((Amq.AMQ_query_internal
-                                            (foldr (fun hash' : AmqHash.AMQHashValue h.2
-                                                    => (Amq.AMQ_add_internal (h:=h.2))^~ hash')
-                                                   (tnth (AMQ_new s) ind) a) ind' %R))
-                                     )) //=.
-      rewrite mulRA.
-      have: ((Rdefinitions.Rinv (#|AmqHash.AMQHashValue h.2| %R) ^R^ l) *R*
-             (#|AmqHash.AMQHashValue h.2| ^R^ l - len)) =
-            ((Rdefinitions.Rinv (#|AmqHash.AMQHashValue h.2| %R) ^R^ len)).
-      {
-        clear -Hnz0; move: len => [m Hm] //=; rewrite -{1}(@subnK m l) //=.
-        rewrite -{1}plusE RealField.Rdef_pow_add.
-        rewrite -mulRA [_ *R*(#|AmqHash.AMQHashValue h.2| ^R^ l - m)]mulRC mulRA.
-        rewrite -Rfunctions.Rinv_pow.
-        rewrite [((#|AmqHash.AMQHashValue h.2| %R) ^- (l - m)) *R* _]mulRC.
-        rewrite RIneq.INR_IZR_INZ.
-        rewrite mulRV //=.
-        rewrite mul1R //=.
-        by apply expR_neq0; rewrite -RIneq.INR_IZR_INZ; apply/eqP.
-        by [].
-      }
-      move=>-> //=.
-      apply f_equal; apply eq_bigr => a Ha.
-      rewrite tnth_nseq_eq//=.
-      by move: len => [m Hl] //=.
-    Qed.
+        have: 'I_Spec.n.+1; first apply Ordinal with (m:=0) => //=.
+        move=>/H;clear H=>H.
+        apply Logic.eq_sym.
+        rewrite -(@H len).
+        rewrite rsum_Rmul_distr_l -index_enum_simpl; apply eq_bigr => ind' _.
+        rewrite mulRA [_ *R* AmqHash.AMQHash_probability h.2]mulRC -!mulRA.
+        apply f_equal; apply Logic.eq_sym=>//=.
+        rewrite rsum_zip_tuple_split //=.
+        rewrite rsum_pred_demote rsum_split //=.
+        rewrite -index_enum_simpl.
+        have H' (T:eqType) m  (a: m.-tuple _) (b: m.-tuple T):
+          (size [seq x.2 | x <- zip a b & x.1 == ind]) == len = (size [seq x | x <- a & x == ind] == len). {
+          rewrite size_map.
+          rewrite (@filter_zip_L _ _  m).
+          rewrite size1_zip //=.
+          move: a len => [xs Hxs] [len Hlen'] //=.
+          suff:
+            (@filter (ordinal (S Spec.n))
+                     (@PredOfSimpl.coerce (ordinal (S Spec.n)) (@pred1 (ordinal_eqType (S Spec.n)) ind))
+                     xs) = [seq x | x <- xs & x == ind]; first by move=><-//=.
+          clear Hlen' Hxs => //=.
+            by rewrite map_id.
+            move: a b len => [xs Hxs] [ys Hys] [len Hlen'] //=.
+            clear Hlen'  => //=.
+            rewrite leq_eqVlt; apply/orP; left; apply/eqP.
+            elim: xs m ys Hxs Hys  => //= x xs Hxs  [| m] [| y ys] Hxs' Hys //=.
+            case Hxeq: (x == ind) => //=.
+              by rewrite (Hxs m ys) //=.
+                by rewrite (Hxs m ys) //=.
+                  by move: a => [a Ha] //=; apply/eqP.
+                    by move: b => [b Hb] //=; apply/eqP.
+        }
 
-  End Properties.
-End  BlockedAMQProperties.
+        under_all ltac:(rewrite eqnE).
+        under eq_bigr => a _ do under eq_bigr => b _ do rewrite H'; clear H'.
+        under eq_bigr do rewrite -rsum_Rmul_distr_l.
+        rewrite -rsum_pred_demote.
+        under eq_bigr => a _ do under eq_bigr => b _ do rewrite expRM -!mulRA.
+        under eq_bigr do rewrite -rsum_Rmul_distr_l.
+        rewrite /BasicMetaHash.AMQHash_probability.
+        rewrite /BasicMetaHash.AMQHashValue.
+
+        rewrite  (@binomial_summation
+                    _ _ _ _ _
+                    (\sum_(i0 in [finType of len.-tuple (AmqHash.AMQHashValue h.2)])
+                      ((AmqHash.AMQHash_probability h.2 ^R^ len) *R*
+                       (Amq.AMQ_query_internal
+                          (foldr
+                             (fun hash' : AmqHash.AMQHashValue h.2 => (Amq.AMQ_add_internal (h:=h.2))^~ hash')
+                             (Amq.AMQ_new s) i0) ind' %R)))) => //=.
+
+        move=> vs Hvs.
+        move: (@AmqHash.AMQHash_hash_prob_valid h.2).
+        rewrite bigsum_card_constE => Hvld.
+        case Hz0: ((#|AmqHash.AMQHashValue h.2| %R) == BinNums.Z0).
+        move/eqP: Hz0 Hvld => ->; rewrite mul0R //= =>/eqP //=; rewrite eq_sym=>/eqP/Nsatz.R_one_zero //=.
+        move/Bool.negb_true_iff: Hz0=>/eqP Hnz0.
+        move: Hvld; rewrite -(@RIneq.Rinv_r (#|AmqHash.AMQHashValue h.2| %R) Hnz0).
+        move=>/(eqR_mul2l Hnz0) ->.
+        rewrite -!rsum_Rmul_distr_l.
+        rewrite (@AMQHash_rsum_subs_eq _ l len ind
+                                       (fun a =>
+                                          ((Amq.AMQ_query_internal
+                                              (foldr (fun hash' : AmqHash.AMQHashValue h.2
+                                                      => (Amq.AMQ_add_internal (h:=h.2))^~ hash')
+                                                     (tnth (AMQ_new s) ind) a) ind' %R))
+                )) //=.
+        rewrite mulRA.
+        have: ((Rdefinitions.Rinv (#|AmqHash.AMQHashValue h.2| %R) ^R^ l) *R*
+               (#|AmqHash.AMQHashValue h.2| ^R^ l - len)) =
+              ((Rdefinitions.Rinv (#|AmqHash.AMQHashValue h.2| %R) ^R^ len)).
+        {
+          clear -Hnz0; move: len => [m Hm] //=; rewrite -{1}(@subnK m l) //=.
+          rewrite -{1}plusE RealField.Rdef_pow_add.
+          rewrite -mulRA [_ *R*(#|AmqHash.AMQHashValue h.2| ^R^ l - m)]mulRC mulRA.
+          rewrite -Rfunctions.Rinv_pow.
+          rewrite [((#|AmqHash.AMQHashValue h.2| %R) ^- (l - m)) *R* _]mulRC.
+          rewrite RIneq.INR_IZR_INZ.
+          rewrite mulRV //=.
+          rewrite mul1R //=.
+            by apply expR_neq0; rewrite -RIneq.INR_IZR_INZ; apply/eqP.
+              by [].
+        }
+        move=>-> //=.
+        apply f_equal; apply eq_bigr => a Ha.
+        rewrite tnth_nseq_eq//=.
+          by move: len => [m Hl] //=.
+      Qed.
+
+    End Properties.
+  End  BlockedAMQProperties.
 End BlockedAMQ.
 
