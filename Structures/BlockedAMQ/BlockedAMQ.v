@@ -440,7 +440,7 @@ Module BlockedAMQ
 
 
 
-  Module BlockedAMQProperties (AmqProperties: AMQProperties AmqHash Amq) :
+  Module BlockedAMQProperties (AmqProperties: AMQProperties AmqHash Amq) <:
     AMQProperties MetaHash AMQ.
 
     Module AmqOperations := AMQOperations (MetaHash) (AMQ).
