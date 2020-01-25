@@ -12,6 +12,91 @@ make clean && make
 ```
 Takes around an hour to build.
 
+## Theorems and Lemmas
+The following table maps the statements from the associated paper to statements in the source code:
+
+- *Theorem 3 (No False Negatives)* 
+  - file: Structures/BloomFilter/BloomFilter_Probability.v
+  - line: 1164
+  - name: AMQ_no_false_negatives
+- *Lemma 2 (Probability of Flipping a Single Bit)*
+  - file: Structures/BloomFilter/BloomFilter_Probability.v:
+  - line: 587
+  - name: bloomfilter_addn_insert_multiple
+- *Theorem 4 (Probability of a False Positive)*
+  - file: Structures/BloomFilter/BloomFilter_Probability.v:
+  - line: 1185
+  - name: AMQ_false_positives_rate
+- *Theorem 5 (Uniform Hash Output)*
+  - file: Structures/Core/HashVec.v
+  - line: 290
+  - name: hash_vecP
+- *Theorem 6 (Hash Consistency)*
+  - file: Structures/Core/HashVec.v
+  - line: 511
+  - name: hash_vec_find_simpl
+- *AMQHash Interface - Property 1,2*
+  - file: Structures/Core/AMQHash.v
+  - line: 30
+  - name: AMQHASH
+  - note: instantiated for single hash functions at line 140
+    (BasicHash), and for hash vectors at line 338 (BasicHashVec) of
+    same file.
+- *AMQ Interface - Property 3,4*
+  - file: Structures/Core/AMQ.v
+  - line: 30
+  - name: AMQ
+- *Theorem 7 (Generalized No False Negatives)*
+  - file: Structures/Core/AMQ.v
+  - line: 264
+  - name: AMQ_no_false_negatives
+- *AMQMap Interface - Property 5,6*
+  - file: Structures/Core/AMQReduction.v
+  - line: 30
+  - name: AMQMAP
+  - note: instantiated for Counting Bloom filters in
+    Structures/CountingBloomFilter/CountingBloomFilterDefinitions.v at
+    line 832 (BloomFilterReduction).
+- *Theorem 8 (AMQ False Positive Reduction)*
+  - file: Structures/Core/AMQReduction.v
+  - line: 193
+  - name: AMQ_false_positives_rate
+- *Pattern 1 (Bind normalization)*
+  - file: Utils/tactics.v
+  - line: 46
+  - name: comp_normalize
+- *Pattern 2 (Probability of a Sequential Composition)*
+  - file: Utils/tactics.v
+  - line: 164
+  - name: comp_simplify
+- *Lemma 3 (Plausible Sequencing)*
+  - file: Utils/rsum_ext.v
+  - line: 723
+  - name: eq_rsum_ne0
+- *Pattern 3 (Plausible Outcome Decomposition)*
+  - file: Utils/tactics.v
+  - line: 190,251
+  - name: comp_possible_decompose, comp_possible_exists
+  - note: first version for when plausiblility is an assumption, and
+    the second version is for when the plausiblility is a goal
+- *Theorem 9 (Quotient filter False Positive Rate)
+  - file: Structures/QuotientFilter/QuotientFilter_Probability.v
+  - line:  516
+  - name: AMQ_false_positives_rate
+- *Theorem 10 (Blocked AMQ False Positive Rate)*
+  - file: Structures/BlockedAMQ/BlockedAMQ.v
+  - line: 706
+  - name: AMQ_false_positives_rate
+  - note: see Structures/Demo.v for an instantiation of the Blocked AMQ on each of the prior AMQs
+- *Theorem 11 (Counting Bloom filter removal)*
+  - file: Structures/CountingBloomFilter/CountingBloomFilter_Probability.v
+  - line: 165
+  - name: countingbloomfilter_removal_preserve
+- *Theorem 12 (Certainty of Counter Increments)*
+  - file: Structures/CountingBloomFilter/CountingBloomFilter_Probability.v
+  - line: 91
+  - name: countingbloomfilter_counter_prob
+
 ## Project Structure
 The structure of the overall development is as follows:
 ```
