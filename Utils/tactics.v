@@ -243,7 +243,11 @@ Ltac comp_impossible_decompose  :=
   end;
   comp_impossible_simpl.
 
-
+(*
+   decomposes a possibility goal into a corresponding sequence of existence proofs - i.e
+  (\sum_{v1} ... \sum_{vn} P[c1 = v1] * ... *  P[ cn = vn ] != 0)  ->
+  (exists v1,...,vn,  P[c1 = v1] * ... *  P[ cn = vn ] != 0) 
+ *)
 Ltac comp_possible_exists  :=
   match goal with
   | [ |- context [((?X ->- ?Y))]  ] =>
