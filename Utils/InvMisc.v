@@ -559,9 +559,13 @@ Qed.
  *)
 Require Import Reals Fourier FunctionalExtensionality.
 From infotheo
-     Require Import proba ssrR Reals_ext logb ssr_ext ssralg_ext bigop_ext Rbigop .
+     Require Import fdist  proba ssrR Reals_ext logb ssr_ext ssralg_ext bigop_ext Rbigop .
 
-Lemma Rleq_eqVlt : forall m n : R, (m <= n) <-> (m = n) \/ (m < n).
+Local Open Scope real_scope.
+Local Open Scope R_scope.
+Local Open Scope reals_ext_scope.
+
+Lemma Rleq_eqVlt : forall m n : R, (m <= n)%R <-> (m = n) \/ (m < n)%R.
 Proof.
   split.
   move=>/Rle_lt_or_eq_dec.

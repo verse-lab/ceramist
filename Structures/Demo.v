@@ -8,7 +8,7 @@ From mathcomp
      Require Import path.
 
 From infotheo Require Import
-     ssrR Reals_ext logb ssr_ext ssralg_ext bigop_ext Rbigop proba.
+      fdist ssrR Reals_ext logb ssr_ext ssralg_ext bigop_ext Rbigop proba.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

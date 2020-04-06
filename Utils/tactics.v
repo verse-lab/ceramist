@@ -7,7 +7,7 @@ From mathcomp.ssreflect Require Import tuple.
 From mathcomp Require Import path.
 
 From infotheo Require Import
-     ssrR Reals_ext logb ssr_ext ssralg_ext bigop_ext Rbigop proba.
+      fdist ssrR Reals_ext logb ssr_ext ssralg_ext bigop_ext Rbigop proba.
 
 Require Import Coq.Logic.ProofIrrelevance.
 Require Import Coq.Logic.FunctionalExtensionality.
@@ -85,7 +85,7 @@ Ltac under_all x :=
   | _ => x
   end.
 
-
+  
 (*
 Given a summation index, rearranges the goal such that any equalities on the index are brought to the left.
 Once in this form, -big_pred_demote can be applied to raise the equality into the summation index,
@@ -93,7 +93,7 @@ and big_pred1_eq can then be used to simplify the summation.
  *)
 Ltac comp_simplify_eq x :=
   match goal with
-  | [ |-  (Under_eq ((_ (x == _) %R) *R* _)) _ ] => idtac
+  | [ |-  (Under_rel _ _ ((_ (x == _) %R) *R* _)) _ ] => idtac
   | [ |-  (((_ (x == _) %R) *R* _)) ] => idtac
   | [ |-  context [(_ (_ == x) %R)] ] => rewrite [_ == x]eq_sym; comp_simplify_eq x
   | [ |- context [(((_ (x == _) %R) *R* _) *R* _)] ] =>

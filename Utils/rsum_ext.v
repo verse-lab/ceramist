@@ -8,7 +8,7 @@ From mathcomp
      Require Import path .
 
 From infotheo
-     Require Import ssrR Reals_ext logb ssr_ext ssralg_ext bigop_ext Rbigop proba.
+     Require Import  fdist ssrR Reals_ext logb ssr_ext ssralg_ext bigop_ext Rbigop proba.
 
 Require Import Coq.Logic.ProofIrrelevance.
 Require Import Coq.Logic.FunctionalExtensionality.

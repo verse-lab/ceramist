@@ -6,7 +6,7 @@ From mathcomp.ssreflect Require Import tuple.
 
 
 From infotheo Require Import 
-     ssrR Reals_ext   ssr_ext ssralg_ext bigop_ext Rbigop proba.
+      fdist ssrR Reals_ext   ssr_ext ssralg_ext bigop_ext Rbigop proba.
 
 Require Import Coq.Logic.ProofIrrelevance.
 Require Import Coq.Logic.FunctionalExtensionality.
