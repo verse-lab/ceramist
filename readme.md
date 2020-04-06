@@ -1,5 +1,23 @@
 # Ceramist -  Verified Hash-based Approximate Membership Structures
-## Installation
+## Installation (using Opam)
+Create a new switch
+```
+opam switch create ceramist 4.09.0
+eval $(opam env)
+```
+
+Add coq-released repository to opam:
+```
+opam repo add coq-released https://coq.inria.fr/opam/released
+```
+
+Install ceramist:
+```
+opam install coq-ceramist.1.0.1
+```
+
+
+## Installation (from Sources)
 Use opam to install dependencies
 
 ```
