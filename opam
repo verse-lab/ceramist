@@ -31,8 +31,8 @@ install: [
 ]
 
 url {
-  src: "https://github.com/certichain/probhash/archive/0.0.1.tar.gz"
-  checksum: "sha256=7a805043e10dcc618778c65c3014fbaf52210d22db63554a61eb6021f4633e07"
+  src: "https://github.com/certichain/ceramist/archive/1.0.1.tar.gz"
+  checksum: "sha256=c6cd4a6e21247bc85499b80c791086a1df61ecf34ef7d96e760e073a21f28971"
 }
 
 tags: [
