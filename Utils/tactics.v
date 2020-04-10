@@ -1,3 +1,11 @@
+(** * Utils/tactics.v
+-----------------
+
+Provides the definition of a number of helper tactics used to automate
+common proof steps that arise when reasoning about probabilistic
+computations.*)
+
+
 From mathcomp.ssreflect Require Import
      ssreflect ssrbool ssrnat eqtype fintype
      choice ssrfun seq path bigop finfun binomial.
@@ -26,7 +34,6 @@ From ProbHash.Utils
      Require Import InvMisc seq_ext seq_subset rsum_ext stirling.
 
 
-
 Lemma eq_rmull (f g x: Rdefinitions.R) :
   f = g -> (f *R* x) = (g *R* x).
 Proof. by move=>->. Qed.
@@ -38,7 +45,7 @@ Lemma cons_tuple_base (A:Type) (a:A) : [tuple a] = cons_tuple a [tuple].
 Proof. by rewrite cons_tuple_eq_tuple //=. Qed.
 
 
-(*
+(**
 Normalizes a probabilistic computation into a standard form where the steps
 of the computation are multiplied together
 P[ c1; c2; c3; ...] => \sum ... \sum P[ c1 = x1 ] * P[c2 = x2] ....
@@ -59,14 +66,14 @@ Ltac comp_normalize :=
   | [ |- _ ] => idtac
   end.
 
-(* pulls the nth (0-indexed) summation to the outermost point *)
+(** pulls the nth (0-indexed) summation to the outermost point *)
 Ltac exchange_big_outwards n :=
   match n with
   |  ?n'.+1 => (under eq_bigr => ? ? do try exchange_big_outwards n'); rewrite exchange_big
   | 0 => idtac
   end.
 
-(* moves the outermost summation to the innermost and then executes tactic f in that context
+(** moves the outermost summation to the innermost and then executes tactic f in that context
                                                     b,c
 ----------------------------------                ----------------------------------
 \sum_{a) \sum_{b} \sum_{c} g(a,b,c)        =>      \sum_{a) g(a,b,c)                     => apply f.
@@ -78,7 +85,7 @@ Ltac exchange_big_inwards f :=
   |  [ |- _ ] => fail
   end.
 
-(* applies the provided tactic under all the summations *)
+(** applies the provided tactic under all the summations *)
 Ltac under_all x :=
   match goal  with
   |  [ |- context [\sum_(_ in _) _ ] ] =>  under eq_bigr => ? ? do (under_all x)
@@ -86,7 +93,7 @@ Ltac under_all x :=
   end.
 
   
-(*
+(**
 Given a summation index, rearranges the goal such that any equalities on the index are brought to the left.
 Once in this form, -big_pred_demote can be applied to raise the equality into the summation index,
 and big_pred1_eq can then be used to simplify the summation.
@@ -124,7 +131,7 @@ Ltac comp_simplify_eq x :=
   | [ |- _ ] => fail
   end.
 
-(*
+(**
  Recursively attempts to perform probabilistic beta reduction with every summation index in context
  *)
 Ltac comp_simplify_internal :=
@@ -158,13 +165,13 @@ Ltac comp_simplify_internal :=
 
 
 
-(*
+(**
   Performs beta reduction until no further progress is made
  *)
 Ltac comp_simplify :=
   do !(progress comp_simplify_internal).
 
-(*
+(**
   Same as comp_simplify, but only runs a fixed number of times
   (sometimes comp_simplify_internal can exchange the order of summands without making progress)
  *)
@@ -172,7 +179,7 @@ Ltac comp_simplify_n n :=
   do n!(progress comp_simplify_internal).
 
 
-(* dispatches 0 <= obligations that arise during proofs *)
+(** dispatches 0 <= obligations that arise during proofs *)
 Ltac dispatch_eq0_obligations :=
   intros;
   match goal with
@@ -184,7 +191,7 @@ Ltac dispatch_eq0_obligations :=
   end.
 
 
-(* given that a probabilistic computation is possible (d[ c1; c2; c3] v) != 0,
+(** given that a probabilistic computation is possible (d[ c1; c2; c3] v) != 0,
    derives that individual statements of computation are also possible
  *)
 Ltac comp_possible_decompose  :=
@@ -204,7 +211,7 @@ Ltac comp_possible_decompose  :=
   end.
 
 
-(* simplifies a  impossibility statement i.e (c1 * c2 * c3 = 0)
+(** simplifies a  impossibility statement i.e (c1 * c2 * c3 = 0)
 by automatically solving any cases with booleans and introducing
 them into the context:
 i.e (i == g (y)) * f = 0  -> i = g(y) -> f = 0
@@ -226,7 +233,7 @@ Ltac comp_impossible_simpl :=
       end.
 
 
-(*
+(**
  automatically decomposes an impossibility statement (\sum_{v1} ... \sum_{vn} P[c1 = v1] * ... *  P[ cn = vn ] = 0)
  into properties about its component parts (forall v1,..,vn, P[c1 = v1] * ... * P[cn = vn] = 0)
  *)
@@ -243,7 +250,7 @@ Ltac comp_impossible_decompose  :=
   end;
   comp_impossible_simpl.
 
-(*
+(**
    decomposes a possibility goal into a corresponding sequence of existence proofs - i.e
   (\sum_{v1} ... \sum_{vn} P[c1 = v1] * ... *  P[ cn = vn ] != 0)  ->
   (exists v1,...,vn,  P[c1 = v1] * ... *  P[ cn = vn ] != 0) 

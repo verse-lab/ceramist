@@ -1,3 +1,10 @@
+(**
+*  Notation1.v
+-----------------
+Defines a more natural monadic notation for the probabilistic
+computation monad defined in [Comp.v].
+*)
+
 Set Implicit Arguments.
 
 From mathcomp.ssreflect
@@ -6,13 +13,14 @@ Require Import ssreflect ssrnat seq ssrbool ssrfun fintype choice eqtype .
 From ProbHash.Computation
 Require Import Comp.
 
-Lemma size_enum_equiv: forall n: nat, size(enum (ordinal n.+1)) = n.+1 -> #|ordinal_finType n.+1| = n.+1.
 
+Lemma size_enum_equiv: forall n: nat, size(enum (ordinal n.+1)) = n.+1 -> #|ordinal_finType n.+1| = n.+1.
 Proof.
     move=> n H.
     by rewrite unlock H.
 Qed.
 
+(** Draw a uniformly random integer value from the finite range 0 to n *)
 Definition random n := (@Rnd (ordinal_finType n.+1) n (size_enum_equiv (size_enum_ord n.+1))).
 
 Notation "'ret' v" := (Ret _ v) (at level 75).

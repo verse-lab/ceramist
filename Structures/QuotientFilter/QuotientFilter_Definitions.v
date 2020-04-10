@@ -1,3 +1,10 @@
+(** * Structures/QuotientFilter/QuotientFilter_Definitions.v
+-----------------
+
+Provides the definitions and deterministic operations of a Quotient
+Filter and uses them to instantiate the AMQ interface. *)
+
+
 From mathcomp.ssreflect
      Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq path bigop finfun div.
 
@@ -27,23 +34,23 @@ From ProbHash.Core
 
 Module Type QuotientFilterSpec.
 
-  (*
+  (**
    q - the number of elements in the quotient - 1
    *)
   Parameter q:nat.
-  (*
+  (**
    r - the number of elements in the remainder - 1
   *)
   Parameter  r:nat.
 
-  (* type being hashed in the quotient filter *)
+  (** type being hashed in the quotient filter *)
   Parameter  B:finType.
 
 End QuotientFilterSpec.
 
 Module QuotientFilterDefinitions (Spec: QuotientFilterSpec).
 
-  (*
+  (**
    A fomalization of a simplified form of the quotientfilter structure.
   *)
 
@@ -78,9 +85,9 @@ Module QuotientFilterDefinitions (Spec: QuotientFilterSpec).
   Record QuotientFilter (n: nat) := mkQuotientFilter 
                              {
                                quotientfilter_state:
-                               (* maps each quotient value *)
+                               (** maps each quotient value *)
                                  (q.+1).-tuple
-                                 (* to a variable length list of values *)
+                                 (** to a variable length list of values *)
                                        (fixlist [eqType of 'I_r.+1] n.+1)
                              }.
   
@@ -134,7 +141,10 @@ Module QuotientFilterDefinitions (Spec: QuotientFilterSpec).
     by rewrite ltn_divLR //= mulnC.
   Qed.
     
-
+  (** Implements the quotienting operation (note: this is slightly
+  more general than the standard definition, which requires that q.+1
+  and r.+1 be exact powers of 2 (as the operation is implemented using
+  bit-level operations) ) *)
   Definition quotient_num (value: 'I_(q.+1 * r.+1)) : 'I_q.+1 * 'I_r.+1 :=
     (Ordinal (quotient_num_quotient value),
     Ordinal (quotient_num_remainder value)).
@@ -316,6 +326,7 @@ Module QuotientFilterDefinitions (Spec: QuotientFilterSpec).
 
 End QuotientFilterDefinitions.
 
+(** Instantiation of the AMQ interface for a Quotient filter *)
 Module QuotientFilterAMQ (Spec: QuotientFilterSpec).
 
   Module QuotientFilterDefinitions :=  QuotientFilterDefinitions Spec.

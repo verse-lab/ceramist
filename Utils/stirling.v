@@ -1,3 +1,10 @@
+(** * Utils/stirling.v
+-----------------
+
+Proof of the closed form expression of Stirling numbers of the second
+kind.*)
+
+
 From mathcomp.ssreflect Require Import
      ssreflect ssrbool ssrnat fintype eqtype 
      seq bigop binomial finset.
@@ -10,6 +17,7 @@ From infotheo Require Import
 
 Require Import Coq.Logic.ProofIrrelevance.
 Require Import Coq.Logic.FunctionalExtensionality.
+
 
 Set Implicit Arguments.
 Unset Strict Implicit.

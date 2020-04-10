@@ -1,3 +1,16 @@
+(** * Structures/Core/AMQ.v
+-----------------
+
+Defines an abstract interface encapsulating the definitions of several
+standard AMQs, parameterised by the hashing operation they use, and
+provides an abstract interface encoding the standard probabilistic
+properties of such data structures (false positive and false negatives
+rate).
+
+Also defines the AMQOperations module, which provides an abstract
+implementation of number of common AMQ simplification steps and helper
+definitions.  *)
+
 From mathcomp.ssreflect Require Import
      ssreflect ssrbool ssrnat eqtype fintype
      choice ssrfun seq path bigop finfun finset binomial.
@@ -14,6 +27,7 @@ From infotheo Require Import
 Require Import Coq.Logic.ProofIrrelevance.
 Require Import Coq.Logic.FunctionalExtensionality.
 
+
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -27,8 +41,9 @@ From ProbHash.Computation
 From ProbHash.Core
      Require Import Hash HashVec FixedList FixedMap AMQHash.
 
+(** Module type encoding an AMQ, parameterised by the hash operation
+it uses.  *)
 Module Type AMQ (AMQHash: AMQHASH).
-
 
   Parameter AMQStateParams : Type.
   Parameter AMQState : AMQStateParams -> finType.
@@ -76,6 +91,8 @@ Module Type AMQ (AMQHash: AMQHASH).
   End AMQ.
 End AMQ.
 
+(** Module generalizing a number of helper definitions and proofs on
+AMQ operations.  *)
 Module AMQOperations (AmqHash: AMQHASH) (Amq: AMQ AmqHash).
 
   Export AmqHash.
@@ -615,6 +632,8 @@ Module AMQOperations (AmqHash: AMQHASH) (Amq: AMQ AmqHash).
 
 End AMQOperations.
 
+(** Module encoding the standard properties of AMQs (False positives
+and False negatives) *)
 Module Type AMQProperties (AmqHash: AMQHASH) (AbstractAMQ: AMQ AmqHash) .
   Module AmqOperations := AMQOperations (AmqHash)  (AbstractAMQ).
   Export AmqOperations.

@@ -1,3 +1,12 @@
+(** * Structures/BloomFilter/BloomFilter_Definitions.v
+-----------------
+
+Provides the definitions and deterministic operations of a Bloom
+Filter and uses them to instantiate the AMQ interface.
+
+This file is a good example of the recommended structure to use when
+defining new AMQ data structures.  *)
+
 From mathcomp.ssreflect
      Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq path bigop finfun .
 From mathcomp.ssreflect
@@ -22,15 +31,15 @@ Module BloomFilterDefinitions (Spec: HashSpec).
 Module HashVec := (HashVec Spec).
 Export HashVec.
 
-Section BloomFilter.
-  (*
+(**
    A fomalization of a bloom filter structure and properties
    *)
-  (*
+Section BloomFilter.
+  (**
     k - number of hashes
    *)
   Variable k: nat.
-  (*
+  (**
     n - maximum number of hashes supported
    *)
   Variable n: nat.
@@ -38,7 +47,7 @@ Section BloomFilter.
 
   Definition BitVector := (Hash_size.+1).-tuple bool.
 
-  (*
+  (**
      list of hash functions used in the bloom filter
    *)
   Record BloomFilter := mkBloomFilter {
@@ -251,7 +260,7 @@ End BloomFilter.
 End BloomFilterDefinitions.
 
 
-(* instantiation of AMQ interface *)
+(** instantiation of AMQ interface *)
 Module BloomFilterAMQ (Spec: HashSpec).
   Module BasicHashVec := BasicHashVec Spec.
   Module BloomFilterDefinitions :=  BloomFilterDefinitions Spec.

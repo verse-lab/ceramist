@@ -1,3 +1,15 @@
+(** * Structures/Demo.v
+-----------------
+Demonstrates the use of the Blocked AMQ data structure to obtain new
+Blocked data structures and their associated proofs "for free".
+
+Specifically, this file contains definitions and proofs of the
+properties of the following data structures:
+- Blocked Bloom Filters
+- Blocked Counting Bloom Filters
+- Blocked Quotient Bloom Filters
+ *)
+
 From mathcomp.ssreflect
      Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq path bigop finfun binomial.
 
@@ -13,6 +25,7 @@ From infotheo Require Import
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
+
 
 
 From ProbHash.Computation

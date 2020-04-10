@@ -1,3 +1,10 @@
+(** * Utils/seq_ext.v
+-----------------
+
+ A set of utility functions and lemmas on sequences and finite
+ sequences.*)
+
+
 From mathcomp.ssreflect
      Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq path.
 
@@ -10,7 +17,6 @@ Require Import Coq.Logic.ProofIrrelevance.
 From ProbHash.Utils Require Import InvMisc.
 
 
-(* A set of utility functions and lemmas on sequences and finite sequences *)
 
 Set Implicit Arguments.
 Unset Strict Implicit.

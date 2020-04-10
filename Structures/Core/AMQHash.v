@@ -1,3 +1,11 @@
+(** * Structures/Core/AMQHash.v
+-----------------
+
+Defines an abstract interface the hash functions used in AMQs,
+encoding both the deterministic and probabilistic behaviours of these
+operations. Also provides instantiations of this interface for some
+standard hash operations. *)
+
 From mathcomp.ssreflect Require Import
      ssreflect ssrbool ssrnat eqtype fintype
      choice ssrfun seq path bigop finfun finset binomial.
@@ -27,8 +35,12 @@ From ProbHash.Computation
 From ProbHash.Core
      Require Import Hash HashVec FixedList FixedMap.
 
+(** Abstract interface for a hash function used in AMQs  *)
 Module Type AMQHASH.
   Parameter AMQHashKey : finType.
+  (** Allows the hash types to be parameterised - i.e see BasicHash
+  defined later on where the parameters are the capacity of the hash
+  function. *)
   Parameter AMQHashParams: Type.
   Parameter AMQHashValue: AMQHashParams -> finType.
   Parameter AMQHash : AMQHashParams -> finType.
@@ -45,16 +57,16 @@ Module Type AMQHASH.
 
     Parameter AMQHash_hashstate_put : AMQHash p -> AMQHashKey -> AMQHashValue p -> AMQHash p.
 
-    (* boolean properties of hash states*)
+    (** ** Boolean properties of hash states*)
     Parameter AMQHash_hashstate_available_capacity : AMQHash p -> nat -> bool.
     Parameter AMQHash_hashstate_valid: AMQHash p -> bool.
     Parameter AMQHash_hashstate_contains: AMQHash p -> AMQHashKey -> AMQHashValue p -> bool.
     Parameter AMQHash_hashstate_unseen: AMQHash p -> AMQHashKey -> bool.
 
-    (* probabilistic hash operation*)
+    (** ** Probabilistic hash operation*)
     Parameter AMQHash_hash: AMQHash p -> AMQHashKey -> Comp [finType of (AMQHash p * AMQHashValue p)].
 
-    (* properties of deterministic hash state operations *)
+    (**  Properties of deterministic hash state operations *)
     Section DeterministicOperations.
 
       Variable hashstate: AMQHash p.
@@ -111,6 +123,8 @@ Module Type AMQHASH.
   End AMQHash.    
 End AMQHASH.
 
+(** Abstract interface encoding the required properties of AMQ hash
+functions.  *)
 Module AMQHashProperties (AMQHash: AMQHASH).
 
   Import AMQHash.
@@ -137,14 +151,15 @@ Module AMQHashProperties (AMQHash: AMQHASH).
   End Properties.
 End AMQHashProperties.
 
+(** * Instantiation of the AMQHash interface for random-oracle based
+Hash functions.  *)
 Module BasicHash (Spec:HashSpec) <: AMQHASH.
-
 
   Module Hash := Hash Spec.
   
   Definition AMQHashKey : finType := Spec.B.
 
-  
+  (** Parameter defines the capacity of the hash function  *)
   Definition AMQHashParams: Type := nat.
   Definition AMQHashValue  (params: AMQHashParams) : finType :=
     [finType of 'I_Spec.Hash_size.+1].
@@ -168,7 +183,7 @@ Module BasicHash (Spec:HashSpec) <: AMQHASH.
 
     End HashProbability.
 
-    (* deterministic pure transformations of hash state  *)
+    (** ** Deterministic pure transformations of hash state  *)
     Definition AMQHash_hashstate_find
                (hashstate: AMQHash p) (key: AMQHashKey)
       : option (AMQHashValue p) :=
@@ -179,7 +194,7 @@ Module BasicHash (Spec:HashSpec) <: AMQHASH.
       : AMQHash p :=
       Hash.hashstate_put p key value hashstate.
 
-    (* boolean properties of hash states*)
+    (** ** Boolean properties of hash states*)
     Definition AMQHash_hashstate_available_capacity
                (hashstate:AMQHash p) (l:nat) : bool :=
       [length hashstate] + l < p.
@@ -196,13 +211,13 @@ Module BasicHash (Spec:HashSpec) <: AMQHASH.
                (hashstate:  AMQHash p) (key: AMQHashKey) : bool :=
       Hash.hashstate_find p key hashstate == None.
 
-    (* probabilistic hash operation*)
+    (** ** Probabilistic hash operation*)
     Definition AMQHash_hash
                (hashstate: AMQHash p)
                (key: AMQHashKey) : Comp [finType of (AMQHash p * AMQHashValue p)] :=
       Hash.hash p key hashstate.
 
-    (* properties of deterministic hash state operations *)
+    (** **  Properties of deterministic hash state operations *)
     Section DeterministicOperations.
 
       Variable hashstate: AMQHash p.
@@ -335,13 +350,14 @@ Module BasicHash (Spec:HashSpec) <: AMQHASH.
 End BasicHash.
 
 
-
+(** Instantiation of the AMQ Hash interface for Hash vectors  *)
 Module BasicHashVec  (Spec:HashSpec) <: AMQHASH.
   Module HashVec := HashVec Spec.
 
   Definition AMQHashKey : finType := Spec.B.
+
+  (** Parameters are the capacity of the hash functions (n) and the number of the hash functions (l).  *)
   Definition AMQHashParams := (nat * nat)%type.
-  (* first elem is n, second is l *)
 
   Definition AMQHashValue (pair: AMQHashParams) : finType :=
     [finType of (snd pair).+1.-tuple ('I_Spec.Hash_size.+1)].
@@ -367,7 +383,7 @@ Module BasicHashVec  (Spec:HashSpec) <: AMQHASH.
       Qed.
     End HashProbability.
 
-    (* deterministic pure transformations of hash state  *)
+    (** ** Deterministic pure transformations of hash state  *)
 
     Definition AMQHash_hashstate_put
                (hashstate: AMQHash p) (key: AMQHashKey)
@@ -376,7 +392,7 @@ Module BasicHashVec  (Spec:HashSpec) <: AMQHASH.
                (fst p) (snd p).+1 key hashstate value).
 
 
-    (* boolean properties of hash states*)
+    (** ** Boolean properties of hash states*)
     Definition AMQHash_hashstate_available_capacity
                (hashstate:AMQHash p) (l:nat) :bool :=
       (@HashVec.hashes_have_free_spaces (snd p).+1 (fst p) hashstate l).
@@ -392,13 +408,13 @@ Module BasicHashVec  (Spec:HashSpec) <: AMQHASH.
                (hashstate: AMQHash p) (key:AMQHashKey) : bool :=
       (@HashVec.hashes_value_unseen (snd p).+1 (fst p) hashstate key).
 
-    (* probabilistic hash operation*)
+    (** ** Probabilistic hash operation*)
     Definition AMQHash_hash
                (hashstate: AMQHash p)
                (key: AMQHashKey) : Comp [finType of (AMQHash p * AMQHashValue p)] :=
       (@HashVec.hash_vec_int (fst p) (snd p).+1 key hashstate).
 
-    (* properties of deterministic hash state operations *)
+    (** ** Properties of deterministic hash state operations *)
     Section DeterministicOperations.
 
       Variable hashstate: AMQHash p.

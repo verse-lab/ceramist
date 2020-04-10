@@ -1,3 +1,10 @@
+(** * Structures/Core/FixedMap.v
+-----------------
+
+Defines a variable-length finite map data structure, and provides a
+small library of helper operations and properties.  *)
+
+
 From mathcomp.ssreflect
      Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq path.
 
@@ -14,6 +21,7 @@ Set Implicit Arguments.
 
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Logic.ProofIrrelevance.
+
 
 Section fixmap.
 

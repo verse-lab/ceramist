@@ -7,6 +7,9 @@ default: Makefile.coq
 install: Makefile.coq 
 	$(MAKE) -f Makefile.coq install
 
+doc: Makefile.coq 
+	$(MAKE) -f Makefile.coq html
+
 
 clean: Makefile.coq
 	$(MAKE) -f Makefile.coq cleanall

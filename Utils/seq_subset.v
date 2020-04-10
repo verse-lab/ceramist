@@ -1,3 +1,11 @@
+(** * Utils/seq_subset.v
+-----------------
+
+Definition of a subset relation on lists and a number of properties
+about this relation.*)
+
+
+
 From mathcomp.ssreflect
      Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq    .
 From mathcomp.ssreflect

@@ -1,5 +1,13 @@
+(** * Utils/InvMisc.v
+-----------------
+
+Provides a collection of miscellaneous facts and properties about
+ standard data types that we could not find in ssreflect.*)
+
+
 From mathcomp.ssreflect
      Require Import ssreflect ssrbool ssrnat eqtype fintype finset choice ssrfun bigop seq path finfun tuple.
+
 
 Lemma ltn_Snn a b : a.+1 < b.+1 -> a < b.
 Proof.
@@ -31,11 +39,11 @@ Lemma minn_mult m l: (minn m (l * m + m) = m). Proof. by rewrite minnE //= addnC
 
 Lemma mult_subn m l: ((m * l) + l - l) = (m * l). Proof. by rewrite -addnBA //= subnn addn0. Qed.
 
-(* utility function for ranges of values form (inclusive) a to b (exclusive) *)
+(** utility function for ranges of values form (inclusive) a to b (exclusive) *)
 Definition itoj (m n : nat) : seq.seq nat :=
   iota m (n - m).
 
-(* Couldn't find a remove_nth function in stdlib or ssreflect*)
+(** Couldn't find a remove_nth function in stdlib or ssreflect*)
 Fixpoint rem_nth {A:Type} (n : nat) (ls : list A) : list A := 
   match n with
   | 0 => if ls is h::t then t else nil
@@ -301,7 +309,7 @@ Proof.
       rewrite subn1.
         by apply ltn_subl1.
 Qed.
-(* TODO: Move this to somewhere more appropriate *)
+
 
 Lemma leq_addr_weaken x y z : (x + y <= z)%nat -> (x <= z)%nat.
 Proof.
@@ -553,9 +561,8 @@ Proof.
   move: b.
     by elim: a => //=.
 Qed.
-(*
 
-   Miscellaneous Real Lemmas
+(* Miscellaneous Real Lemmas
  *)
 Require Import Reals Fourier FunctionalExtensionality.
 From infotheo
@@ -585,7 +592,7 @@ Lemma R_w_distr (A : finType) (f g : A -> R) :
     rewrite negb_forall=>/existsP [w /eqP Hw].
       by move: (H w) => /Rmult_integral [Hf0 | Hg0]; [move: (Hw Hf0) => [] | apply /exists_eqP; exists w].
 Qed.
-(* Subtracts a value from an ordinal value returning another value in the ordinal range *)
+(** Subtracts a value from an ordinal value returning another value in the ordinal range *)
 Definition ordinal_sub {max : nat} (value : 'I_max) (suband : nat) : 'I_max :=
   ssr_have (value - suband < max)%nat
            match value as o return (o - suband < max)%nat with

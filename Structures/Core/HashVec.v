@@ -1,3 +1,10 @@
+(** * Structures/Core/HashVec.v
+-----------------
+
+Defines an implementation of an hash vector hashing operation, which
+uses a sequence of hash functions to map an input value into a vector
+of hash outputs.  *)
+
 From mathcomp.ssreflect Require Import
      ssreflect ssrbool ssrnat eqtype fintype choice
      ssrfun seq path bigop finfun.
@@ -28,18 +35,17 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 
-
 Module HashVec (Spec: HashSpec).
   Module Hash := (Hash Spec).
 
   Export Hash.
 
   Section HashVec.
-  (*
+  (**
     k - number of hashes
    *)
   Variable k: nat.
-  (*
+  (**
     n - maximum number of hashes supported
    *)
   Variable n: nat.
@@ -88,7 +94,7 @@ Module HashVec (Spec: HashSpec).
         x0 x1
     end.
 
-  (* Helper lemma to perform typecast
+  (** Helper lemma to perform typecast
   there's got to be a better way to do this... *)
   Lemma hash_vec_int_cast (h h' : nat) A (Hh: h = h'.+1)
         (tuple: h.-tuple A) : (h'.+1).-tuple A.

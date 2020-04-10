@@ -1,3 +1,13 @@
+(** * Structures/Quotientfilter/Quotientfilter_Probability.v
+-----------------
+
+Proves the standard properties required to instantiate the
+AMQProperties interface for a Quotient Filter - i.e proving false
+negative and false positive rates of a Quotient Filter using the
+definitions defined in
+[Structures/Quotientfilter/Quotientfilter_Definitions.v] *)
+
+
 From mathcomp.ssreflect Require Import
      ssreflect ssrbool ssrnat eqtype fintype
      choice ssrfun seq path bigop finfun binomial.
@@ -11,6 +21,7 @@ From infotheo Require Import
 
 Require Import Coq.Logic.ProofIrrelevance.
 Require Import Coq.Logic.FunctionalExtensionality.
+
 
 Set Implicit Arguments.
 Unset Strict Implicit.

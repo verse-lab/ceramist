@@ -1,3 +1,12 @@
+(** * Structures/BloomFilter/BloomFilter_Probability.v
+-----------------
+
+Proves the standard properties required to instantiate the
+AMQProperties interface for a Bloom Filter - i.e proving false
+negative and false positive rates of a BloomFilter using the
+definitions defined in
+[Structures/BloomFilter/BloomFilter_Definitions.v].  *)
+
 From mathcomp.ssreflect Require Import
      ssreflect ssrbool ssrnat eqtype fintype
      choice ssrfun seq path bigop finfun binomial.
@@ -29,15 +38,7 @@ From ProbHash.BloomFilter
      Require Import BloomFilter_Definitions.
 
 
-(*
-Proof idea
-----------
-1. if hashstate_find value hash_state is None, then the output of the hash function is uniformly distributed from 0..Hash_size.+1
-2. folding on a list of values such that all the values are not-equal ensures that hashstate_find value is always None
-3. after insert, probability of all hash functions not setting a bit is (1 - 1/(Hash_size.+1))^k.
-4. after k inserts,  probability of all hash functions not setting a bit is (1 - 1/(Hash_size.+1))^kn.
-5. after k inserts,  probability of all hash functions setting a bit is 1 - (1 - 1/(Hash_size.+1))^kn.
- *)
+
 Open Scope R_scope.
 
 Module BloomFilterProbability (Spec: HashSpec).
@@ -54,15 +55,15 @@ Module BloomFilterProbability (Spec: HashSpec).
   Export BloomfilterOperations.
 
   Section BloomFilter.
-  (*
+  (**
     k - number of hashes
    *)
   Variable k: nat.
-  (*
+  (**
     n - maximum number of hashes supported
    *)
   Variable n: nat.
-  (* valid k *)
+  (** k must be valid *)
   Variable Hkgt0: k >0.
 
 
@@ -297,7 +298,8 @@ Module BloomFilterProbability (Spec: HashSpec).
               by apply RIneq.not_0_INR => //=.
         }
       }
-      (* DONE!!!! *)                                                         Qed.
+      (* DONE!!!! *)
+  Qed.
 
   Lemma bloomfilter_add_multiple_unfold A (hshs: AMQHash (n,k.-1)) bf x xs (f: _ -> Comp A):
     d[ res <-$ AMQ_add_multiple hshs bf (x :: xs);
@@ -510,7 +512,6 @@ Module BloomFilterProbability (Spec: HashSpec).
       move=>/(IHy).
       clear IHy all_cons bf Hfree Huns Hkgt0 Hfindys .
       move=> Hall Hint /bool_neq0_true; rewrite xpair_eqE=>/andP[/eqP -> _].
-      (* clear hshs'; elim: k hs1 hs2 vec1 Hint; clear hshs Hfindy k. *)
       clear hshs'.
       move: k d_hshs' d_hshs'' d_ind Hint Hall; clear hshs Hfindy k=>k.
       rewrite/AMQHash/AMQState/AMQHashValue.
@@ -658,8 +659,6 @@ Module BloomFilterProbability (Spec: HashSpec).
     - have <-: (Rdefinitions.IZR 1) = (BinNums.Zpos BinNums.xH); first by [].
       erewrite <-  (@bloomfilter_addn hshs' ind bf' x) => //=.
       by apply Logic.eq_sym; comp_normalize; comp_simplify_n 2; apply Logic.eq_sym; comp_simplify_n 1.
-    (* - move: Hfree'; rewrite /hashes_not_full/hash_has_free_spaces => /allP Hlt; apply/allP => cell Hcell; rewrite /hash_not_full. *)
-    (*     by move: (Hlt cell Hcell); rewrite addn1 //=. *)
     - move /Bool.negb_false_iff: Htnth' => Htnth'; rewrite FDist1.dE // mul0R.
        by move: (@bloomfilter_addn_Nuns ind bf' hshs' x Htnth'); comp_normalize; comp_simplify.
     - move/allP: Hfree => Hfree; apply/allP => cell Hcell.        
@@ -979,6 +978,9 @@ Module BloomFilterProbability (Spec: HashSpec).
       }
   Qed.
 
+  (** Proves the validity of the analogy used by Bose et al, wherin
+   the false positives of a bloom filter can be thought of as
+   equivalent to throwing balls into urns*)
   Lemma bloomfilter_add_multiple_unwrap 
         hashes l value (values: seq B) inds:
     uniq (value::values) ->
@@ -1141,7 +1143,7 @@ Module BloomFilterProbability (Spec: HashSpec).
   Qed.
 End BloomFilter.
 
-
+(** Proves the standard properties of AMQs for Bloom Filters *)
 Module BloomFilterProperties <:  AMQ.AMQProperties (BasicHashVec) (BloomfilterAMQ).
   Module AmqOperations :=  BloomfilterOperations.
   Export AmqOperations.

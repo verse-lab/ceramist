@@ -1,3 +1,13 @@
+(** * Structures/Core/AMQReduction.v
+-----------------
+
+Defines a Coq Module that encapsulates a reduction argument for AMQ
+modules, allowing transferring properties from one AMQ to another
+provided a suitable mapping is defined. See
+Structure/CountingBloomFilter/CountingBloomFilter_Properties.v for an
+example use. *)
+
+
 From mathcomp.ssreflect Require Import
      ssreflect ssrbool ssrnat eqtype fintype
      choice ssrfun seq path bigop finfun finset binomial.
@@ -27,6 +37,8 @@ From ProbHash.Computation
 From ProbHash.Core
      Require Import Hash HashVec FixedList FixedMap AMQHash AMQ.
 
+
+(** Module encapsulating the existance of a reduction from AMQ A to AMQ B.  *)
 Module Type AMQMAP (AmqHash: AMQHASH) (A: AMQ AmqHash) (B: AMQ AmqHash).
 
   Parameter AMQ_param_map: A.AMQStateParams -> B.AMQStateParams.

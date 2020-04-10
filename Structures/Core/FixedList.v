@@ -1,3 +1,10 @@
+(** * Structures/Core/FixedList.v
+-----------------
+
+Defines a variable-length finite length list data type, and provides a
+small library of helper operations and properties.  *)
+
+
 From mathcomp.ssreflect
      Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq path.
 
@@ -9,6 +16,7 @@ Require Import Coq.Logic.ProofIrrelevance.
 
 From ProbHash.Utils Require Import InvMisc seq_ext.
 Set Implicit Arguments.
+
 
 Definition tlast (n : nat) (T : Type) tuple :=
   (tnth (T:=T) tuple (Ordinal (ltnSn n))).
@@ -214,7 +222,8 @@ Section fixlist.
                                  | Some value => [:: value]
                                  | None => [::]
                                  end) list).
-  (* remove will remove the nth index of the list *)
+
+  (** remove will remove the nth index of the list *)
   Fixpoint fixlist_remove (m : nat) (list : fixlist m) (n : nat) : fixlist m.
     move: list.
     induction  m  as [|m'] eqn: Hm.
@@ -233,8 +242,8 @@ Section fixlist.
     move=> list.
     exact [tuple of ntuple_head list ::  @fixlist_remove m' (ntuple_tail list) n0].
   Defined.
-  (* rem will remove all instances of a in the list*)
 
+  (** rem will remove all instances of a in the list*)
   Lemma fixlist_rem (m : nat) (list: fixlist m) (a : A) : fixlist m.
     induction m.
     (* if m is 0, return empty list *)
@@ -283,7 +292,8 @@ Section fixlist.
     (fixlist_unwrap list) == [::].
   Definition fixlist_is_full (m : nat) (list : fixlist m) : bool :=
     fixlist_length list == m .
-  (* a fixed list is top heavy if all the empty spaces are at the tail of the list*)
+
+  (** a fixed list is top heavy if all the empty spaces are at the tail of the list*)
   Definition fixlist_is_top_heavy (m : nat) (list : fixlist m) : bool :=
     nat_rect (fun m0 : nat => fixlist m0 -> bool) xpredT
              (fun (m0 : nat) (fixlist_is_top_heavy : fixlist m0 -> bool) (list0 : fixlist m0.+1) =>
@@ -318,7 +328,7 @@ Section fixlist.
   Defined. 
   Definition fixlist_index_of (m : nat) (a : A) (list : fixlist m) : option nat := 
     fixlist_index_of' 0 a list.
-  (* uses a fixlist like a fixed length queue, inserting at the start and removing from the end*)
+  (** uses a fixlist like a fixed length queue, inserting at the start and removing from the end*)
   Fixpoint fixlist_enqueue (m : nat) (a : option A) (list: fixlist m) : (fixlist m * option A).
     (* :=
         match m with 

@@ -1,3 +1,21 @@
+(** * Structures/BlockedAMQ/BlockedAMQ.v
+-----------------
+
+Uses the abstract interfaces of AMQs defined in [Structures/AMQ/AMQ.v]
+to implement a blocked AMQ, and proves several generic properties of
+the data structure.
+
+A BlockedAMQ itself is decomposed into two subcomponents:
+
+- a blocking hashing operation - using a preliminary hash to determine
+  which block to assign the query to, and then delegates to the hash
+  operation of the parameterised AMQ. This is defined by the module
+  `BlockedAMQHash`
+
+- a blocked AMQ state - implemented as a finite length sequence of the
+states of the constituent AMQs. This is defined by the module
+`BlockedAMQ` *)
+
 From mathcomp.ssreflect Require Import
      ssreflect ssrbool ssrnat eqtype fintype
      choice ssrfun seq path bigop finfun finset binomial.
@@ -27,6 +45,9 @@ From ProbHash.Computation
 From ProbHash.Core
      Require Import Hash HashVec FixedList FixedMap AMQ AMQHash.
 
+
+
+(** Parameters of the Blocked AMQ data structure  *)
 Module Type BlockedAMQSpec.
 
   (** number of blocks(amqs) in Blocked AMQ - 1 *)
@@ -34,6 +55,7 @@ Module Type BlockedAMQSpec.
 
 End BlockedAMQSpec.
 
+(** Definition of the Blocked AMQ Hash function *)
 Module BlockedAMQHash (Spec:  BlockedAMQSpec) (AmqHash: AMQHASH) <: AMQHASH.
   Module AmqHashProperties := AMQHashProperties AmqHash.
 
@@ -49,16 +71,24 @@ Module BlockedAMQHash (Spec:  BlockedAMQSpec) (AmqHash: AMQHASH) <: AMQHASH.
   Definition AMQHashParams :=
     (BasicMetaHash.AMQHashParams * AmqHash.AMQHashParams)%type.
   
-
+  (** The hash output of the blocked AMQ is a pair, where the first
+      element is the hash value chosen by the hash functions of the
+      blocking construction itself, and the second element is the hash
+      value chosen by the hash functions of the constituent AMQ.  *)
   Definition AMQHashValue p :=
     [finType of (BasicMetaHash.AMQHashValue p.1 * AmqHash.AMQHashValue p.2)%type].
 
+  (** The hash state of a Blocked hash function is the state of the
+  hash function of the blocking construction itself and the state of
+  the hash functions of each of the constituent AMQS. *)
   Definition AMQHash p :=
     [finType of
              BasicMetaHash.Hash.HashState p.1 *
      Spec.n.+1.-tuple (AmqHash.AMQHash p.2)
     ].
 
+  (** Defines and proves the required properties to satisfy the
+  AMQHash interface *)
   Section AMQHash.
     Variable p: AMQHashParams. 
 
@@ -105,7 +135,7 @@ Module BlockedAMQHash (Spec:  BlockedAMQSpec) (AmqHash: AMQHASH) <: AMQHASH.
                                               (all (fun hsh => AmqHash.AMQHash_hashstate_unseen hsh key) hashstate.2)
       ).
 
-    (* probabilistic hash operation*)
+    (** probabilistic hash operation*)
     Definition AMQHash_hash
                (hashstate: AMQHash p) (key: AMQHashKey) : Comp [finType of (AMQHash p * AMQHashValue p)] :=
       res <-$ BasicMetaHash.Hash.hash _ key hashstate.1;
@@ -120,7 +150,7 @@ Module BlockedAMQHash (Spec:  BlockedAMQSpec) (AmqHash: AMQHASH) <: AMQHASH.
           let hash_state' := (meta_hash_state', block_hashes) in
           ret (hash_state', (value1,ind')).
 
-    (* properties of deterministic hash state operations *)
+    (** properties of deterministic hash state operations *)
     Section DeterministicOperations.
 
       Variable hashstate: AMQHash p.
@@ -312,7 +342,8 @@ Module BlockedAMQHash (Spec:  BlockedAMQSpec) (AmqHash: AMQHASH) <: AMQHASH.
 
 End BlockedAMQHash.
 
-
+(** Defines the BlockedAMQ data structure as a higher order
+datastructure parameterised over an AMQ Amq *)
 Module BlockedAMQ
        (Spec:  BlockedAMQSpec) (AmqHash: AMQHASH) (Amq: AMQ AmqHash).
 
@@ -325,7 +356,8 @@ Module BlockedAMQ
     Definition AMQState (p: AMQStateParams) : finType :=
       [finType of (Spec.n.+1).-tuple (Amq.AMQState p)].
 
-
+    (** Provides the definitions and properties required to
+    instantiate the AMQ interface.  *)
     Section AMQ.
       Variable p: AMQStateParams.
       Variable h: MetaHash.AMQHashParams.
@@ -438,8 +470,8 @@ Module BlockedAMQ
 
   End AMQ.
 
-
-
+  (** Proves the standard probabilistic properties for Blocked AMQs
+  abstractly *)
   Module BlockedAMQProperties (AmqProperties: AMQProperties AmqHash Amq) <:
     AMQProperties MetaHash AMQ.
 

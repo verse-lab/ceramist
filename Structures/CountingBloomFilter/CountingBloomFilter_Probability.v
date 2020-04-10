@@ -1,3 +1,16 @@
+(** * Structures/CountingBloomFilter/CountingBloomFilter_Probability.v
+-----------------
+
+Proves the standard properties required to instantiate the
+AMQProperties interface for a Counting Bloom Filter - i.e proving
+false negative and false positive rates of a Counting Bloom Filter
+using the definitions defined in
+[Structures/CountingBloomFilter/CountingBloomFilter_Definitions.v]
+
+This file is a good example of how to use the AMQReduction modules to
+obtain properties of AMQs for free by reduction *)
+
+
 From mathcomp.ssreflect Require Import
      ssreflect ssrbool ssrnat eqtype fintype
      choice ssrfun seq path bigop finfun binomial.

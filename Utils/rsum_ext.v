@@ -1,3 +1,11 @@
+(** * Utils/rsum_ext.v
+-----------------
+
+Defines a set of theorems and properties to simplify reasoning about
+ the types of real value summations that frequently occur when
+ reasoing about probabilistic computations .*)
+
+
 From mathcomp.ssreflect
      Require Import ssreflect ssrbool ssrnat eqtype fintype finset choice ssrfun seq path bigop finfun binomial.
 
@@ -12,6 +20,7 @@ From infotheo
 
 Require Import Coq.Logic.ProofIrrelevance.
 Require Import Coq.Logic.FunctionalExtensionality.
+
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -41,7 +50,7 @@ Notation "a '->=-' b " := (Rdefinitions.Rge a b) (at level 70).
 Notation "d[ a ]" := (evalDist a) (at level 70).
 Reserved Notation "a '^R^' b"  (at level 70).
 Notation "a '%R' " := (Raxioms.INR a) (at level 70).
-(* We'll use the definition of rpower for natural numbers as
+(** We'll use the definition of rpower for natural numbers as
    coq's Rpower doesn't support raising 0 to a power  *)
 Notation "a '^R^' b" := (Rpow_def.pow a b).
 

@@ -1,3 +1,13 @@
+(** * Structures/CountingBloomFilter/CountingBloomFilter_Definitions.v
+-----------------
+
+Provides the definitions and deterministic operations of a Counting
+Bloom Filter and uses them to instantiate the AMQ interface.
+
+This file is a good example of how to construct the modules required
+by AMQReduction interface. See [BloomFilterReduction]  *)
+
+
 From mathcomp.ssreflect
      Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq path bigop finfun .
 
@@ -27,29 +37,24 @@ From ProbHash.Utils
 From ProbHash.BloomFilter
      Require Import BloomFilter_Definitions BloomFilter_Probability.
 
+
 Module CountingBloomFilterDefinitions (Spec:HashSpec).
 
   Module BloomFilterProbability := (BloomFilterProbability Spec).
   Export BloomFilterProbability.
 
+  (** A fomalization of a counting bloom filter structure and properties *)
   Section CountingBloomFilter.
-    (*
-   A fomalization of a counting bloom filter structure and properties
-     *)
-    (*
-    k - number of hashes
-     *)
+    (**    k - number of hashes *)
     Variable k: nat.
-    (*
-    n - maximum number of hashes supported
-     *)
+    (** n - maximum number of hashes supported *)
     Variable n: nat.
 
     Lemma Hngt0: n.+1 > 0.
     Proof. by []. Qed.
     
     Variable Hkgt0: k >0.
-    (*
+    (**
      list of hash functions used in the bloom filter
      *)
     Definition CountVector := (Hash_size.+1).-tuple 'I_n.+1.
@@ -819,7 +824,8 @@ Module CountingBloomFilterDefinitions (Spec:HashSpec).
     End AMQ.
   End AMQ.
 
-
+  (** Defines a mapping from Counting Bloom Filters to Bloom Filters
+  (by treating all counters with values greater than 0 as raised) *)
   Module BloomFilterReduction : AMQMAP (BasicHashVec) (AMQ) (BloomFilterProbability.BloomfilterAMQ).
 
 

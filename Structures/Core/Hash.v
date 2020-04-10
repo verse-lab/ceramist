@@ -1,3 +1,14 @@
+(** * Structures/Core/Hash.v
+-----------------
+
+Definition of arbitrary hash functions, assuming perfect uniform
+distribution.  Each hash function is represented using a random
+variable to simulate uniformly distributed random outputs (i.e a
+perfect hash function) and a map mapping of input types to output
+values, to ensure repeated hashes of the same value produce the same
+output.
+  *)
+
 From mathcomp.ssreflect
      Require Import ssreflect ssrbool ssrnat eqtype fintype choice ssrfun seq path.
 
@@ -13,24 +24,20 @@ From ProbHash.Utils
 
 From ProbHash.Core
      Require Import  FixedList FixedMap.
+
+
+(** Parameters of a hash function *)
 Module Type HashSpec.
-  (* Input type being hashed *)
+  (** Input type being hashed *)
   Parameter B: finType.
-  (* size of hash output and bitvector output *)
+  (** size of hash output and bitvector output *)
   Parameter Hash_size: nat.
 End HashSpec.
 
+(** Implementation of a  hash function as a random oracle.  *)
 Module Hash (Spec : HashSpec).
 
   Export Spec.
-  (*
-   Hash
------------
-Definition of arbitrary hash functions, assuming perfect uniform distribution.
-Each hash function is represented using a random variable to simulate uniformly distributed random outputs
-(i.e a perfect hash function) and a map mapping of input types to output values, to ensure repeated hashes
-of the same value produce the same output.
-   *)
   Definition hash_keytype := [eqType of B].
   Definition hash_valuetype := [eqType of (ordinal Hash_size.+1)].
   Definition HashState n := fixmap hash_keytype hash_valuetype n.
