@@ -229,9 +229,9 @@ opam update
 opam install -y --deps-only coq-ceramist.1.0.1
 ```
 
-3. Clone the ceramist project:
+3. Clone the ceramist artefact:
 ```
-git clone https://github.com/certichain/ceramist
+git clone -b artefact https://github.com/certichain/ceramist.git
 cd ./ceramist
 ```
 
