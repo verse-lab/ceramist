@@ -13,11 +13,10 @@ In order to build the image, you must have the
 [Docker](https://www.docker.com/) platform (>= Docker version 19.03.7)
 installed and the docker daemon running.
 
-Note: If running on Windows or Mac OS ensure that you have at least
-8GB of RAM allocated to the docker process (see
-[here](https://docs.docker.com/docker-for-mac/#advanced) for Mac OS
-and [here](https://docs.docker.com/docker-for-windows/#advanced) for
-Windows).
+Note: If running on Windows or Mac OS ensure that you have at least 8GB
+of RAM allocated to the docker process (see
+[here](https://docs.docker.com/docker-for-mac/#advanced) for Mac OS and
+[here](https://docs.docker.com/docker-for-windows/#advanced) for Windows).
 
 The source of this artefact script can be obtained from GitHub:
 ```
@@ -35,9 +34,8 @@ docker build --memory=8g -t ceramist:1.0.1 .
 
 Note: If the build fails with a `killed` message, this means that your
 docker process ran out of memory - please ensure that you have allowed
-it at least 8GB of ram (see
-[here](https://docs.docker.com/docker-for-mac/#advanced) for Mac OS
-and [here](https://docs.docker.com/docker-for-windows/#advanced) for
+it at least 8GB of ram (see [here](https://docs.docker.com/docker-for-mac/#advanced) for
+Mac OS and [here](https://docs.docker.com/docker-for-windows/#advanced) for
 Windows).
 
 
@@ -53,8 +51,7 @@ COQC Structures/BlockedAMQ/BlockedAMQ.v
 make[1]: Leaving directory '/ceramist'
 ```
 
-At this point all the proofs in the artefact have been compiled and
-the docker image is ready.
+At this point all the proofs in the artefact have been compiled and the docker image is ready.
 
 To browse the files within the image, first start a docker container from the image:
 ```
@@ -113,31 +110,21 @@ The structure of the overall development is as follows:
 ```
 
 The library is split into separate logical components by directory:
-- *Computation* - defines a probability monad and associated notation
-  for it on top of the 'coq-infotheo' probability library.
-- *Utils* - collection of utility lemmas and tactics used throughout
-  the development
-- *Structures/Core* - contains definitions and properties about the
-  core probabilistic primitives exported by the library, and defines
-  the abstract AMQ interface satisfied by all instantiations.
-- *Structures/BloomFilter* - example use of the exported library to
-  prove various probabilistic properties on bloom filters.
-- *Structures/CountingBloomFilter* - another exemplar use of the
-  library to prove probabilistic properties on counting bloom filters.
-- *Structures/QuotientBloomFilter* - exemplar use of library to prove
-  probabilistic properties of quotient filters
-- *Structures/BlockedAMQ* - exemplar use of library to prove
-  probabilistic properties of a higher order AMQ - the blockedAMQ
+- *Computation* - defines a probability monad and associated notation for it on top of the 'coq-infotheo' probability library.
+- *Utils* - collection of utility lemmas and tactics used throughout the development
+- *Structures/Core* - contains definitions and properties about the core probabilistic primitives exported by the library, and defines the abstract AMQ interface satisfied by all instantiations.
+- *Structures/BloomFilter* - example use of the exported library to prove various probabilistic properties on bloom filters.
+- *Structures/CountingBloomFilter* - another exemplar use of the library to prove probabilistic properties on counting bloom filters. 
+- *Structures/QuotientBloomFilter* - exemplar use of library to prove probabilistic properties of quotient filters
+- *Structures/BlockedAMQ* - exemplar use of library to prove probabilistic properties of a higher order AMQ - the blockedAMQ 
 
-Check out `Structures/Demo.v` for an example instantiation of the
-BlockedAMQ to derive Blocked Bloom filters, Counting Blocked bloom
-filters and Blocked Quotient filters.
+Check out `Structures/Demo.v` for an example instantiation of the BlockedAMQ to derive Blocked Bloom filters, Counting Blocked bloom filters and Blocked Quotient filters.
 
 ## Theorems and Lemmas
 The following table maps the statements from the paper to statements
 in the source code:
 
-- *Theorem 3 (No False Negatives)*
+- *Theorem 3 (No False Negatives)* 
   - file: Structures/BloomFilter/BloomFilter_Probability.v
   - line: 1166
   - name: AMQ_no_false_negatives
@@ -203,7 +190,7 @@ in the source code:
     the second version is for when the plausiblility is a goal
 - *Theorem 9 (Quotient filter False Positive Rate)**
   - file: Structures/QuotientFilter/QuotientFilter_Probability.v
-  - line: 527
+  - line:  527
   - name: AMQ_false_positives_rate
 - *Theorem 10 (Blocked AMQ False Positive Rate)*
   - file: Structures/BlockedAMQ/BlockedAMQ.v
