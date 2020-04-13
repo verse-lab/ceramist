@@ -6,7 +6,7 @@ opam: &OPAM
     # Prepare the COQ container
     docker pull ${COQ_IMAGE}
     docker run -d -i --init --name=COQ -v ${TRAVIS_BUILD_DIR}:/home/coq/${CONTRIB_NAME} -w /home/coq/${CONTRIB_NAME} ${COQ_IMAGE}
-    docker exec COQ /bin/bash --login -c "
+    travis_wait 60 docker exec COQ /bin/bash --login -c "
       # This bash script is double-quoted to interpolate Travis CI env vars:
       echo \"Build triggered by ${TRAVIS_EVENT_TYPE}\"
       export PS4='+ \e[33;1m(\$0 @ line \$LINENO) \$\e[0m '
