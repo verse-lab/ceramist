@@ -43,9 +43,4 @@ matrix:
     - NJOBS=2
     - SWITCH=4.07.1+flambda
     <<: *OPAM
-  - env:
-    - COQ_IMAGE=coqorg/coq:dev
-    - CONTRIB_NAME=coq-ceramist
-    - NJOBS=2
-    - SWITCH=4.07.1+flambda
-    <<: *OPAM
+
