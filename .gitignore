@@ -82,3 +82,7 @@ Makefile.coq
 .coqdeps.d
 Makefile.coq.conf
 Makefile.conf
+
+*.vok
+*.vos
+.Makefile.coq.d
