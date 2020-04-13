@@ -19,7 +19,7 @@ of RAM allocated to the docker process (see
 
 The source of this artefact script can be obtained from GitHub:
 ```
-git clone https://github.com/Gopiandcode/ceramist-artefact.git
+git clone -b artefact https://github.com/certichain/ceramist.git
 ```
 
 ## Building the artefact
