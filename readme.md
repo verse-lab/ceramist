@@ -54,10 +54,10 @@ At this point all the proofs in the artefact have been compiled and the docker i
 
 To browse the files within the image, first start a docker container from the image:
 ```
-docker run --name ceramist --rm -it ceramist:1.01
+docker run --name ceramist --rm -it ceramist:1.0.1
 ```
 You should now be dropped into a shell with the working directory set to a folder containing the ceramist source code.
-From here you can explore the source code/build the coqdoc documentation (using `eval $(opam env) && make doc`, and the output will be placed into a html folder at the ceramist root).
+From here you can explore the source code/build the coqdoc documentation (using `eval $(opam env) && make doc`, and the output will be placed into a `html` folder at the ceramist root).
 
 If you wish to browse the files on your local machine, start up the
 docker container, using the command above, and *while it is still
@@ -67,7 +67,7 @@ running (i.e don't close it)*, in a separate shell, execute:
 docker cp  ceramist:/ceramist ./ceramist
 ```
 
-This will copy the compiled ceramist source code (and html
+This will copy the compiled ceramist source code (and HTML
 documentation, if you have made it, to your local machine).
 
 ## Project Structure
