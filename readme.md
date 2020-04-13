@@ -1,34 +1,78 @@
-# Ceramist -  Verified Hash-based Approximate Membership Structures
-## Installation (using Opam)
-Create a new switch
+# Ceramist Artefact
+
+This is the artefact accompanying the CAV 2020 paper entitled
+"Ceramist: Certifying Certainty and Uncertainty in Approximate
+Membership Query Structures".
+
+The artefact contains a scripts that will download and compile the
+Ceramist proof scripts in a docker container.
+
+## Prerequisites
+
+In order to build the image, you must have the
+[Docker](https://www.docker.com/) platform (>= Docker version 19.03.7)
+installed and the docker daemon running.
+
+Note: If running on Windows or Mac OS ensure that you have at least
+8GB of RAM allocated to the docker process (see
+[here](https://docs.docker.com/docker-for-mac/#advanced) for Mac OS
+and [here](https://docs.docker.com/docker-for-windows/#advanced) for
+Windows).
+
+The source of this artefact script can be obtained from GitHub:
 ```
-opam switch create ceramist 4.09.0
-eval $(opam env)
+git clone -b artefact https://github.com/certichain/ceramist.git
 ```
 
-Add coq-released repository to opam:
+## Building the artefact
+Note: The artefact is expected to take around 1 hour to compile from
+sources.
+
+Once you have the Docker daemon running, navigate to the root of this repository and run:
 ```
-opam repo add coq-released https://coq.inria.fr/opam/released
+docker build --memory=8g -t ceramist:1.0.1 .
 ```
 
-Install ceramist:
-```
-opam install coq-ceramist.1.0.1
-```
+Note: If the build fails with a `killed` message, this means that your
+docker process ran out of memory - please ensure that you have allowed
+it at least 8GB of ram (see
+[here](https://docs.docker.com/docker-for-mac/#advanced) for Mac OS
+and [here](https://docs.docker.com/docker-for-windows/#advanced) for
+Windows).
 
 
-## Installation (from Sources)
-Use opam to install dependencies
+This will download all the project's dependencies and will compile the
+proof scripts - this will take a while (around 1 hour).
+
+When the build completes, you should see the following output:
+```
+COQC Structures/CountingBloomFilter/CountingBloomFilter_Probability.v
+COQC Structures/QuotientFilter/QuotientFilter_Definitions.v
+COQC Structures/QuotientFilter/QuotientFilter_Probability.v
+COQC Structures/BlockedAMQ/BlockedAMQ.v
+make[1]: Leaving directory '/ceramist'
+```
+
+At this point all the proofs in the artefact have been compiled and
+the docker image is ready.
+
+To browse the files within the image, first start a docker container from the image:
+```
+docker run --name ceramist --rm -it ceramist:1.0.1
+```
+You should now be dropped into a shell with the working directory set to a folder containing the ceramist source code.
+From here you can explore the source code/build the coqdoc documentation (using `eval $(opam env) && make doc`, and the output will be placed into a `html` folder at the ceramist root).
+
+If you wish to browse the files on your local machine, start up the
+docker container, using the command above, and *while it is still
+running (i.e don't close it)*, in a separate shell, execute:
 
 ```
-opam install ./opam
+docker cp  ceramist:/ceramist ./ceramist
 ```
 
-Then build the project:
-```
-make clean && make
-```
-Takes around an hour to build.
+This will copy the compiled ceramist source code (and HTML
+documentation, if you have made it, to your local machine).
 
 ## Project Structure
 The structure of the overall development is as follows:
@@ -69,78 +113,150 @@ The structure of the overall development is as follows:
 ```
 
 The library is split into separate logical components by directory:
-- *Computation* - defines a probability monad and associated notation for it on top of the 'coq-infotheo' probability library.
-- *Utils* - collection of utility lemmas and tactics used throughout the development
-- *Structures/Core* - contains definitions and properties about the core probabilistic primitives exported by the library, and defines the abstract AMQ interface satisfied by all instantiations.
-- *Structures/BloomFilter* - example use of the exported library to prove various probabilistic properties on bloom filters.
-- *Structures/CountingBloomFilter* - another exemplar use of the library to prove probabilistic properties on counting bloom filters. 
-- *Structures/QuotientBloomFilter* - exemplar use of library to prove probabilistic properties of quotient filters
-- *Structures/BlockedAMQ* - exemplar use of library to prove probabilistic properties of a higher order AMQ - the blockedAMQ 
+- *Computation* - defines a probability monad and associated notation
+  for it on top of the 'coq-infotheo' probability library.
+- *Utils* - collection of utility lemmas and tactics used throughout
+  the development
+- *Structures/Core* - contains definitions and properties about the
+  core probabilistic primitives exported by the library, and defines
+  the abstract AMQ interface satisfied by all instantiations.
+- *Structures/BloomFilter* - example use of the exported library to
+  prove various probabilistic properties on bloom filters.
+- *Structures/CountingBloomFilter* - another exemplar use of the
+  library to prove probabilistic properties on counting bloom filters.
+- *Structures/QuotientBloomFilter* - exemplar use of library to prove
+  probabilistic properties of quotient filters
+- *Structures/BlockedAMQ* - exemplar use of library to prove
+  probabilistic properties of a higher order AMQ - the blockedAMQ
 
-Check out `Structures/Demo.v` for an example instantiation of the BlockedAMQ to derive Blocked Bloom filters, Counting Blocked bloom filters and Blocked Quotient filters.
+Check out `Structures/Demo.v` for an example instantiation of the
+BlockedAMQ to derive Blocked Bloom filters, Counting Blocked bloom
+filters and Blocked Quotient filters.
 
-## Tactics
-To simplify reasoning about probabilistic computations, we provide a few helper tactics under `ProbHash.Utils`:
+## Theorems and Lemmas
+The following table maps the statements from the paper to statements
+in the source code:
 
-- `comp_normalize` - is a tactic which normalizes  probabilistic computations in the goal to a standard
-   form consisting of a nested summation with a summand which is the product of each individual statement:
-   For example, if our goal contains a term of the form:
-   ```
-   d[ res <-$ hash n v hsh;
-   x <- fst res;
-   ret x ] value
-   ```
-   applying `comp_normalize` normalizes it to:
-   ```
-   \sum_(i in HashState n) 
-   \sum_(i0 in 'I_Hash_size.+1) 
-   ((d[ hash n v hsh]) (i, i0) *R* 
-   ((value == i0) %R))
-   ``` 
-   This tactic works by simply recursively descending the computation and expanding the
-   definition of the distribution.
+- *Theorem 3 (No False Negatives)*
+  - file: Structures/BloomFilter/BloomFilter_Probability.v
+  - line: 1166
+  - name: AMQ_no_false_negatives
+- *Lemma 2 (Probability of Flipping a Single Bit)*
+  - file: Structures/BloomFilter/BloomFilter_Probability.v:
+  - line: 588
+  - name: bloomfilter_addn_insert_multiple
+- *Theorem 4 (Probability of a False Positive)*
+  - file: Structures/BloomFilter/BloomFilter_Probability.v:
+  - line: 1187
+  - name: AMQ_false_positives_rate
+- *Theorem 5 (Uniform Hash Output)*
+  - file: Structures/Core/HashVec.v
+  - line: 296
+  - name: hash_vecP
+- *Theorem 6 (Hash Consistency)*
+  - file: Structures/Core/HashVec.v
+  - line: 517
+  - name: hash_vec_find_simpl
+- *AMQHash Interface - Property 1,2*
+  - file: Structures/Core/AMQHash.v
+  - line: 39
+  - name: AMQHASH
+  - note: instantiated for single hash functions at line 156
+    (BasicHash), and for hash vectors at line 354 (BasicHashVec) of
+    same file.
+- *AMQ Interface - Property 3,4*
+  - file: Structures/Core/AMQ.v
+  - line: 46
+  - name: AMQ
+- *Theorem 7 (Generalized No False Negatives)*
+  - file: Structures/Core/AMQ.v
+  - line: 281
+  - name: AMQ_no_false_negatives
+- *AMQMap Interface - Property 5,6*
+  - file: Structures/Core/AMQReduction.v
+  - line: 42
+  - name: AMQMAP
+  - note: instantiated for Counting Bloom filters in
+    Structures/CountingBloomFilter/CountingBloomFilterDefinitions.v at
+    line 832 (BloomFilterReduction).
+- *Theorem 8 (AMQ False Positive Reduction)*
+  - file: Structures/Core/AMQReduction.v
+  - line: 205
+  - name: AMQ_false_positives_rate
+- *Pattern 1 (Bind normalization)*
+  - file: Utils/tactics.v
+  - line: 53
+  - name: comp_normalize
+- *Pattern 2 (Probability of a Sequential Composition)*
+  - file: Utils/tactics.v
+  - line: 171
+  - name: comp_simplify
+- *Lemma 3 (Plausible Sequencing)*
+  - file: Utils/rsum_ext.v
+  - line: 732
+  - name: eq_rsum_ne0
+- *Pattern 3 (Plausible Outcome Decomposition)*
+  - file: Utils/tactics.v
+  - line: 197,258
+  - name: comp_possible_decompose, comp_possible_exists
+  - note: first version for when plausiblility is an assumption, and
+    the second version is for when the plausiblility is a goal
+- *Theorem 9 (Quotient filter False Positive Rate)**
+  - file: Structures/QuotientFilter/QuotientFilter_Probability.v
+  - line: 527
+  - name: AMQ_false_positives_rate
+- *Theorem 10 (Blocked AMQ False Positive Rate)*
+  - file: Structures/BlockedAMQ/BlockedAMQ.v
+  - line: 738
+  - name: AMQ_false_positives_rate
+  - note: see Structures/Demo.v for an instantiation of the Blocked
+    AMQ on each of the prior AMQs
+- *Theorem 11 (Counting Bloom filter removal)*
+  - file:
+    Structures/CountingBloomFilter/CountingBloomFilter_Probability.v
+  - line: 178
+  - name: countingbloomfilter_removal_preserve
+- *Theorem 12 (Certainty of Counter Increments)*
+  - file:
+    Structures/CountingBloomFilter/CountingBloomFilter_Probability.v
+  - line: 104
+  - name: countingbloomfilter_counter_prob
 
-- `comp_simplify` - is a tactic which effectively applies beta
-   reduction to the normalized form, substituting any `ret x` (which
-   have been normalized to a factor of the form `(x == ...)` by the previous tactic)
-   statements into the rest of the computation - applying it to the previous example would result in:
-   ```
-   \sum_(i in HashState n) 
-   (d[ hash n v hsh]) (i, value)
-   ```
-- `comp_simplify_n n` - is a variant of the previous one which applies
-   the reduction a fixed number `n` of times as sometimes the previous
-   tactic may loop.
-- `comp_possible_decompose` - is a tactic which converts a fact (must
-   be first element of goal) about a possible computation 
-   `( d[ c1; c2; ....; cn] v != 0)` 
-   into a fact about the possibility of the individual statements of
-   the computation
-   `forall v1,v2, ..., vn, d[ c1 ] v1 != 0 -> d[ c2] v2 -> .... d[ cn] vn != 0`
-- `comp_possible_exists` is a tactic which converts a goal about a computation being possible
-   `( d[ c1; c2; ....; cn] v != 0)` 
-   into a corresponding proof of existance, where one must provide
-   possible outcomes for each statement outcome
-   `exists v1,v2, ..., vn, d[ c1 ] v1 != 0 /\ d[ c2] v2 /\ .... /\ d[ cn] vn != 0`
-- `comp_impossible_decompose` - is a tactic which automatically
-   decomposes an impossibility statement 
-   `\sum_{v1} ... \sum_{vn} P[c1 = v1] * ... * P[ cn = vn ] = 0` 
-   into properties about its component parts 
-   `forall v1,..,vn, P[c1 = v1] * ... * P[cn = vn] = 0`
 
-- `exchange_big_inwards f` - is a tactic which moves the outermost
-   summation in a series of nested summations to the innermost
-   position, then applies the supplied tactic `f` in this context.
+## Building Locally
+If you wish to step through the proof interactively, we recommend you
+build the artefact locally.
 
-- `exchange_big_outwards n` - is a tactic which moves the `n`th
-   summation in a series of nested summations to the outermost
-   position.
+To do this, ensure that you have the latest version of
+[opam](https://opam.ocaml.org/) installed, and that it has been
+correctly initialised (running `opam init` and `eval $(opam env)`).
 
-## License
-Given its dependencies:
+1. Add the coq-released repository.
+```
+opam repo add coq-released https://coq.inria.fr/opam/released
+opam update
+```
 
-- Coq (distributed under the LGPLv2.1 license)
-- MathComp (distributed under the CeCILL-B license)
-- Infotheo (distributed under the GPLv3 license)
+2. Install the dependencies for ceramist (you may also be prompted to use `--unlock-base`):
+```
+opam install -y --deps-only coq-ceramist.1.0.1
+```
 
-ProbHash is distributed under the GPLv3 license.
+3. Clone the ceramist project:
+```
+git clone https://github.com/certichain/ceramist
+cd ./ceramist
+```
+
+4. Build ceramist:
+```
+make
+```
+
+5. (Optional) Build ocamldoc - the documentation will be placed into a  folder named `html` at the project root:
+```
+make doc
+```
+
+6. Open the coq source files (`.v` extension) in either coq-ide or
+   proof general.
