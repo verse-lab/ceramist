@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/certichain/ceramist.svg?branch=master)](https://travis-ci.org/certichain/ceramist)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://raw.githubusercontent.com/certichain/ceramist/master/LICENSE)
+[![DOI](https://zenodo.org/badge/189386550.svg)](https://zenodo.org/badge/latestdoi/189386550)
 
 
 ## Installation (using Opam)
