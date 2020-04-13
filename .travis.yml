@@ -40,7 +40,7 @@ matrix:
   - env:
     - COQ_IMAGE=mathcomp/mathcomp:1.10.0-coq-8.11
     - CONTRIB_NAME=coq-ceramist
-    - NJOBS=2
+    - NJOBS=4
     - SWITCH=4.07.1+flambda
     <<: *OPAM
 
