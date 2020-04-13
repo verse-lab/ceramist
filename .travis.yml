@@ -16,7 +16,7 @@ opam: &OPAM
       opam switch ${SWITCH} ; eval $(opam env)
       opam update -y
       opam pin add ${CONTRIB_NAME} . -y -n -k path
-      opam install ${CONTRIB_NAME} -y -j ${NJOBS} --deps-only
+      travis_wait 60 opam install ${CONTRIB_NAME} -y -j ${NJOBS} --deps-only
       opam config list
       opam repo list
       opam list
