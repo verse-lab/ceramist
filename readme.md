@@ -1,4 +1,8 @@
 # Ceramist -  Verified Hash-based Approximate Membership Structures
+
+[![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://raw.githubusercontent.com/certichain/ceramist/master/LICENSE)
+
+
 ## Installation (using Opam)
 Create a new switch
 ```
