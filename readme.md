@@ -1,5 +1,6 @@
 # Ceramist -  Verified Hash-based Approximate Membership Structures
 
+[![Build Status](https://travis-ci.org/certichain/ceramist.svg?branch=master)](https://travis-ci.org/certichain/ceramist)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://raw.githubusercontent.com/certichain/ceramist/master/LICENSE)
 
 
